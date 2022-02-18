@@ -79,7 +79,7 @@ public:
       BOOST_REQUIRE_EQUAL(abi_serializer::to_abi(accnt.abi, abi), true);
       abi_ser.set_abi(abi, abi_serializer::create_yield_function(abi_serializer_max_time));
 
-      while( control->pending_block_producer().to_string() == "eosio" ) {
+      while( control->pending_block_producer().to_string() == "amax" ) {
          produce_block();
       }
    }

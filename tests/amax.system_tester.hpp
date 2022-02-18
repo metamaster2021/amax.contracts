@@ -51,7 +51,7 @@ public:
       FC_ASSERT( core_symbol.decimals() == 4, "create_core_token assumes core token has 4 digits of precision" );
       create_currency( N(amax.token), config::system_account_name, asset(100000000000000, core_symbol) );
       issue( asset(10000000000000, core_symbol) );
-      BOOST_REQUIRE_EQUAL( asset(10000000000000, core_symbol), get_balance( "eosio", core_symbol ) );
+      BOOST_REQUIRE_EQUAL( asset(10000000000000, core_symbol), get_balance( "amax", core_symbol ) );
    }
 
    void deploy_contract( bool call_init = true ) {
@@ -81,7 +81,7 @@ public:
       create_account_with_resources( N(bob111111111), config::system_account_name, core_sym::from_string("0.4500"), false );
       create_account_with_resources( N(carol1111111), config::system_account_name, core_sym::from_string("1.0000"), false );
 
-      BOOST_REQUIRE_EQUAL( core_sym::from_string("1000000000.0000"), get_balance("eosio")  + get_balance("amax.ramfee") + get_balance("amax.stake") + get_balance("amax.ram") );
+      BOOST_REQUIRE_EQUAL( core_sym::from_string("1000000000.0000"), get_balance("amax")  + get_balance("amax.ramfee") + get_balance("amax.stake") + get_balance("amax.ram") );
    }
 
    enum class setup_level {
@@ -956,7 +956,7 @@ public:
       abi_serializer msig_abi_ser;
       {
          create_account_with_resources( N(amax.msig), config::system_account_name );
-         BOOST_REQUIRE_EQUAL( success(), buyram( N(eosio), N(amax.msig), core_sym::from_string("5000.0000") ) );
+         BOOST_REQUIRE_EQUAL( success(), buyram( N(amax), N(amax.msig), core_sym::from_string("5000.0000") ) );
          produce_block();
 
          auto trace = base_tester::push_action(config::system_account_name, N(setpriv),
@@ -979,7 +979,7 @@ public:
 
    vector<name> active_and_vote_producers() {
       //stake more than 15% of total EOS supply to activate chain
-      transfer( N(eosio), N(alice1111111), core_sym::from_string("650000000.0000"), config::system_account_name );
+      transfer( N(amax), N(alice1111111), core_sym::from_string("650000000.0000"), config::system_account_name );
       BOOST_REQUIRE_EQUAL( success(), stake( N(alice1111111), N(alice1111111), core_sym::from_string("300000000.0000"), core_sym::from_string("300000000.0000") ) );
 
       // create accounts {defproducera, defproducerb, ..., defproducerz} and register as producers
@@ -1075,7 +1075,7 @@ public:
    }
 
    action_result setinflation( int64_t annual_rate, int64_t inflation_pay_factor, int64_t votepay_factor ) {
-      return push_action( N(eosio), N(setinflation), mvo()
+      return push_action( N(amax), N(setinflation), mvo()
                ("annual_rate",     annual_rate)
                ("inflation_pay_factor", inflation_pay_factor)
                ("votepay_factor", votepay_factor)
