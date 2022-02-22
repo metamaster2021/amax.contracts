@@ -899,10 +899,10 @@ BOOST_FIXTURE_TEST_CASE( producer_wtmsig, eosio_system_tester ) try {
 
 } FC_LOG_AND_RETHROW()
 
-BOOST_FIXTURE_TEST_CASE( producer_wtmsig_transition, eosio_system_tester ) try {
-   cross_15_percent_threshold();
+// BOOST_FIXTURE_TEST_CASE( producer_wtmsig_transition, eosio_system_tester ) try {
+//    cross_15_percent_threshold();
 
-   BOOST_REQUIRE_EQUAL( control->active_producers().version, 0u );
+//    BOOST_REQUIRE_EQUAL( control->active_producers().version, 0u );
 
    // set_code( config::system_account_name, contracts::util::system_wasm_v1_8() );
    // set_abi(  config::system_account_name, contracts::util::system_abi_v1_8().data() );
@@ -926,23 +926,23 @@ BOOST_FIXTURE_TEST_CASE( producer_wtmsig_transition, eosio_system_tester ) try {
    // produce_blocks(2);
    // BOOST_REQUIRE_EQUAL( control->active_producers().version, 1u );
 
-   const auto schedule_update1 = get_global_state()["last_producer_schedule_update"];
+   // const auto schedule_update1 = get_global_state()["last_producer_schedule_update"];
 
-   const auto& rlm = control->get_resource_limits_manager();
+   // const auto& rlm = control->get_resource_limits_manager();
 
-   auto alice_initial_ram_usage = rlm.get_account_ram_usage(N(alice1111111));
+   // auto alice_initial_ram_usage = rlm.get_account_ram_usage(N(alice1111111));
 
-   set_code( config::system_account_name, contracts::system_wasm() );
-   set_abi(  config::system_account_name, contracts::system_abi().data() );
-   produce_block();
-   BOOST_REQUIRE_EQUAL( control->pending_block_producer(), N(alice1111111) );
+   // set_code( config::system_account_name, contracts::system_wasm() );
+   // set_abi(  config::system_account_name, contracts::system_abi().data() );
+   // produce_block();
+   // BOOST_REQUIRE_EQUAL( control->pending_block_producer(), N(alice1111111) );
 
-   auto alice_prod_info2 = get_producer_info( N(alice1111111) );
-   BOOST_REQUIRE_EQUAL( alice_prod_info2["is_active"], true );
+   // auto alice_prod_info2 = get_producer_info( N(alice1111111) );
+   // BOOST_REQUIRE_EQUAL( alice_prod_info2["is_active"], true );
 
-   produce_block( fc::minutes(2) );
-   const auto schedule_update2 = get_global_state()["last_producer_schedule_update"];
-   BOOST_REQUIRE( schedule_update1 < schedule_update2 ); // Ensure last_producer_schedule_update is increasing.
+   // produce_block( fc::minutes(2) );
+   // const auto schedule_update2 = get_global_state()["last_producer_schedule_update"];
+   // BOOST_REQUIRE( schedule_update1 < schedule_update2 ); // Ensure last_producer_schedule_update is increasing.
 
    // Producing the above block would trigger the bug in v1.9.0 that sets the default block_signing_authority
    // in the producer object of the currently active producer alice1111111.
@@ -951,50 +951,50 @@ BOOST_FIXTURE_TEST_CASE( producer_wtmsig_transition, eosio_system_tester ) try {
    // producer_authority to begin with. This is verified below by ensuring the RAM usage of alice (who pays for the
    // producer object) does not increase.
 
-   auto alice_ram_usage = rlm.get_account_ram_usage(N(alice1111111));
-   BOOST_CHECK_EQUAL( alice_initial_ram_usage, alice_ram_usage );
+//    auto alice_ram_usage = rlm.get_account_ram_usage(N(alice1111111));
+//    BOOST_CHECK_EQUAL( alice_initial_ram_usage, alice_ram_usage );
 
-   auto alice_prod_info3 = get_producer_info( N(alice1111111) );
-   if( alice_prod_info3.get_object().contains("producer_authority") ) {
-      BOOST_CHECK_EQUAL( alice_prod_info3["producer_authority"][1]["threshold"], 0 );
-   }
+//    auto alice_prod_info3 = get_producer_info( N(alice1111111) );
+//    if( alice_prod_info3.get_object().contains("producer_authority") ) {
+//       BOOST_CHECK_EQUAL( alice_prod_info3["producer_authority"][1]["threshold"], 0 );
+//    }
 
-   produce_block( fc::minutes(2) );
-   const auto schedule_update3 = get_global_state()["last_producer_schedule_update"];
+//    produce_block( fc::minutes(2) );
+//    const auto schedule_update3 = get_global_state()["last_producer_schedule_update"];
 
-   // The bug in v1.9.0 would cause alice to have an invalid producer authority (the default block_signing_authority).
-   // The v1.9.0 system contract would have attempted to set a proposed producer schedule including this invalid
-   // authority which would be rejected by the AMAX native system and cause the onblock transaction to continue to fail.
-   // This could be observed by noticing that last_producer_schedule_update was not being updated even though it should.
-   // However, starting in v1.9.1, update_elected_producers is smarter about the producer schedule it constructs to
-   // propose to the system. It will recognize the default constructed authority (which shouldn't be created by the
-   // v1.9.1 system contract but may still exist in the tables if it was constructed by the buggy v1.9.0 system contract)
-   // and instead resort to constructing the block signing authority from the single producer key in the table.
-   // So newer system contracts should see onblock continue to function, which is verified by the check below.
+//    // The bug in v1.9.0 would cause alice to have an invalid producer authority (the default block_signing_authority).
+//    // The v1.9.0 system contract would have attempted to set a proposed producer schedule including this invalid
+//    // authority which would be rejected by the AMAX native system and cause the onblock transaction to continue to fail.
+//    // This could be observed by noticing that last_producer_schedule_update was not being updated even though it should.
+//    // However, starting in v1.9.1, update_elected_producers is smarter about the producer schedule it constructs to
+//    // propose to the system. It will recognize the default constructed authority (which shouldn't be created by the
+//    // v1.9.1 system contract but may still exist in the tables if it was constructed by the buggy v1.9.0 system contract)
+//    // and instead resort to constructing the block signing authority from the single producer key in the table.
+//    // So newer system contracts should see onblock continue to function, which is verified by the check below.
 
-   BOOST_CHECK( schedule_update2 < schedule_update3 ); // Ensure last_producer_schedule_update is increasing.
+//    BOOST_CHECK( schedule_update2 < schedule_update3 ); // Ensure last_producer_schedule_update is increasing.
 
-   // But even if the buggy v1.9.0 system contract was running, it should always still be possible to recover
-   // by having the producer with the invalid authority simply call regproducer or regproducer2 to correct their
-   // block signing authority.
+//    // But even if the buggy v1.9.0 system contract was running, it should always still be possible to recover
+//    // by having the producer with the invalid authority simply call regproducer or regproducer2 to correct their
+//    // block signing authority.
 
-   BOOST_REQUIRE_EQUAL( success(), push_action( N(alice1111111), N(regproducer), mvo()
-                                               ("producer",  "alice1111111")
-                                               ("producer_key", get_public_key( N(alice1111111), "active") )
-                                               ("url","")
-                                               ("location", 0)
-                        )
-   );
+//    BOOST_REQUIRE_EQUAL( success(), push_action( N(alice1111111), N(regproducer), mvo()
+//                                                ("producer",  "alice1111111")
+//                                                ("producer_key", get_public_key( N(alice1111111), "active") )
+//                                                ("url","")
+//                                                ("location", 0)
+//                         )
+//    );
 
-   produce_block();
-   produce_block( fc::minutes(2) );
+//    produce_block();
+//    produce_block( fc::minutes(2) );
 
-   auto alice_prod_info4 = get_producer_info( N(alice1111111) );
-   BOOST_REQUIRE_EQUAL( alice_prod_info4["is_active"], true );
-   const auto schedule_update4 = get_global_state()["last_producer_schedule_update"];
-   BOOST_REQUIRE( schedule_update2 < schedule_update4 );
+//    auto alice_prod_info4 = get_producer_info( N(alice1111111) );
+//    BOOST_REQUIRE_EQUAL( alice_prod_info4["is_active"], true );
+//    const auto schedule_update4 = get_global_state()["last_producer_schedule_update"];
+//    BOOST_REQUIRE( schedule_update2 < schedule_update4 );
 
-} FC_LOG_AND_RETHROW()
+// } FC_LOG_AND_RETHROW()
 
 BOOST_FIXTURE_TEST_CASE( vote_for_producer, eosio_system_tester, * boost::unit_test::tolerance(1e+5) ) try {
    cross_15_percent_threshold();
