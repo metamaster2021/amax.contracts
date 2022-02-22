@@ -6,11 +6,16 @@
 #include <eosio/chain/global_property_object.hpp>
 #include <eosio/chain/resource_limits.hpp>
 #include <eosio/chain/wast_to_wasm.hpp>
+#include <eosio/chain/config.hpp>
 #include <fc/log/logger.hpp>
 #include <iostream>
 #include <sstream>
 
 #include "amax.system_tester.hpp"
+
+
+static const fc::microseconds block_interval_us = fc::microseconds(eosio::chain::config::block_interval_us);
+static const fc::microseconds block_interval_us_2 = fc::microseconds(eosio::chain::config::block_interval_us * 2);
 
 inline constexpr int64_t powerup_frac  = 1'000'000'000'000'000ll; // 1.0 = 10^15
 inline constexpr int64_t stake_weight = 100'000'000'0000ll; // 10^12
@@ -98,7 +103,7 @@ struct powerup_tester : eosio_system_tester {
       config.net.current_weight_ratio = powerup_frac;
       config.net.target_weight_ratio  = powerup_frac / 100;
       config.net.assumed_stake_weight = stake_weight;
-      config.net.target_timestamp     = control->head_block_time() + fc::days(100);
+      config.net.target_timestamp     = control->pending_block_time() + fc::days(100);
       config.net.exponent             = 2;
       config.net.decay_secs           = fc::days(1).to_seconds();
       config.net.min_price            = asset::from_string("0.0000 TST");
@@ -107,7 +112,7 @@ struct powerup_tester : eosio_system_tester {
       config.cpu.current_weight_ratio = powerup_frac;
       config.cpu.target_weight_ratio  = powerup_frac / 100;
       config.cpu.assumed_stake_weight = stake_weight;
-      config.cpu.target_timestamp     = control->head_block_time() + fc::days(100);
+      config.cpu.target_timestamp     = control->pending_block_time() + fc::days(100);
       config.cpu.exponent             = 2;
       config.cpu.decay_secs           = fc::days(1).to_seconds();
       config.cpu.min_price            = asset::from_string("0.0000 TST");
@@ -206,7 +211,7 @@ struct powerup_tester : eosio_system_tester {
       auto after_reserve  = get_account_info(N(amax.reserv));
       auto after_state    = get_state();
 
-      if (false) {
+      if (true) {
          ilog("before_state.net.assumed_stake_weight:    ${x}", ("x", before_state.net.assumed_stake_weight));
          ilog("before_state.net.weight_ratio:            ${x}",
               ("x", before_state.net.weight_ratio / double(powerup_frac)));
@@ -217,6 +222,8 @@ struct powerup_tester : eosio_system_tester {
          ilog("after_receiver.net:                       ${x}", ("x", after_receiver.net));
          ilog("after_receiver.net - before_receiver.net: ${x}", ("x", after_receiver.net - before_receiver.net));
          ilog("expected_net:                             ${x}", ("x", expected_net));
+         ilog("before_payer.liquid:                      ${x}", ("x", before_payer.liquid));
+         ilog("after_payer.liquid:                       ${x}", ("x", after_payer.liquid));
          ilog("before_payer.liquid - after_payer.liquid: ${x}", ("x", before_payer.liquid - after_payer.liquid));
          ilog("expected_fee:                             ${x}", ("x", expected_fee));
 
@@ -288,9 +295,9 @@ BOOST_FIXTURE_TEST_CASE(config_tests, powerup_tester) try {
    BOOST_REQUIRE_EQUAL(wasm_assert_msg("target_timestamp does not have a default value"),
                        configbw(make_config([&](auto& c) { c.net.target_timestamp = {}; })));
    BOOST_REQUIRE_EQUAL(wasm_assert_msg("target_timestamp must be in the future"),
-                       configbw(make_config([&](auto& c) { c.net.target_timestamp = control->head_block_time(); })));
+                       configbw(make_config([&](auto& c) { c.net.target_timestamp = control->pending_block_time(); })));
    BOOST_REQUIRE_EQUAL(wasm_assert_msg("target_timestamp must be in the future"), configbw(make_config([&](auto& c) {
-                          c.net.target_timestamp = control->head_block_time() - fc::seconds(1);
+                          c.net.target_timestamp = control->pending_block_time() - fc::seconds(1);
                        })));
    BOOST_REQUIRE_EQUAL(wasm_assert_msg("exponent must be >= 1"),
                        configbw(make_config([&](auto& c) { c.net.exponent = .999; })));
@@ -333,9 +340,9 @@ BOOST_FIXTURE_TEST_CASE(config_tests, powerup_tester) try {
    BOOST_REQUIRE_EQUAL(wasm_assert_msg("target_timestamp does not have a default value"),
                        configbw(make_config([&](auto& c) { c.cpu.target_timestamp = {}; })));
    BOOST_REQUIRE_EQUAL(wasm_assert_msg("target_timestamp must be in the future"),
-                       configbw(make_config([&](auto& c) { c.cpu.target_timestamp = control->head_block_time(); })));
+                       configbw(make_config([&](auto& c) { c.cpu.target_timestamp = control->pending_block_time(); })));
    BOOST_REQUIRE_EQUAL(wasm_assert_msg("target_timestamp must be in the future"), configbw(make_config([&](auto& c) {
-                          c.cpu.target_timestamp = control->head_block_time() - fc::seconds(1);
+                          c.cpu.target_timestamp = control->pending_block_time() - fc::seconds(1);
                        })));
    BOOST_REQUIRE_EQUAL(wasm_assert_msg("exponent must be >= 1"),
                        configbw(make_config([&](auto& c) { c.cpu.exponent = .999; })));
@@ -375,12 +382,12 @@ BOOST_FIXTURE_TEST_CASE(weight_tests, powerup_tester) try {
                           config.net.current_weight_ratio = net_start;
                           config.net.target_weight_ratio  = net_target;
                           config.net.assumed_stake_weight = stake_weight;
-                          config.net.target_timestamp     = control->head_block_time() + fc::days(10);
+                          config.net.target_timestamp     = control->pending_block_time() + fc::days(10);
 
                           config.cpu.current_weight_ratio = cpu_start;
                           config.cpu.target_weight_ratio  = cpu_target;
                           config.cpu.assumed_stake_weight = stake_weight;
-                          config.cpu.target_timestamp     = control->head_block_time() + fc::days(20);
+                          config.cpu.target_timestamp     = control->pending_block_time() + fc::days(20);
                        })));
 
    int64_t net;
@@ -398,10 +405,10 @@ BOOST_FIXTURE_TEST_CASE(weight_tests, powerup_tester) try {
    for (int i = 0; i <= 6; ++i) {
       if (i == 2) {
          // Leaves config as-is, but may introduce slight rounding
-         produce_block(fc::days(1) - fc::milliseconds(500));
+         produce_block(fc::days(1) - block_interval_us);
          BOOST_REQUIRE_EQUAL("", configbw({}));
       } else if (i) {
-         produce_block(fc::days(1) - fc::milliseconds(500));
+         produce_block(fc::days(1) - block_interval_us);
          BOOST_REQUIRE_EQUAL("", powerupexec(config::system_account_name, 10));
       }
       net = net_start + i * (net_target - net_start) / 10;
@@ -414,10 +421,10 @@ BOOST_FIXTURE_TEST_CASE(weight_tests, powerup_tester) try {
    // Extend transition time
    {
       int i = 7;
-      produce_block(fc::days(1) - fc::milliseconds(500));
+      produce_block(fc::days(1) - block_interval_us);
       BOOST_REQUIRE_EQUAL("", configbw(make_default_config([&](powerup_config& config) {
-                             config.net.target_timestamp = control->head_block_time() + fc::days(30);
-                             config.cpu.target_timestamp = control->head_block_time() + fc::days(40);
+                             config.net.target_timestamp = control->pending_block_time() + fc::days(30);
+                             config.cpu.target_timestamp = control->pending_block_time() + fc::days(40);
                           })));
       net_start = net = net_start + i * (net_target - net_start) / 10;
       cpu_start = cpu = cpu_start + i * (cpu_target - cpu_start) / 20;
@@ -428,7 +435,7 @@ BOOST_FIXTURE_TEST_CASE(weight_tests, powerup_tester) try {
 
    for (int i = 0; i <= 5; ++i) {
       if (i) {
-         produce_block(fc::days(1) - fc::milliseconds(500));
+         produce_block(fc::days(1) - block_interval_us);
          BOOST_REQUIRE_EQUAL("", powerupexec(config::system_account_name, 10));
       }
       net = net_start + i * (net_target - net_start) / 30;
@@ -441,7 +448,7 @@ BOOST_FIXTURE_TEST_CASE(weight_tests, powerup_tester) try {
    // Change target, keep existing transition time
    {
       int i = 6;
-      produce_block(fc::days(1) - fc::milliseconds(500));
+      produce_block(fc::days(1) - block_interval_us);
       auto new_net_target = net_target / 10;
       auto new_cpu_target = cpu_target / 20;
       BOOST_REQUIRE_EQUAL("", configbw(make_default_config([&](powerup_config& config) {
@@ -459,7 +466,7 @@ BOOST_FIXTURE_TEST_CASE(weight_tests, powerup_tester) try {
 
    for (int i = 0; i <= 10; ++i) {
       if (i) {
-         produce_block(fc::days(1) - fc::milliseconds(500));
+         produce_block(fc::days(1) - block_interval_us);
          BOOST_REQUIRE_EQUAL("", powerupexec(config::system_account_name, 10));
       }
       net = net_start + i * (net_target - net_start) / (30 - 6);
@@ -471,10 +478,10 @@ BOOST_FIXTURE_TEST_CASE(weight_tests, powerup_tester) try {
 
    // Move transition time to immediate future
    {
-      produce_block(fc::days(1) - fc::milliseconds(500));
+      produce_block(fc::days(1) - block_interval_us);
       BOOST_REQUIRE_EQUAL("", configbw(make_default_config([&](powerup_config& config) {
-                             config.net.target_timestamp = control->head_block_time() + fc::milliseconds(1000);
-                             config.cpu.target_timestamp = control->head_block_time() + fc::milliseconds(1000);
+                             config.net.target_timestamp = control->pending_block_time() + block_interval_us_2;
+                             config.cpu.target_timestamp = control->pending_block_time() + block_interval_us_2;
                           })));
       produce_blocks(2);
    }
@@ -554,13 +561,13 @@ BOOST_AUTO_TEST_CASE(rent_tests) try {
                      asset::from_string("300000.0000 TST"), net_weight * .1, cpu_weight * .2);
 
       // Start decay
-      t.produce_block(fc::days(30) - fc::milliseconds(500));
+      t.produce_block(fc::days(30) - block_interval_us);
       BOOST_REQUIRE_EQUAL("", t.powerupexec(config::system_account_name, 10));
       BOOST_REQUIRE(near(t.get_state().net.adjusted_utilization, .1 * net_weight, 0));
       BOOST_REQUIRE(near(t.get_state().cpu.adjusted_utilization, .2 * cpu_weight, 0));
 
       // 2 days of decay from (10%, 20%) to (1.35%, 2.71%)
-      t.produce_block(fc::days(2) - fc::milliseconds(500));
+      t.produce_block(fc::days(2) - block_interval_us);
       BOOST_REQUIRE_EQUAL("", t.powerupexec(config::system_account_name, 10));
       BOOST_REQUIRE(near(t.get_state().net.adjusted_utilization, int64_t(.1 * net_weight * exp(-2)),
                          int64_t(.1 * net_weight * exp(-2)) / 1000));
@@ -571,13 +578,13 @@ BOOST_AUTO_TEST_CASE(rent_tests) try {
       // (0.0135 + 0.02 - 0.0135) * 1000000.0000 = 20000.0000
       // (.02) * 1000000.0000                    = 20000.0000
       //                                   total = 40000.0000
-      t.transfer(config::system_account_name, N(aaaaaaaaaaaa), core_sym::from_string("40000.0001"));
+      t.transfer(config::system_account_name, N(aaaaaaaaaaaa), core_sym::from_string("40000.0000"));
       t.check_powerup(N(aaaaaaaaaaaa), N(aaaaaaaaaaaa), 30, powerup_frac * .02, powerup_frac * .02,
-                     asset::from_string("40000.0001 TST"), net_weight * .02, cpu_weight * .02);
+                     asset::from_string("40000.0000 TST"), net_weight * .02, cpu_weight * .02);
    }
 
    auto init = [](auto& t, bool rex) {
-      t.produce_block();
+      t.produce_block();   
       BOOST_REQUIRE_EQUAL("", t.configbw(t.make_config([&](auto& config) {
          // weight = stake_weight * 3
          config.net.current_weight_ratio = powerup_frac / 4;
@@ -750,7 +757,7 @@ BOOST_AUTO_TEST_CASE(rent_tests) try {
       BOOST_REQUIRE_EQUAL(t.wasm_assert_msg("market doesn't have enough resources available"), //
                           t.powerup(N(bob111111111), N(alice1111111), 30, powerup_frac / 1000, powerup_frac / 1000,
                                    asset::from_string("1.0000 TST")));
-      t.produce_block(fc::milliseconds(500));
+      t.produce_block(block_interval_us);
 
       // immediate renewal: adjusted_utilization doesn't have time to fall
       //
@@ -769,20 +776,20 @@ BOOST_AUTO_TEST_CASE(rent_tests) try {
       BOOST_REQUIRE_EQUAL(t.wasm_assert_msg("market doesn't have enough resources available"), //
                           t.powerup(N(bob111111111), N(alice1111111), 30, powerup_frac / 1000, powerup_frac / 1000,
                                    asset::from_string("1.0000 TST")));
-      t.produce_block(fc::days(1) - fc::milliseconds(1000));
+      t.produce_block(fc::days(1) - block_interval_us_2 );
       BOOST_REQUIRE_EQUAL(t.wasm_assert_msg("market doesn't have enough resources available"), //
                           t.powerup(N(bob111111111), N(alice1111111), 30, powerup_frac / 1000, powerup_frac / 1000,
                                    asset::from_string("1.0000 TST")));
 
       // Start decay
-      t.produce_block(fc::milliseconds(1000));
+      t.produce_block(block_interval_us_2);
       BOOST_REQUIRE_EQUAL("", t.powerupexec(config::system_account_name, 10));
       BOOST_REQUIRE_EQUAL("", t.powerupexec(config::system_account_name, 10));
       BOOST_REQUIRE(near(t.get_state().net.adjusted_utilization, net_weight, net_weight / 1000));
       BOOST_REQUIRE(near(t.get_state().cpu.adjusted_utilization, cpu_weight, cpu_weight / 1000));
 
       // 1 day of decay
-      t.produce_block(fc::days(1) - fc::milliseconds(500));
+      t.produce_block(fc::days(1) - block_interval_us);
       BOOST_REQUIRE_EQUAL("", t.powerupexec(config::system_account_name, 10));
       BOOST_REQUIRE(near(t.get_state().net.adjusted_utilization, int64_t(net_weight * exp(-1)),
                          int64_t(net_weight * exp(-1)) / 1000));
@@ -790,7 +797,7 @@ BOOST_AUTO_TEST_CASE(rent_tests) try {
                          int64_t(cpu_weight * exp(-1)) / 1000));
 
       // 1 day of decay
-      t.produce_block(fc::days(1) - fc::milliseconds(500));
+      t.produce_block(fc::days(1) - block_interval_us);
       BOOST_REQUIRE_EQUAL("", t.powerupexec(config::system_account_name, 10));
       BOOST_REQUIRE(near(t.get_state().net.adjusted_utilization, int64_t(net_weight * exp(-2)),
                          int64_t(net_weight * exp(-2)) / 1000));
@@ -802,9 +809,9 @@ BOOST_AUTO_TEST_CASE(rent_tests) try {
       // [ ((e^-2) ^ 1)*(e^-2 - 0.0) + ((1.0) ^ 2)/2 - ((e^-2) ^ 2)/2 ] * 2000000.0000 = 1018315.6389
       // [ ((e^-2) ^ 2)*(e^-2 - 0.0) + ((1.0) ^ 3)/3 - ((e^-2) ^ 3)/3 ] * 6000000.0000 = 2009915.0087
       //                                                                         total = 3028230.6476
-      t.transfer(config::system_account_name, N(aaaaaaaaaaaa), core_sym::from_string("3028229.8795"));
+      t.transfer(config::system_account_name, N(aaaaaaaaaaaa), core_sym::from_string("3028229.1112"));
       t.check_powerup(N(aaaaaaaaaaaa), N(bbbbbbbbbbbb), 30, powerup_frac, powerup_frac,
-                     asset::from_string("3028229.8795 TST"), net_weight, cpu_weight);
+                     asset::from_string("3028229.1112 TST"), net_weight, cpu_weight);
    }
 
    {
@@ -819,7 +826,7 @@ BOOST_AUTO_TEST_CASE(rent_tests) try {
       t.check_powerup(N(aaaaaaaaaaaa), N(bbbbbbbbbbbb), 30, powerup_frac * .1, powerup_frac * .2,
                      asset::from_string("26000.0002 TST"), net_weight * .1, cpu_weight * .2);
 
-      t.produce_block(fc::days(15) - fc::milliseconds(500));
+      t.produce_block(fc::days(15) - block_interval_us);
 
       // 20%, 20%
       // (.3 ^ 2) * 2000000.0000 / 2 - 10000.0000 =  80000.0000
@@ -830,13 +837,13 @@ BOOST_AUTO_TEST_CASE(rent_tests) try {
                      asset::from_string("192000.0001 TST"), net_weight * .2, cpu_weight * .2);
 
       // Start decay
-      t.produce_block(fc::days(15) - fc::milliseconds(1000));
-      BOOST_REQUIRE_EQUAL("", t.powerupexec(config::system_account_name, 10));
+      t.produce_block(fc::days(15) - block_interval_us); 
+      BOOST_REQUIRE_EQUAL("", t.powerupexec(config::system_account_name, 10));  
       BOOST_REQUIRE(near(t.get_state().net.adjusted_utilization, .3 * net_weight, 0));
       BOOST_REQUIRE(near(t.get_state().cpu.adjusted_utilization, .4 * cpu_weight, 0));
 
       // 1 day of decay from (30%, 40%) to (20%, 20%)
-      t.produce_block(fc::days(1) - fc::milliseconds(500));
+      t.produce_block(fc::days(1) - block_interval_us);
       BOOST_REQUIRE_EQUAL("", t.powerupexec(config::system_account_name, 10));
       BOOST_REQUIRE(
             near(t.get_state().net.adjusted_utilization, int64_t(.1 * net_weight * exp(-1) + .2 * net_weight), 0));
@@ -844,7 +851,7 @@ BOOST_AUTO_TEST_CASE(rent_tests) try {
             near(t.get_state().cpu.adjusted_utilization, int64_t(.2 * cpu_weight * exp(-1) + .2 * cpu_weight), 0));
 
       // 2 days of decay from (30%, 40%) to (20%, 20%)
-      t.produce_block(fc::days(1) - fc::milliseconds(500));
+      t.produce_block(fc::days(1) - block_interval_us);
       BOOST_REQUIRE_EQUAL("", t.powerupexec(config::system_account_name, 10));
       BOOST_REQUIRE(
             near(t.get_state().net.adjusted_utilization, int64_t(.1 * net_weight * exp(-2) + .2 * net_weight), 0));
