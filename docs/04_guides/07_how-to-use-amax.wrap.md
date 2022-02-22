@@ -679,8 +679,8 @@ The goal of this example is for the block producers to change the owner permissi
 The initial status of the `alice` account might be:
 ```console
 permissions:
-     owner     1:    1 EOS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV
-        active     1:    1 EOS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV
+     owner     1:    1 AMA6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV
+        active     1:    1 AMA6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV
 memory:
      quota:     49.74 KiB    used:     3.365 KiB  
 
@@ -701,7 +701,7 @@ cpu bandwidth:
 producers:     <not voted>
 ```
 
-Assume that none of the block producers know the private key corresponding to the public key `EOS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV` which, as can be seen above, is initially securing access to the `alice` account.
+Assume that none of the block producers know the private key corresponding to the public key `AMA6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV` which, as can be seen above, is initially securing access to the `alice` account.
 
 The first step is to generate the transaction changing the owner permission of the `alice` account as if `alice` is authorizing the change:
 ```sh
@@ -948,7 +948,7 @@ amaxcl get account alice
 ```console
 permissions:
      owner     1:    1 amax@active,
-        active     1:    1 EOS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV
+        active     1:    1 AMA6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV
 memory:
      quota:     49.74 KiB    used:     3.348 KiB  
 
