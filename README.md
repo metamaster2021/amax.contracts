@@ -15,8 +15,8 @@ The following unprivileged contract(s) are also part of the system.
    * [amax.token](./contracts/amax.token)
 
 Dependencies:
-* [eosio.cdt v1.7.x](https://github.com/EOSIO/eosio.cdt/releases/tag/v1.7.0)
-* [amax v0.1.x](https://github.com/armoniax/amax.chain/releases/tag/v1.0.0) (optional dependency only needed to build unit tests)
+* [amax.cdt v1.0.x](https://github.com/armoniax/amax.cdt/releases/tag/v1.7.0)
+* [amax v1.0.x](https://github.com/armoniax/amaxchain/releases/tag/v1.0.0) (optional dependency only needed to build unit tests)
 
 ## Build
 

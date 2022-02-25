@@ -4,7 +4,7 @@ set -eo pipefail
 function usage() {
    printf "Usage: $0 OPTION...
   -e DIR      Directory where AMAX is installed. (Default: $HOME/amax/X.Y)
-  -c DIR      Directory where EOSIO.CDT is installed. (Default: /usr/local/eosio.cdt)
+  -c DIR      Directory where AMAX.CDT is installed. (Default: /usr/local/amax.cdt)
   -t          Build unit tests.
   -y          Noninteractive mode (Uses defaults for each prompt.)
   -h          Print this help menu.
@@ -61,7 +61,7 @@ fi
 cdt-directory-prompt
 
 # Include CDT_INSTALL_DIR in CMAKE_FRAMEWORK_PATH
-echo "Using EOSIO.CDT installation at: $CDT_INSTALL_DIR"
+echo "Using AMAX.CDT installation at: $CDT_INSTALL_DIR"
 export CMAKE_FRAMEWORK_PATH="${CDT_INSTALL_DIR}:${CMAKE_FRAMEWORK_PATH}"
 
 if [[ ${BUILD_TESTS} == true ]]; then

@@ -84,22 +84,22 @@ function amax-directory-prompt() {
 }
 
 
-# Prompts or default behavior for choosing EOSIO.CDT directory.
+# Prompts or default behavior for choosing AMAX.CDT directory.
 function cdt-directory-prompt() {
   if [[ -z $CDT_DIR_PROMPT ]]; then
-    echo 'No EOSIO.CDT location was specified.'
+    echo 'No AMAX.CDT location was specified.'
     while true; do
       if [[ $NONINTERACTIVE != true ]]; then
-        printf "Is EOSIO.CDT installed in the default location? /usr/local/eosio.cdt (y/n)" && read -p " " PROCEED
+        printf "Is AMAX.CDT installed in the default location? /usr/local/amax.cdt (y/n)" && read -p " " PROCEED
       fi
       echo ""
       case $PROCEED in
         "" )
-          echo "Is EOSIO.CDT installed in the default location?";;
+          echo "Is AMAX.CDT installed in the default location?";;
         0 | true | [Yy]* )
           break;;
         1 | false | [Nn]* )
-          printf "Enter the installation location of EOSIO.CDT:" && read -e -p " " CDT_DIR_PROMPT;
+          printf "Enter the installation location of AMAX.CDT:" && read -e -p " " CDT_DIR_PROMPT;
           CDT_DIR_PROMPT="${CDT_DIR_PROMPT/#\~/$HOME}"
           break;;
         * )
@@ -107,7 +107,7 @@ function cdt-directory-prompt() {
       esac
     done
   fi
-  export CDT_INSTALL_DIR="${CDT_DIR_PROMPT:-/usr/local/eosio.cdt}"
+  export CDT_INSTALL_DIR="${CDT_DIR_PROMPT:-/usr/local/amax.cdt}"
 }
 
 
