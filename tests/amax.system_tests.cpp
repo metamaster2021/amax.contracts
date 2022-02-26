@@ -5582,7 +5582,7 @@ BOOST_FIXTURE_TEST_CASE( change_limited_account_back_to_unlimited, eosio_system_
    auto error_msg = stake( N(alice1111111), N(amax), core_sym::from_string("0.0000"), core_sym::from_string("1.0000") );
    auto semicolon_pos = error_msg.find(';');
 
-   BOOST_REQUIRE_EQUAL( error("account eosio has insufficient ram"),
+   BOOST_REQUIRE_EQUAL( error("account amax has insufficient ram"),
                         error_msg.substr(0, semicolon_pos) );
 
    int64_t ram_bytes_needed = 0;
@@ -5661,7 +5661,7 @@ BOOST_FIXTURE_TEST_CASE( buy_pin_sell_ram, eosio_system_tester ) try {
    auto error_msg = stake( N(alice1111111), N(amax), core_sym::from_string("10.0000"), core_sym::from_string("10.0000") );
    auto semicolon_pos = error_msg.find(';');
 
-   BOOST_REQUIRE_EQUAL( error("account eosio has insufficient ram"),
+   BOOST_REQUIRE_EQUAL( error("account amax has insufficient ram"),
                         error_msg.substr(0, semicolon_pos) );
 
    int64_t ram_bytes_needed = 0;
