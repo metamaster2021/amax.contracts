@@ -11,6 +11,9 @@
 #include <Runtime/Runtime.h>
 
 #include "amax.system_tester.hpp"
+
+static const fc::microseconds block_interval_us = fc::microseconds(eosio::chain::config::block_interval_us);
+
 struct _abi_hash {
    name owner;
    fc::sha256 hash;
@@ -2397,7 +2400,7 @@ BOOST_FIXTURE_TEST_CASE(votepay_share_proxy, eosio_system_tester, * boost::unit_
    BOOST_TEST_REQUIRE( 0 == get_producer_info2(carol)["votepay_share"].as_double() );
    uint64_t last_update_time = microseconds_since_epoch_of_iso_string( get_producer_info2(carol)["last_votepay_share_update"] );
 
-   produce_block( fc::hours(15) );
+   produce_block( fc::hours(15) - block_interval_us );
 
    // alice (proxy) votes again for carol
    BOOST_REQUIRE_EQUAL( success(), vote( alice, { carol } ) );
@@ -2409,9 +2412,9 @@ BOOST_FIXTURE_TEST_CASE(votepay_share_proxy, eosio_system_tester, * boost::unit_
    last_update_time = microseconds_since_epoch_of_iso_string( cur_info2["last_votepay_share_update"] );
    total_votes      = get_producer_info(carol)["total_votes"].as_double();
 
-   produce_block( fc::hours(40) );
+   produce_block( fc::hours(40) - block_interval_us );
 
-   // bob unstakes
+   // bob unstakes 
    BOOST_REQUIRE_EQUAL( success(), unstake( bob, core_sym::from_string("10.0002"), core_sym::from_string("10.0001") ) );
    BOOST_TEST_REQUIRE( stake2votes(core_sym::from_string("430.0000")), get_producer_info(carol)["total_votes"].as_double() );
 
@@ -2419,13 +2422,15 @@ BOOST_FIXTURE_TEST_CASE(votepay_share_proxy, eosio_system_tester, * boost::unit_
    expected_votepay_share += double( (microseconds_since_epoch_of_iso_string( cur_info2["last_votepay_share_update"] ) - last_update_time) / 1E6 ) * total_votes;
    BOOST_TEST_REQUIRE( expected_votepay_share == cur_info2["votepay_share"].as_double() );
    BOOST_TEST_REQUIRE( expected_votepay_share == get_global_state2()["total_producer_votepay_share"].as_double() );
-   last_update_time = microseconds_since_epoch_of_iso_string( cur_info2["last_votepay_share_update"] );
-   total_votes      = get_producer_info(carol)["total_votes"].as_double();
 
    // carol claims rewards
    BOOST_REQUIRE_EQUAL( success(), push_action(carol, N(claimrewards), mvo()("owner", carol)) );
 
-   produce_block( fc::hours(20) );
+   cur_info2 = get_producer_info2(carol);
+   last_update_time = microseconds_since_epoch_of_iso_string( cur_info2["last_votepay_share_update"] );
+   total_votes      = get_producer_info(carol)["total_votes"].as_double();
+
+   produce_block( fc::hours(20) - block_interval_us );
 
    // bob votes for carol
    BOOST_REQUIRE_EQUAL( success(), vote( bob, { carol } ) );
@@ -2435,7 +2440,7 @@ BOOST_FIXTURE_TEST_CASE(votepay_share_proxy, eosio_system_tester, * boost::unit_
    BOOST_TEST_REQUIRE( expected_votepay_share == cur_info2["votepay_share"].as_double() );
    BOOST_TEST_REQUIRE( expected_votepay_share == get_global_state2()["total_producer_votepay_share"].as_double() );
 
-   produce_block( fc::hours(54) );
+   produce_block( fc::hours(54) - block_interval_us);
 
    // bob votes for carol again
    // carol hasn't claimed rewards in over 3 days
@@ -2447,7 +2452,7 @@ BOOST_FIXTURE_TEST_CASE(votepay_share_proxy, eosio_system_tester, * boost::unit_
    BOOST_TEST_REQUIRE( 0 == get_global_state2()["total_producer_votepay_share"].as_double() );
    BOOST_TEST_REQUIRE( 0 == get_global_state3()["total_vpay_share_change_rate"].as_double() );
 
-   produce_block( fc::hours(20) );
+   produce_block( fc::hours(20) - block_interval_us );
 
    // bob votes for carol again
    // carol still hasn't claimed rewards
@@ -2458,7 +2463,7 @@ BOOST_FIXTURE_TEST_CASE(votepay_share_proxy, eosio_system_tester, * boost::unit_
    BOOST_TEST_REQUIRE( 0 == get_global_state2()["total_producer_votepay_share"].as_double() );
    BOOST_TEST_REQUIRE( 0 == get_global_state3()["total_vpay_share_change_rate"].as_double() );
 
-   produce_block( fc::hours(24) );
+   produce_block( fc::hours(24) - block_interval_us );
 
    // carol finally claims rewards
    BOOST_REQUIRE_EQUAL( success(), push_action( carol, N(claimrewards), mvo()("owner", carol) ) );
@@ -2466,7 +2471,7 @@ BOOST_FIXTURE_TEST_CASE(votepay_share_proxy, eosio_system_tester, * boost::unit_
    BOOST_TEST_REQUIRE( 0           == get_global_state2()["total_producer_votepay_share"].as_double() );
    BOOST_TEST_REQUIRE( total_votes == get_global_state3()["total_vpay_share_change_rate"].as_double() );
 
-   produce_block( fc::hours(5) );
+   produce_block( fc::hours(5) - block_interval_us );
 
    // alice votes for carol and emily
    // emily hasn't claimed rewards in over 3 days
@@ -2486,7 +2491,7 @@ BOOST_FIXTURE_TEST_CASE(votepay_share_proxy, eosio_system_tester, * boost::unit_
    BOOST_REQUIRE_EQUAL( cur_info2_emily["last_votepay_share_update"].as_string(),
                         get_global_state3()["last_vpay_state_update"].as_string() );
 
-   produce_block( fc::hours(10) );
+   produce_block( fc::hours(10) - block_interval_us );
 
    // bob chooses alice as proxy
    // emily still hasn't claimed rewards
