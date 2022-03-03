@@ -163,12 +163,12 @@ struct powerup_state {
 #### cfgpowerup Action Call
 ```sh
 # call to `cfgpowerup`
-amaxcl push action amax cfgpowerup "[`cat ./config.json`]" -p amax
+amcli push action amax cfgpowerup "[`cat ./config.json`]" -p amax
 ```
 
 #### Check state
 ```sh
-amaxcl get table amax 0 powup.state
+amcli get table amax 0 powup.state
 ```
 ```json
 {
@@ -222,7 +222,7 @@ amaxcl get table amax 0 powup.state
 #### Executing an order
 The action to power up an account is `powerup`. It takes a `payer` of the fee and a `receiver` of the resources. The `days` must always match `state.powerup_days`. `net_frac` and `cpu_frac` are the percentage of the resources that you need. The easiest way to caclulate the percentage is to multiple 10^15 (100%) by the desired percentage. For example: 10^15 * 0.01 = 10^13.
 ```sh
-amaxcl push action amax powerup '[user, user, 1, 10000000000000, 10000000000000, "1000.0000 TST"]' -p user
+amcli push action amax powerup '[user, user, 1, 10000000000000, 10000000000000, "1000.0000 TST"]' -p user
 ```
 ```
 executed transaction: 82b7124601612b371b812e3bf65cf63bb44616802d3cd33a2c0422b58399f54f  144 bytes  521 us
@@ -241,7 +241,7 @@ The resources in loans that expire do not automatically get reclaimed by the sys
 
 The orders table `powup.order` can be viewed by calling:
 ```sh
-amaxcl get table amax 0 powup.order
+amcli get table amax 0 powup.order
 ```
 ```json
 {
@@ -262,7 +262,7 @@ amaxcl get table amax 0 powup.order
 Example `powerupexec` call:
 
 ```sh
-amaxcl push action amax powerupexec '[user, 2]' -p user
+amcli push action amax powerupexec '[user, 2]' -p user
 ```
 ```console
 executed transaction: 93ab4ac900a7902e4e59e5e925e8b54622715328965150db10774aa09855dc98  104 bytes  363 us

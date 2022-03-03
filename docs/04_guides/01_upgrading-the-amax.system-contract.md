@@ -11,7 +11,7 @@ So, at the moment it is difficult to propose an atomic transaction with multiple
 
 The advantage of the amax.msig method is that it makes coordination much easier and does not place strict time limits (less than 9 hours) on signature collection.
 
-The disadvantage of the amax.msig method is that it requires the proposer to have sufficient RAM to propose the transaction and currently amaxcl does not provide convenient tools to use it with custom transactions like the one that would be necessary to atomically upgrade the system contract.
+The disadvantage of the amax.msig method is that it requires the proposer to have sufficient RAM to propose the transaction and currently amcli does not provide convenient tools to use it with custom transactions like the one that would be necessary to atomically upgrade the system contract.
 
 For now, it is recommended to use the direct method to upgrade the system contract.
 
@@ -22,7 +22,7 @@ Each of the top 21 block producers should do the following:
 1. Get current system contract for later comparison (actual hash and ABI on the main-net blockchain will be different):
 
 ```sh
-amaxcl get code -c original_system_contract.wast -a original_system_contract.abi amax
+amcli get code -c original_system_contract.wast -a original_system_contract.abi amax
 ```
 ```console
 code hash: cc0ffc30150a07c487d8247a484ce1caf9c95779521d8c230040c2cb0e2a3a60
@@ -33,7 +33,7 @@ saving abi to original_system_contract.abi
 2. Generate the unsigned transaction which upgrades the system contract:
 
 ```sh
-amaxcl set contract -s -j -d amax contracts/amax.system | tail -n +4 > upgrade_system_contract_trx.json
+amcli set contract -s -j -d amax contracts/amax.system | tail -n +4 > upgrade_system_contract_trx.json
 ```
 
 The first few lines of the generated file should be something similar to (except with very different numbers for `expiration`, `ref_block_num`, and `ref_block_prefix`):
@@ -94,12 +94,12 @@ diff upgrade_system_contract_official_trx.json upgrade_system_contract_trx.json
 
 6. If the comparison is good, each block producer should proceed with signing the official upgrade transaction with the keys necessary to satisfy their active permission. If the block producer only has a single key (i.e the "active key") in the active permission of their block producing account, then they only need to generate one signature using that active key. This signing process can be done offline for extra security.
 
-First, the block producer should collect all the necessary information. Let us assume that the block producers active key pair is `(EOS5kBmh5kfo6c6pwB8j77vrznoAaygzoYvBsgLyMMmQ9B6j83i9c, 5JjpkhxAmEfynDgSn7gmEKEVcBqJTtu6HiQFf4AVgGv5A89LfG3)`. The block producer needs their active private key (`5JjpkhxAmEfynDgSn7gmEKEVcBqJTtu6HiQFf4AVgGv5A89LfG3` in this example), the `upgrade_system_contract_official_trx.json`, and the `chain_id` (`d0242fb30b71b82df9966d10ff6d09e4f5eb6be7ba85fd78f796937f1959315e` in this example) which can be retrieved through `amaxcl get info`.
+First, the block producer should collect all the necessary information. Let us assume that the block producers active key pair is `(EOS5kBmh5kfo6c6pwB8j77vrznoAaygzoYvBsgLyMMmQ9B6j83i9c, 5JjpkhxAmEfynDgSn7gmEKEVcBqJTtu6HiQFf4AVgGv5A89LfG3)`. The block producer needs their active private key (`5JjpkhxAmEfynDgSn7gmEKEVcBqJTtu6HiQFf4AVgGv5A89LfG3` in this example), the `upgrade_system_contract_official_trx.json`, and the `chain_id` (`d0242fb30b71b82df9966d10ff6d09e4f5eb6be7ba85fd78f796937f1959315e` in this example) which can be retrieved through `amcli get info`.
 
 Then on a secure computer the producer can sign the transaction (the producer will need to paste in their private key when prompted):
 
 ```sh
-amaxcl sign --chain-id d0242fb30b71b82df9966d10ff6d09e4f5eb6be7ba85fd78f796937f1959315e upgrade_system_contract_trx.json | tail -n 5
+amcli sign --chain-id d0242fb30b71b82df9966d10ff6d09e4f5eb6be7ba85fd78f796937f1959315e upgrade_system_contract_trx.json | tail -n 5
 ```
 ```json
 private key:   "signatures": [
@@ -146,7 +146,7 @@ cat upgrade_system_contract_official_trx_signed.json | tail -n 20
 8. Push the signed transaction to the blockchain:
 
 ```sh
-amaxcl push transaction --skip-sign upgrade_system_contract_official_trx_signed.json
+amcli push transaction --skip-sign upgrade_system_contract_official_trx_signed.json
 ```
 ```json
 {
@@ -204,7 +204,7 @@ That means the expiration time of the signed transaction has passed and this ent
 9. Assuming the transaction successfully executes, everyone can then verify that the new contract is in place:
 
 ```sh
-amaxcl get code -c new_system_contract.wast -a new_system_contract.abi amax
+amcli get code -c new_system_contract.wast -a new_system_contract.abi amax
 ```
 ```console
 code hash: 9fd195bc5a26d3cd82ae76b70bb71d8ce83dcfeb0e5e27e4e740998fdb7b98f8

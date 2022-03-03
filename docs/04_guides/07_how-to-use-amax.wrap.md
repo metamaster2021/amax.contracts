@@ -11,21 +11,21 @@ First, the account `amax.wrap` needs to be created. Since it has the restricted 
 
 The `amax.wrap` account also needs to have sufficient RAM to host the contract and sufficient CPU and network bandwidth to deploy the contract. This means that the creator of the account (`amax`) needs to gift sufficient RAM to the new account and delegate (preferably with transfer) sufficient bandwidth to the new account. To pull this off the `amax` account needs to have enough of the core system token (the `SYS` token will be used within this guide) in its liquid balance. So prior to continuing with the next steps of this guide, the active block producers of the chain who are coordinating this process need to ensure that a sufficient amount of core system tokens that they are authorized to spend is placed in the liquid balance of the `amax` account.
 
-This guide will be using amaxcl to carry out the process.
+This guide will be using amcli to carry out the process.
 
 ## 1.1 Create the amax.wrap account
 
 ### 1.1.1 Generate the transaction to create the amax.wrap account
 
-The transaction to create the `amax.wrap` account will need to be proposed to get the necessary approvals from active block producers before executing it. This transaction needs to first be generated and stored as JSON into a file so that it can be used in the amaxcl command to propose the transaction to the amax.msig contract.
+The transaction to create the `amax.wrap` account will need to be proposed to get the necessary approvals from active block producers before executing it. This transaction needs to first be generated and stored as JSON into a file so that it can be used in the amcli command to propose the transaction to the amax.msig contract.
 
-A simple way to generate a transaction to create a new account is to use the `amaxcl system newaccount`. However, that sub-command currently only accepts a single public key as the owner and active authority of the new account. However, the owner and active authorities of the new account should only be satisfied by the `active` permission of `amax`. One option is to create the new account with the some newly generated key, and then later update the authorities of the new account using `amaxcl set account permission`. This guide will take an alternative approach which atomically creates the new account in its proper configuration.
+A simple way to generate a transaction to create a new account is to use the `amcli system newaccount`. However, that sub-command currently only accepts a single public key as the owner and active authority of the new account. However, the owner and active authorities of the new account should only be satisfied by the `active` permission of `amax`. One option is to create the new account with the some newly generated key, and then later update the authorities of the new account using `amcli set account permission`. This guide will take an alternative approach which atomically creates the new account in its proper configuration.
 
-Three unsigned transactions will be generated using amaxcl and then the actions within those transactions will be appropriately stitched together into a single transaction which will later be proposed using the amax.msig contract.
+Three unsigned transactions will be generated using amcli and then the actions within those transactions will be appropriately stitched together into a single transaction which will later be proposed using the amax.msig contract.
 
 First, generate a transaction to capture the necessary actions involved in creating a new account:
 ```sh
-amaxcl system newaccount -s -j -d --transfer --stake-net "1.000 SYS" --stake-cpu "1.000 SYS" --buy-ram-kbytes 50 amax amax.wrap EOS8MMUW11TAdTDxqdSwSqJodefSoZbFhcprndomgLi9MeR2o8MT4 > generated_account_creation_trx.json
+amcli system newaccount -s -j -d --transfer --stake-net "1.000 SYS" --stake-cpu "1.000 SYS" --buy-ram-kbytes 50 amax amax.wrap EOS8MMUW11TAdTDxqdSwSqJodefSoZbFhcprndomgLi9MeR2o8MT4 > generated_account_creation_trx.json
 ```
 ```console
 726964ms thread-0   main.cpp:429                  create_action        ] result: {"binargs":"0000000000ea305500004d1a03ea305500c80000"} arg: {"code":"amax","action":"buyrambytes","args":{"payer":"amax","receiver":"amax.wrap","bytes":51200}}
@@ -112,7 +112,7 @@ cat newaccount_payload.json
 
 Third, generate a transaction containing the actual `eosio::newaccount` action that will be used in the final transaction:
 ```sh
-amaxcl push action -s -j -d amax newaccount newaccount_payload.json -p amax > generated_newaccount_trx.json
+amcli push action -s -j -d amax newaccount newaccount_payload.json -p amax > generated_newaccount_trx.json
 cat generated_newaccount_trx.json
 ```
 ```json
@@ -143,7 +143,7 @@ cat generated_newaccount_trx.json
 
 Fourth, generate a transaction containing the `eosio::setpriv` action which will make the `amax.wrap` account privileged:
 ```sh
-amaxcl push action -s -j -d amax setpriv '{"account": "amax.wrap", "is_priv": 1}' -p amax > generated_setpriv_trx.json
+amcli push action -s -j -d amax setpriv '{"account": "amax.wrap", "is_priv": 1}' -p amax > generated_setpriv_trx.json
 cat generated_setpriv_trx.json
 ```
 ```json
@@ -307,7 +307,7 @@ The guide will assume that `blkproducera` was chosen as the lead block producer 
 
 The lead block producer (`blkproducera`) should propose the transaction stored in create_wrap_account_trx.json:
 ```sh
-amaxcl multisig propose_trx createwrap producer_permissions.json create_wrap_account_trx.json blkproducera
+amcli multisig propose_trx createwrap producer_permissions.json create_wrap_account_trx.json blkproducera
 ```
 ```console
 executed transaction: bf6aaa06b40e2a35491525cb11431efd2b5ac94e4a7a9c693c5bf0cfed942393  744 bytes  772 us
@@ -319,9 +319,9 @@ warning: transaction executed locally, but may not be confirmed by the network y
 
 Each of the potential approvers of the proposed transaction (i.e. the active block producers) should first review the proposed transaction to make sure they are not approving anything that they do not agree to.
 
-The proposed transaction can be reviewed using the `amaxcl multisig review` command:
+The proposed transaction can be reviewed using the `amcli multisig review` command:
 ```sh
-amaxcl multisig review blkproducera createwrap > create_wrap_account_trx_to_review.json
+amcli multisig review blkproducera createwrap > create_wrap_account_trx_to_review.json
 head -n 30 create_wrap_account_trx_to_review.json
 ```
 ```json
@@ -359,7 +359,7 @@ head -n 30 create_wrap_account_trx_to_review.json
 
 The approvers should go through the full human-readable transaction output and make sure everything looks fine. But they can also use tools to automatically compare the proposed transaction to the one they generated to make sure there are absolutely no differences:
 ```sh
-amaxcl multisig propose_trx -j -s -d createwrap '[]' create_wrap_account_trx.json blkproducera | grep '"data":' | sed 's/^[ \t]*"data":[ \t]*//;s/[",]//g' | cut -c 35- > expected_create_wrap_trx_serialized.hex
+amcli multisig propose_trx -j -s -d createwrap '[]' create_wrap_account_trx.json blkproducera | grep '"data":' | sed 's/^[ \t]*"data":[ \t]*//;s/[",]//g' | cut -c 35- > expected_create_wrap_trx_serialized.hex
 cat expected_create_wrap_trx_serialized.hex
 ```
 ```console
@@ -378,7 +378,7 @@ diff expected_create_wrap_trx_serialized.hex proposed_create_wrap_trx_serialized
 
 When an approver (e.g. `blkproducerb`) is satisfied with the proposed transaction, they can simply approve it:
 ```sh
-amaxcl multisig approve blkproducera createwrap '{"actor": "blkproducerb", "permission": "active"}' -p blkproducerb
+amcli multisig approve blkproducera createwrap '{"actor": "blkproducerb", "permission": "active"}' -p blkproducerb
 ```
 ```console
 executed transaction: 03a907e2a3192aac0cd040c73db8273c9da7696dc7960de22b1a479ae5ee9f23  128 bytes  472 us
@@ -391,7 +391,7 @@ warning: transaction executed locally, but may not be confirmed by the network y
 When the necessary approvals are collected (in this example, with 21 block producers, at least 15 of their approvals were required), anyone can push the `amax.msig::exec` action which executes the approved transaction. It makes a lot of sense for the lead block producer who proposed the transaction to also execute it (this will incur another temporary RAM cost for the deferred transaction that is generated by the amax.msig contract).
 
 ```sh
-amaxcl multisig exec blkproducera createwrap blkproducera
+amcli multisig exec blkproducera createwrap blkproducera
 ```
 ```console
 executed transaction: 7ecc183b99915cc411f96dde7c35c3fe0df6e732507f272af3a039b706482e5a  160 bytes  850 us
@@ -401,7 +401,7 @@ warning: transaction executed locally, but may not be confirmed by the network y
 
 Anyone can now verify that the `amax.wrap` was created:
 ```sh
-amaxcl get account amax.wrap
+amcli get account amax.wrap
 ```
 ```console
 privileged: true
@@ -432,11 +432,11 @@ producers:     <not voted>
 
 ### 1.2.1  Generate the transaction to deploy the amax.wrap contract
 
-The transaction to deploy the contract to the `amax.wrap` account will need to be proposed to get the necessary approvals from active block producers before executing it. This transaction needs to first be generated and stored as JSON into a file so that it can be used in the amaxcl command to propose the transaction to the amax.msig contract.
+The transaction to deploy the contract to the `amax.wrap` account will need to be proposed to get the necessary approvals from active block producers before executing it. This transaction needs to first be generated and stored as JSON into a file so that it can be used in the amcli command to propose the transaction to the amax.msig contract.
 
-The easy way to generate this transaction is using amaxcl:
+The easy way to generate this transaction is using amcli:
 ```sh
-amaxcl set contract -s -j -d amax.wrap contracts/amax.wrap/ > deploy_wrap_contract_trx.json
+amcli set contract -s -j -d amax.wrap contracts/amax.wrap/ > deploy_wrap_contract_trx.json
 ```
 ```console
 Reading WAST/WASM from contracts/amax.wrap/amax.wrap.wasm...
@@ -509,7 +509,7 @@ This guide will assume that `blkproducera` was chosen as the lead block producer
 
 The lead block producer (`blkproducera`) should propose the transaction stored in deploy_wrap_contract_trx.json:
 ```sh
-amaxcl multisig propose_trx deploywrap producer_permissions.json deploy_wrap_contract_trx.json blkproducera
+amcli multisig propose_trx deploywrap producer_permissions.json deploy_wrap_contract_trx.json blkproducera
 ```
 ```console
 executed transaction: 9e50dd40eba25583a657ee8114986a921d413b917002c8fb2d02e2d670f720a8  4312 bytes  871 us
@@ -521,9 +521,9 @@ warning: transaction executed locally, but may not be confirmed by the network y
 
 Each of the potential approvers of the proposed transaction (i.e. the active block producers) should first review the proposed transaction to make sure they are not approving anything that they do not agree to.
 
-The proposed transaction can be reviewed using the `amaxcl multisig review` command:
+The proposed transaction can be reviewed using the `amcli multisig review` command:
 ```sh
-amaxcl multisig review blkproducera deploywrap > deploy_wrap_contract_trx_to_review.json
+amcli multisig review blkproducera deploywrap > deploy_wrap_contract_trx_to_review.json
 cat deploy_wrap_contract_trx_to_review.json
 ```
 ```json
@@ -577,7 +577,7 @@ Each approver should be able to see that the proposed transaction is setting the
 
 This guide assumes that each approver has already audited the source code of the contract to be deployed and has already compiled that code to generate the WebAssembly code that should be byte-for-byte identical to the code that every other approver following the same process should have generated. The guide also assumes that this generated code and its associated ABI were provided in the steps in sub-section 2.2.1 that generated the transaction in the deploy_wrap_contract_trx.json file. It then becomes quite simple to verify that the proposed transaction is identical to the one the potential approver could have proposed with the code and ABI that they already audited:
 ```sh
-amaxcl multisig propose_trx -j -s -d deploywrap '[]' deploy_wrap_contract_trx.json blkproducera | grep '"data":' | sed 's/^[ \t]*"data":[ \t]*//;s/[",]//g' | cut -c 35- > expected_deploy_wrap_trx_serialized.hex
+amcli multisig propose_trx -j -s -d deploywrap '[]' deploy_wrap_contract_trx.json blkproducera | grep '"data":' | sed 's/^[ \t]*"data":[ \t]*//;s/[",]//g' | cut -c 35- > expected_deploy_wrap_trx_serialized.hex
 cat expected_deploy_wrap_trx_serialized.hex | cut -c -50
 ```
 ```console
@@ -596,7 +596,7 @@ diff expected_deploy_wrap_trx_serialized.hex proposed_deploy_wrap_trx_serialized
 
 When an approver (e.g. `blkproducerb`) is satisfied with the proposed transaction, they can simply approve it:
 ```sh
-amaxcl multisig approve blkproducera deploywrap '{"actor": "blkproducerb", "permission": "active"}' -p blkproducerb
+amcli multisig approve blkproducera deploywrap '{"actor": "blkproducerb", "permission": "active"}' -p blkproducerb
 ```
 ```console
 executed transaction: d1e424e05ee4d96eb079fcd5190dd0bf35eca8c27dd7231b59df8e464881abfd  128 bytes  483 us
@@ -609,7 +609,7 @@ warning: transaction executed locally, but may not be confirmed by the network y
 When the necessary approvals are collected (in this example, with 21 block producers, at least 15 of their approvals were required), anyone can push the `amax.msig::exec` action which executes the approved transaction. It makes a lot of sense for the lead block producer who proposed the transaction to also execute it (this will incur another temporary RAM cost for the deferred transaction that is generated by the amax.msig contract).
 
 ```sh
-amaxcl multisig exec blkproducera deploywrap blkproducera
+amcli multisig exec blkproducera deploywrap blkproducera
 ```
 ```console
 executed transaction: e8da14c6f1fdc3255b5413adccfd0d89b18f832a4cc18c4324ea2beec6abd483  160 bytes  1877 us
@@ -619,7 +619,7 @@ executed transaction: e8da14c6f1fdc3255b5413adccfd0d89b18f832a4cc18c4324ea2beec6
 Anyone can now verify that the `amax.wrap` contract was deployed correctly.
 
 ```sh
-amaxcl get code -a retrieved-amax.wrap.abi amax.wrap
+amcli get code -a retrieved-amax.wrap.abi amax.wrap
 ```
 ```console
 code hash: 1b3456a5eca28bcaca7a2a3360fbb2a72b9772a416c8e11a303bcb26bfe3263c
@@ -638,7 +638,7 @@ If the two hashes match then the local WebAssembly code is the one deployed on t
 
 ## 2.1 Example: Updating owner authority of an arbitrary account
 
-This example will demonstrate how to use the deployed amax.wrap contract together with the amax.msig contract to allow a greater than two-thirds supermajority of block producers of an AMAX blockchain to change the owner authority of an arbitrary account. The example will use amaxcl: in particular, the `amaxcl multisig` command, the `amaxcl set account permission` sub-command, and the `amaxcl wrap exec` sub-command. However, the guide also demonstrates what to do if the `amaxcl wrap exec` sub-command is not available.
+This example will demonstrate how to use the deployed amax.wrap contract together with the amax.msig contract to allow a greater than two-thirds supermajority of block producers of an AMAX blockchain to change the owner authority of an arbitrary account. The example will use amcli: in particular, the `amcli multisig` command, the `amcli set account permission` sub-command, and the `amcli wrap exec` sub-command. However, the guide also demonstrates what to do if the `amcli wrap exec` sub-command is not available.
 
 This guide assumes that there are 21 active block producers on the chain with account names: `blkproducera`, `blkproducerb`, ..., `blkproduceru`. Block producer `blkproducera` will act as the lead block producer handling the proposal of the transaction.
 
@@ -705,7 +705,7 @@ Assume that none of the block producers know the private key corresponding to th
 
 The first step is to generate the transaction changing the owner permission of the `alice` account as if `alice` is authorizing the change:
 ```sh
-amaxcl set account permission -s -j -d alice owner '{"threshold": 1, "accounts": [{"permission": {"actor": "amax", "permission": "active"}, "weight": 1}]}' > update_alice_owner_trx.json
+amcli set account permission -s -j -d alice owner '{"threshold": 1, "accounts": [{"permission": {"actor": "amax", "permission": "active"}, "weight": 1}]}' > update_alice_owner_trx.json
 ```
 
 Then modify update_alice_owner_trx.json so that the values for the `ref_block_num` and `ref_block_prefix` fields are both 0 and the value of the `expiration` field is `"1970-01-01T00:00:00"`:
@@ -741,7 +741,7 @@ cat update_alice_owner_trx.json
 The next step is to generate the transaction containing the `amax.wrap::exec` action. This action will contain the transaction in update_alice_owner_trx.json as part of its action payload data.
 
 ```sh
-amaxcl wrap exec -s -j -d blkproducera update_alice_owner_trx.json > wrap_update_alice_owner_trx.json
+amcli wrap exec -s -j -d blkproducera update_alice_owner_trx.json > wrap_update_alice_owner_trx.json
 ```
 
 Once again modify wrap_update_alice_owner_trx.json so that the value for the `ref_block_num` and `ref_block_prefix` fields are both 0. However, instead of changing the value of the expiration field to `"1970-01-01T00:00:00"`, it should be changed to a time that is far enough in the future to allow enough time for the proposed transaction to be approved and executed.
@@ -777,11 +777,11 @@ cat wrap_update_alice_owner_trx.json
 }
 ```
 
-If the `amaxcl wrap` command is not available, there is an alternative way to generate the above transaction. There is no need to continue reading the remaining of sub-section 3.1.1 if the wrap_update_alice_owner_trx.json file was already generated with content similar to the above using the `amaxcl wrap exec` sub-command method.
+If the `amcli wrap` command is not available, there is an alternative way to generate the above transaction. There is no need to continue reading the remaining of sub-section 3.1.1 if the wrap_update_alice_owner_trx.json file was already generated with content similar to the above using the `amcli wrap exec` sub-command method.
 
 First the hex encoding of the binary serialization of the transaction in update_alice_owner_trx.json must be obtained. One way of obtaining this data is through the following command:
 ```sh
-amaxcl multisig propose_trx -s -j -d nothing '[]' update_alice_owner_trx.json nothing | grep '"data":' | sed 's/^[ \t]*"data":[ \t]*//;s/[",]//g' | cut -c 35- > update_alice_owner_trx_serialized.hex
+amcli multisig propose_trx -s -j -d nothing '[]' update_alice_owner_trx.json nothing | grep '"data":' | sed 's/^[ \t]*"data":[ \t]*//;s/[",]//g' | cut -c 35- > update_alice_owner_trx_serialized.hex
 cat update_alice_owner_trx_serialized.hex
 ```
 ```console
@@ -790,7 +790,7 @@ cat update_alice_owner_trx_serialized.hex
 
 Then generate the template for the transaction containing the `amax.wrap::exec` action:
 ```sh
-amaxcl push action -s -j -d amax.wrap exec '{"executer": "blkproducera", "trx": ""}' > wrap_update_alice_owner_trx.json
+amcli push action -s -j -d amax.wrap exec '{"executer": "blkproducera", "trx": ""}' > wrap_update_alice_owner_trx.json
 cat wrap_update_alice_owner_trx.json
 ```
 ```json
@@ -825,7 +825,7 @@ Then modify the transaction in wrap_update_alice_owner_trx.json as follows:
 
 The lead block producer (`blkproducera`) should propose the transaction stored in wrap_update_alice_owner_trx.json:
 ```sh
-amaxcl multisig propose_trx updatealice producer_permissions.json wrap_update_alice_owner_trx.json blkproducera
+amcli multisig propose_trx updatealice producer_permissions.json wrap_update_alice_owner_trx.json blkproducera
 ```
 ```console
 executed transaction: 10474f52c9e3fc8e729469a577cd2fc9e4330e25b3fd402fc738ddde26605c13  624 bytes  782 us
@@ -837,7 +837,7 @@ warning: transaction executed locally, but may not be confirmed by the network y
 
 Each of the potential approvers of the proposed transaction (i.e. the active block producers) should first review the proposed transaction to make sure they are not approving anything that they do not agree to.
 ```sh
-amaxcl multisig review blkproducera updatealice > wrap_update_alice_owner_trx_to_review.json
+amcli multisig review blkproducera updatealice > wrap_update_alice_owner_trx_to_review.json
 cat wrap_update_alice_owner_trx_to_review.json
 ```
 ```json
@@ -895,13 +895,13 @@ cat wrap_update_alice_owner_trx_to_review.json
 }
 ```
 
-The approvers should go through the human-readable transaction output and make sure everything looks fine. However, due to a current limitation of amaxnd/amaxcl, the JSONification of action payload data does not occur recursively. So while both the `hex_data` and the human-readable JSON `data` of the payload of the `amax.wrap::exec` action is available in the output of the `amaxcl multisig review` command, only the hex data is available of the payload of the inner `eosio::updateauth` action. So it is not clear what the `updateauth` will actually do.
+The approvers should go through the human-readable transaction output and make sure everything looks fine. However, due to a current limitation of amaxnd/amcli, the JSONification of action payload data does not occur recursively. So while both the `hex_data` and the human-readable JSON `data` of the payload of the `amax.wrap::exec` action is available in the output of the `amcli multisig review` command, only the hex data is available of the payload of the inner `eosio::updateauth` action. So it is not clear what the `updateauth` will actually do.
 
-Furthermore, even if this usability issue was fixed in amaxnd/amaxcl, there will still be cases where there is no sensible human-readable version of an action data payload within a transaction. An example of this is the proposed transaction in sub-section 2.2.3 which used the `eosio::setcode` action to set the contract code of the `amax.wrap` account. The best thing to do in such situations is for the reviewer to compare the proposed transaction to one generated by them through a process they trust.
+Furthermore, even if this usability issue was fixed in amaxnd/amcli, there will still be cases where there is no sensible human-readable version of an action data payload within a transaction. An example of this is the proposed transaction in sub-section 2.2.3 which used the `eosio::setcode` action to set the contract code of the `amax.wrap` account. The best thing to do in such situations is for the reviewer to compare the proposed transaction to one generated by them through a process they trust.
 
 Since each block producer generated a transaction in sub-section 3.1.1 (stored in the file wrap_update_alice_owner_trx.json) which should be identical to the transaction proposed by the lead block producer, they can each simply check to see if the two transactions are identical:
 ```sh
-amaxcl multisig propose_trx -j -s -d updatealice '[]' wrap_update_alice_owner_trx.json blkproducera | grep '"data":' | sed 's/^[ \t]*"data":[ \t]*//;s/[",]//g' | cut -c 35- > expected_wrap_update_alice_owner_trx_serialized.hex
+amcli multisig propose_trx -j -s -d updatealice '[]' wrap_update_alice_owner_trx.json blkproducera | grep '"data":' | sed 's/^[ \t]*"data":[ \t]*//;s/[",]//g' | cut -c 35- > expected_wrap_update_alice_owner_trx_serialized.hex
 cat expected_wrap_update_alice_owner_trx_serialized.hex
 ```
 ```console
@@ -920,7 +920,7 @@ diff expected_wrap_update_alice_owner_trx_serialized.hex  proposed_wrap_update_a
 
 When an approver (e.g. `blkproducerb`) is satisfied with the proposed transaction, they can simply approve it:
 ```sh
-amaxcl multisig approve blkproducera updatealice '{"actor": "blkproducerb", "permission": "active"}' -p blkproducerb
+amcli multisig approve blkproducera updatealice '{"actor": "blkproducerb", "permission": "active"}' -p blkproducerb
 ```
 ```console
 executed transaction: 2bddc7747e0660ba26babf95035225895b134bfb2ede32ba0a2bb6091c7dab56  128 bytes  543 us
@@ -933,7 +933,7 @@ warning: transaction executed locally, but may not be confirmed by the network y
 When the necessary approvals are collected (in this example, with 21 block producers, at least 15 of their approvals were required), anyone can push the `amax.msig::exec` action which executes the approved transaction. It makes a lot of sense for the lead block producer who proposed the transaction to also execute it (this will incur another temporary RAM cost for the deferred transaction that is generated by the amax.msig contract).
 
 ```sh
-amaxcl multisig exec blkproducera updatealice blkproducera
+amcli multisig exec blkproducera updatealice blkproducera
 ```
 ```console
 executed transaction: 7127a66ae307fbef6415bf60c3e91a88b79bcb46030da983c683deb2a1a8e0d0  160 bytes  820 us
@@ -943,7 +943,7 @@ warning: transaction executed locally, but may not be confirmed by the network y
 
 Anyone can now verify that the owner authority of `alice` was successfully changed:
 ```sh
-amaxcl get account alice
+amcli get account alice
 ```
 ```console
 permissions:

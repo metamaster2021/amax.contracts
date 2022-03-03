@@ -55,29 +55,29 @@ cd ..
 ## To deploy amax.bios contract execute the following command:
 Let's assume your account name to which you want to deploy the contract is `testerbios`
 ```
-amaxcl set contract testerbios you_local_path_to/amax.contracts/build/contracts/amax.bios/ -p testerbios
+amcli set contract testerbios you_local_path_to/amax.contracts/build/contracts/amax.bios/ -p testerbios
 ```
 
 ## To deploy amax.msig contract execute the following command:
 Let's assume your account name to which you want to deploy the contract is `testermsig`
 ```
-amaxcl set contract testermsig you_local_path_to/amax.contracts/build/contracts/amax.msig/ -p testermsig
+amcli set contract testermsig you_local_path_to/amax.contracts/build/contracts/amax.msig/ -p testermsig
 ```
 
 ## To deploy amax.system contract execute the following command:
 Let's assume your account name to which you want to deploy the contract is `testersystem`
 ```
-amaxcl set contract testersystem you_local_path_to/amax.contracts/build/contracts/amax.system/ -p testersystem
+amcli set contract testersystem you_local_path_to/amax.contracts/build/contracts/amax.system/ -p testersystem
 ```
 
 ## To deploy amax.token contract execute the following command:
 Let's assume your account name to which you want to deploy the contract is `testertoken`
 ```
-amaxcl set contract testertoken you_local_path_to/amax.contracts/build/contracts/amax.token/ -p testertoken
+amcli set contract testertoken you_local_path_to/amax.contracts/build/contracts/amax.token/ -p testertoken
 ```
 
 ## To deploy amax.wrap contract execute the following command:
 Let's assume your account name to which you want to deploy the contract is `testerwrap`
 ```
-amaxcl set contract testerwrap you_local_path_to/amax.contracts/build/contracts/amax.wrap/ -p testerwrap
+amcli set contract testerwrap you_local_path_to/amax.contracts/build/contracts/amax.wrap/ -p testerwrap
 ```

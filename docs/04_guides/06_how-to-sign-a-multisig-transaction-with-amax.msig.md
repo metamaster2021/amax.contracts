@@ -13,7 +13,7 @@ link_text: How to sign a multisig transaction with amax.msig
 
 ### One user creates a proposal:
 ```sh
-amaxcl multisig propose test '[{"actor": "treasury", "permission": "active"}]' '[{"actor": "treasury", "permission": "active"}]' amax.token issue '{"to": "tester", "quantity": "1000.0000 SYS", "memo": ""}' -p tester
+amcli multisig propose test '[{"actor": "treasury", "permission": "active"}]' '[{"actor": "treasury", "permission": "active"}]' amax.token issue '{"to": "tester", "quantity": "1000.0000 SYS", "memo": ""}' -p tester
 ```
 ```console
 executed transaction: e26f3a3a7cba524a7b15a0b6c77c7daa73d3ba9bf84e83f9c2cdf27fcb183d61  336 bytes  107520 cycles
@@ -22,7 +22,7 @@ executed transaction: e26f3a3a7cba524a7b15a0b6c77c7daa73d3ba9bf84e83f9c2cdf27fcb
 
 ### Another user reviews the transaction:
 ```sh
-amaxcl multisig review tester test
+amcli multisig review tester test
 ```
 ```json
 {
@@ -65,7 +65,7 @@ amaxcl multisig review tester test
 
 ### And then approves it:
 ```sh
-amaxcl multisig approve tester test '{"actor": "treasury", "permission": "active"}' -p treasury
+amcli multisig approve tester test '{"actor": "treasury", "permission": "active"}' -p treasury
 ```
 ```console
 executed transaction: 475970a4b0016368d0503d1ce01577376f91f5a5ba63dd4353683bd95101b88d  256 bytes  108544 cycles
@@ -74,7 +74,7 @@ executed transaction: 475970a4b0016368d0503d1ce01577376f91f5a5ba63dd4353683bd951
 
 ### First user initiates execution:
 ```sh
-amaxcl multisig exec tester test -p tester
+amcli multisig exec tester test -p tester
 ```
 ```console
 executed transaction: 64e5eaceb77362694055f572ae35876111e87b637a55250de315b1b55e56d6c2  248 bytes  109568 cycles
@@ -92,7 +92,7 @@ executed transaction: 64e5eaceb77362694055f572ae35876111e87b637a55250de315b1b55e
 
 ### One user creates a proposal:
 ```sh
-amaxcl multisig propose test '[{"actor": "treasury", "permission": "active"}]' '[{"actor": "treasury", "permission": "active"}]' amax.token transfer '{"from": "treasury", "to": "tester", "quantity": "1.0000 SYS", "memo": ""}' -p tester
+amcli multisig propose test '[{"actor": "treasury", "permission": "active"}]' '[{"actor": "treasury", "permission": "active"}]' amax.token transfer '{"from": "treasury", "to": "tester", "quantity": "1.0000 SYS", "memo": ""}' -p tester
 ```
 ```console
 executed transaction: e26f3a3a7cba524a7b15a0b6c77c7daa73d3ba9bf84e83f9c2cdf27fcb183d61  336 bytes  107520 cycles
@@ -101,7 +101,7 @@ executed transaction: e26f3a3a7cba524a7b15a0b6c77c7daa73d3ba9bf84e83f9c2cdf27fcb
 
 ### Another user reviews the transaction:
 ```sh
-amaxcl multisig review tester test
+amcli multisig review tester test
 ```
 ```json
 {
@@ -145,7 +145,7 @@ amaxcl multisig review tester test
 
 ### And then approves it:
 ```sh
-amaxcl multisig approve tester test '{"actor": "treasury", "permission": "active"}' -p treasury
+amcli multisig approve tester test '{"actor": "treasury", "permission": "active"}' -p treasury
 ```
 ```console
 executed transaction: 475970a4b0016368d0503d1ce01577376f91f5a5ba63dd4353683bd95101b88d  256 bytes  108544 cycles
@@ -154,7 +154,7 @@ executed transaction: 475970a4b0016368d0503d1ce01577376f91f5a5ba63dd4353683bd951
 
 ### First user check account balance before executing the proposed transaction
 ```sh
-amaxcl get account tester
+amcli get account tester
 ```
 ```console
 ...
@@ -167,7 +167,7 @@ SYS balances:
 
 ### First user initiates execution of proposed transaction:
 ```sh
-amaxcl multisig exec tester test -p tester
+amcli multisig exec tester test -p tester
 ```
 ```console
 executed transaction: 64e5eaceb77362694055f572ae35876111e87b637a55250de315b1b55e56d6c2  248 bytes  109568 cycles
@@ -176,7 +176,7 @@ executed transaction: 64e5eaceb77362694055f572ae35876111e87b637a55250de315b1b55e
 
 ### First user can check account balance, it should be increased by 1.0000 SYS
 ```sh
-amaxcl get account tester
+amcli get account tester
 ```
 ```console
 ...

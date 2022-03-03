@@ -15,7 +15,7 @@ Setup an account that require multiple signatures for signing a transaction
 
 * You have sufficient token allocated to your account
 
-* Install the currently supported version of amaxcl
+* Install the currently supported version of amcli
 
 * Unlock your wallet
 
@@ -24,5 +24,5 @@ Setup an account that require multiple signatures for signing a transaction
 Buys RAM in value of 0.1 SYS tokens for account `alice`:
 
 ```shell
-amaxcl system buyram alice alice "0.1 SYS" -p alice@active
+amcli system buyram alice alice "0.1 SYS" -p alice@active
 ```

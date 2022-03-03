@@ -9,7 +9,7 @@ Stake resource for your account
 
 # Before you begin
 
-* Install the currently supported version of amaxcl
+* Install the currently supported version of amcli
 
 * Ensure the reference system contracts from `amax.contracts` repository is deployed and used to manage system resources
 
@@ -23,11 +23,11 @@ Stake resource for your account
 Stake 0.01 SYS network bandwidth for `alice`
 
 ```shell
-amaxcl system delegatebw alice alice "0 SYS" "0.01 SYS"
+amcli system delegatebw alice alice "0 SYS" "0.01 SYS"
 ```
 
 Stake 0.01 SYS CPU bandwidth for `alice`:
 
 ```shell
-amaxcl system delegatebw alice alice "0.01 SYS" "0 SYS"
+amcli system delegatebw alice alice "0.01 SYS" "0 SYS"
 ```

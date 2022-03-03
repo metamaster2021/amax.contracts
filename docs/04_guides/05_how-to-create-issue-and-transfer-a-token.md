@@ -25,7 +25,7 @@ cd amax.contracts/contracts/amax.token
 | You may have to unlock your wallet first!
 
 ```shell
-amaxcl create account amax amax.token AMA6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV
+amcli create account amax amax.token AMA6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV
 ```
 
 ## Step 3: Compile the Contract
@@ -37,7 +37,7 @@ eosio-cpp -I include -o amax.token.wasm src/amax.token.cpp --abigen
 ## Step 4: Deploy the Token Contract
 
 ```shell
-amaxcl set contract amax.token CONTRACTS_DIR/amax.contracts/contracts/amax.token --abi amax.token.abi -p amax.token@active
+amcli set contract amax.token CONTRACTS_DIR/amax.contracts/contracts/amax.token --abi amax.token.abi -p amax.token@active
 ```
 
 Result should look similar to the one below:
@@ -53,7 +53,7 @@ warning: transaction executed locally, but may not be confirmed by the network y
 ## Step 5: Create the Token
 
 ```shell
-amaxcl push action amax.token create '[ "amax", "1000000000.0000 SYS"]' -p amax.token@active
+amcli push action amax.token create '[ "amax", "1000000000.0000 SYS"]' -p amax.token@active
 ```
 
 Result should look similar to the one below:
@@ -65,7 +65,7 @@ executed transaction: 0e49a421f6e75f4c5e09dd738a02d3f51bd18a0cf31894f68d335cd70d
 An alternate approach uses named arguments:
 
 ```shell
-amaxcl push action amax.token create '{"issuer":"amax", "maximum_supply":"1000000000.0000 SYS"}' -p amax.token@active
+amcli push action amax.token create '{"issuer":"amax", "maximum_supply":"1000000000.0000 SYS"}' -p amax.token@active
 ```
 
 Result should look similar to the one below:
@@ -80,7 +80,7 @@ This command created a new token `SYS` with a precision of 4 decimals and a maxi
 The issuer can issue new tokens to the issuer account in our case `amax`.
 
 ```sh
-amaxcl push action amax.token issue '[ "amax", "100.0000 SYS", "memo" ]' -p amax@active
+amcli push action amax.token issue '[ "amax", "100.0000 SYS", "memo" ]' -p amax@active
 ```
 
 Result should look similar to the one below:
@@ -95,7 +95,7 @@ warning: transaction executed locally, but may not be confirmed by the network y
 Now that account `amax` has been issued tokens, transfer some of them to account `bob`.
 
 ```shell
-amaxcl push action amax.token transfer '[ "amax", "bob", "25.0000 SYS", "m" ]' -p amax@active
+amcli push action amax.token transfer '[ "amax", "bob", "25.0000 SYS", "m" ]' -p amax@active
 ```
 
 Result should look similar to the one below:
@@ -106,10 +106,10 @@ executed transaction: 60d334850151cb95c35fe31ce2e8b536b51441c5fd4c3f2fea98edcc6d
 #           bob <= amax.token::transfer        {"from":"amax","to":"bob","quantity":"25.0000 SYS","memo":"m"}
 warning: transaction executed locally, but may not be confirmed by the network yet         ]
 ```
-Now check if "bob" got the tokens using [amaxcl get currency balance](https://developers.eos.io/manuals/eos/latest/amaxcl/command-reference/get/currency-balance)
+Now check if "bob" got the tokens using [amcli get currency balance](https://developers.eos.io/manuals/eos/latest/amcli/command-reference/get/currency-balance)
 
 ```shell
-amaxcl get currency balance amax.token bob SYS
+amcli get currency balance amax.token bob SYS
 ```
 
 Result:
@@ -120,7 +120,7 @@ Result:
 Check "amax's" balance, notice that tokens were deducted from the account
 
 ```shell
-amaxcl get currency balance amax.token amax SYS
+amcli get currency balance amax.token amax SYS
 ```
 
 Result:

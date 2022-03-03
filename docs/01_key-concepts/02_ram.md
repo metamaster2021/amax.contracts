@@ -36,4 +36,4 @@ RAM is a very important system resource because of the following reasons:
 
 RAM is a scarce resource priced according to the unique Bancor liquidity algorithm which is implemented in the system contract [here](https://github.com/armoniax/amax.contracts/blob/main/contracts/amax.system/exchange_state.hpp).
 
-The RAM system resource must be purchased using the system token. Refer to the [amaxcl manual](https://developers.eos.io/manuals/eos/v2.0/amaxcl/how-to-guides/how-to-buy-ram) to learn how to buy RAM via the command line interface.
+The RAM system resource must be purchased using the system token. Refer to the [amcli manual](https://developers.eos.io/manuals/eos/v2.0/amcli/how-to-guides/how-to-buy-ram) to learn how to buy RAM via the command line interface.
