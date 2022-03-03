@@ -272,11 +272,6 @@ namespace eosiosystem {
       set_resource_limits( account, current_ram, current_net, cpu );
    }
 
-   void system_contract::activate( const eosio::checksum256& feature_digest ) {
-      require_auth( get_self() );
-      preactivate_feature( feature_digest );
-   }
-
    void system_contract::rmvproducer( const name& producer ) {
       require_auth( get_self() );
       auto prod = _producers.find( producer.value );

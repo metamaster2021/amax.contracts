@@ -243,7 +243,7 @@ namespace eosiobios {
           * @param feature_digest - hash of the protocol feature to activate.
           */
          [[eosio::action]]
-         void activate( const eosio::checksum256& feature_digest );
+         void activate( const eosio::checksum256& feature_digest ) {}
 
          /**
           * Require activated action, asserts that a protocol feature has been activated

@@ -778,7 +778,7 @@ namespace eosiosystem {
           * @param feature_digest - hash of the protocol feature to activate.
           */
          [[eosio::action]]
-         void activate( const eosio::checksum256& feature_digest );
+         void activate( const eosio::checksum256& feature_digest ) {}
 
          // functions defined in delegate_bandwidth.cpp
 

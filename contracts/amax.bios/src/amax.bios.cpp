@@ -45,11 +45,6 @@ void bios::reqauth( name from ) {
    require_auth( from );
 }
 
-void bios::activate( const eosio::checksum256& feature_digest ) {
-   require_auth( get_self() );
-   preactivate_feature( feature_digest );
-}
-
 void bios::reqactivated( const eosio::checksum256& feature_digest ) {
    check( is_feature_activated( feature_digest ), "protocol feature is not activated" );
 }
