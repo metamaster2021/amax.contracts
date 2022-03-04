@@ -112,8 +112,8 @@ function cdt-directory-prompt() {
 
 
 # Ensures AMAX is installed and compatible via version listed in tests/CMakeLists.txt.
-function amaxnd-version-check() {
-  INSTALLED_VERSION=$(echo $($AMAX_INSTALL_DIR/bin/amaxnd --version))
+function amnod-version-check() {
+  INSTALLED_VERSION=$(echo $($AMAX_INSTALL_DIR/bin/amnod --version))
   INSTALLED_VERSION_MAJOR=$(echo $INSTALLED_VERSION | cut -f1 -d '.' | sed 's/v//g')
   INSTALLED_VERSION_MINOR=$(echo $INSTALLED_VERSION | cut -f2 -d '.' | sed 's/v//g')
 

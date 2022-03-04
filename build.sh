@@ -66,7 +66,7 @@ export CMAKE_FRAMEWORK_PATH="${CDT_INSTALL_DIR}:${CMAKE_FRAMEWORK_PATH}"
 
 if [[ ${BUILD_TESTS} == true ]]; then
    # Ensure amax version is appropriate.
-   amaxnd-version-check
+   amnod-version-check
 
    # Include AMAX_INSTALL_DIR in CMAKE_FRAMEWORK_PATH
    echo "Using AMAX installation at: $AMAX_INSTALL_DIR"
