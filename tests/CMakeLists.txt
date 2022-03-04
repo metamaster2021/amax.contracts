@@ -1,7 +1,7 @@
 cmake_minimum_required( VERSION 3.5 )
 
-set(AMAX_VERSION_MIN "1.0")
-set(AMAX_VERSION_SOFT_MAX "1.0")
+set(AMAX_VERSION_MIN "0.5")
+set(AMAX_VERSION_SOFT_MAX "0.5")
 #set(AMAX_VERSION_HARD_MAX "")
 
 find_package(amax)

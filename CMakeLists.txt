@@ -19,8 +19,8 @@ find_package(amax.cdt)
 
 message(STATUS "Building amax.contracts v${VERSION_FULL}")
 
-set(AMAX_CDT_VERSION_MIN "1.0")
-set(AMAX_CDT_VERSION_SOFT_MAX "1.0")
+set(AMAX_CDT_VERSION_MIN "0.5")
+set(AMAX_CDT_VERSION_SOFT_MAX "0.5")
 #set(AMAX_CDT_VERSION_HARD_MAX "")
 
 ### Check the version of amax.cdt
