@@ -25,7 +25,7 @@ cd amax.contracts/contracts/amax.token
 | You may have to unlock your wallet first!
 
 ```shell
-amcli create account amax amax.token AMA6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV
+amcli create account amax amax.token AM6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV
 ```
 
 ## Step 3: Compile the Contract
