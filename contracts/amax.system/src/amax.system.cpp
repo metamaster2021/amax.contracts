@@ -33,19 +33,19 @@ namespace eosiosystem {
     _rexorders(get_self(), get_self().value)
    {
       _gstate  = _global.exists() ? _global.get() : get_default_parameters();
-      _gstate2 = _global2.exists() ? _global2.get() : eosio_global_state2{};
-      _gstate3 = _global3.exists() ? _global3.get() : eosio_global_state3{};
+      _gstate2 = _global2.exists() ? _global2.get() : amax_global_state2{};
+      _gstate3 = _global3.exists() ? _global3.get() : amax_global_state3{};
       _gstate4 = _global4.exists() ? _global4.get() : get_default_inflation_parameters();
    }
 
-   eosio_global_state system_contract::get_default_parameters() {
-      eosio_global_state dp;
+   amax_global_state system_contract::get_default_parameters() {
+      amax_global_state dp;
       get_blockchain_parameters(dp);
       return dp;
    }
 
-   eosio_global_state4 system_contract::get_default_inflation_parameters() {
-      eosio_global_state4 gs4;
+   amax_global_state4 system_contract::get_default_inflation_parameters() {
+      amax_global_state4 gs4;
       gs4.continuous_rate      = get_continuous_rate(default_annual_rate);
       gs4.inflation_pay_factor = default_inflation_pay_factor;
       gs4.votepay_factor       = default_votepay_factor;
