@@ -5519,8 +5519,8 @@ BOOST_AUTO_TEST_CASE( setabi_bios ) try {
    t.execute_setup_policy( setup_policy::full );
 
    abi_serializer abi_ser(fc::json::from_string( (const char*)contracts::bios_abi().data()).template as<abi_def>(), abi_serializer::create_yield_function(base_tester::abi_serializer_max_time));
-   t.set_code( config::system_account_name, contracts::bios_wasm() );
-   t.set_abi( config::system_account_name, contracts::bios_abi().data() );
+   // t.set_code( config::system_account_name, contracts::bios_wasm() );
+   // t.set_abi( config::system_account_name, contracts::bios_abi().data() );
    t.create_account(N(amax.token));
    t.set_abi( N(amax.token), contracts::token_abi().data() );
    {
