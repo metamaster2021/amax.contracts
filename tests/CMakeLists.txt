@@ -1,6 +1,6 @@
 cmake_minimum_required( VERSION 3.5 )
 
-set(AMAX_VERSION_MIN "0.5")
+set(AMAX_VERSION_MIN "0.1")
 set(AMAX_VERSION_SOFT_MAX "0.5")
 #set(AMAX_VERSION_HARD_MAX "")
 
