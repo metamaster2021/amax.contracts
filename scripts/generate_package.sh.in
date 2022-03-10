@@ -1,0 +1,29 @@
+#! /bin/bash
+
+VARIANT=$1
+
+VERSION_NO_SUFFIX="@VERSION_MAJOR@.@VERSION_MINOR@.@VERSION_PATCH@"
+VERSION_SUFFIX="@VERSION_SUFFIX@"
+VERSION="@VERSION_FULL@"
+
+# Using CMAKE_BINARY_DIR uses an absolute path and will break cross-vm building/download/make functionality
+BUILD_DIR="../../build"
+
+VENDOR="@VENDOR@"
+PROJECT="@PROJECT_NAME@"
+DESC="@DESC@"
+URL="@URL@"
+EMAIL="@EMAIL@"
+
+export BUILD_DIR
+export VERSION_NO_SUFFIX
+export VERSION_SUFFIX
+export VERSION
+export VENDOR
+export PROJECT
+export DESC
+export URL
+export EMAIL
+
+. ./generate_tarball.sh
+

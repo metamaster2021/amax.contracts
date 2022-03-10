@@ -92,3 +92,6 @@ if(BUILD_TESTS)
 else()
    message(STATUS "Unit tests will not be built. To build unit tests, set BUILD_TESTS to true.")
 endif()
+
+configure_file(${CMAKE_SOURCE_DIR}/scripts/generate_package.sh.in ${CMAKE_BINARY_DIR}/packages/generate_package.sh @ONLY)
+configure_file(${CMAKE_SOURCE_DIR}/scripts/generate_tarball.sh ${CMAKE_BINARY_DIR}/packages/generate_tarball.sh COPYONLY)
