@@ -101,16 +101,24 @@ namespace eosio
         [[eosio::action]] void close(const name &owner, const symbol &symbol);
 
         /**
-         * Set config of token by `symbol`
+         * Set token fee ratio
+         *
+         * @param symbol - the symbol of the token.
+         * @param fee_ratio - fee ratio, boost 10000.
+         */
+        [[eosio::action]] void feeratio(const symbol &symbol, uint64_t fee_ratio);
+
+
+        /**
+         * Set token fee receiver
          *
          * @param symbol - the symbol of the token.
          * @param fee_receiver - fee receiver.
-         * @param fee_ratio - fee ratio, boost 10000.
          */
-        [[eosio::action]] void setconfig(const symbol &symbol, const name &fee_receiver, uint64_t fee_ratio);
+        [[eosio::action]] void feereceiver(const symbol &symbol, const name &fee_receiver);
 
         /**
-         * Pause token of `symbol`
+         * Pause token
          * If token is paused, users can not do actions: transfer(), open(), close(),
          * @param symbol - the symbol of the token.
          * @param is_paused - is paused.
@@ -160,6 +168,9 @@ namespace eosio
 
         typedef eosio::multi_index<"accounts"_n, account> accounts;
         typedef eosio::multi_index<"stat"_n, currency_stats> stats;
+
+        template <typename Field, typename Value>
+        void update_currency_field(const symbol &symbol, const Value &v, Field currency_stats::*field);
 
         void sub_balance(const name &owner, const asset &value);
         void add_balance(const name &owner, const asset &value, const name &ram_payer);

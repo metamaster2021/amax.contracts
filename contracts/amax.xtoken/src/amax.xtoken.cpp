@@ -164,32 +164,33 @@ namespace eosio
         acnts.erase(it);
     }
 
-    void xtoken::setconfig(const symbol &symbol, const name &fee_receiver, uint64_t fee_ratio)
-    {
-        check(is_account(fee_receiver), "Invalid account of fee_receiver");
+    void xtoken::feeratio(const symbol &symbol, uint64_t fee_ratio) {
         check(fee_ratio < RATIO_BOOST, "fee_ratio out of range");
-        stats statstable(get_self(), symbol.code().raw());
-        auto existing = statstable.find(symbol.code().raw());
-        check(existing != statstable.end(), "token with symbol does not exist");
-        const auto &st = *existing;
-        require_auth(st.issuer);
+        update_currency_field(symbol, fee_ratio, &currency_stats::fee_ratio);
+    }
 
-        statstable.modify(st, same_payer, [&](auto &s)
-                          {
-      s.fee_receiver = fee_receiver;
-      s.fee_ratio = fee_ratio; });
+    void xtoken::feereceiver(const symbol &symbol, const name &fee_receiver) {
+        check(is_account(fee_receiver), "Invalid account of fee_receiver");
+        update_currency_field(symbol, fee_receiver, &currency_stats::fee_receiver);
     }
 
     void xtoken::pause(const symbol &symbol, bool is_paused)
     {
+        update_currency_field(symbol, is_paused, &currency_stats::is_paused);
+    }
+
+    template <typename Field, typename Value>
+    void xtoken::update_currency_field(const symbol &symbol, const Value &v, Field currency_stats::*field) {
+
         stats statstable(get_self(), symbol.code().raw());
         auto existing = statstable.find(symbol.code().raw());
         check(existing != statstable.end(), "token with symbol does not exist");
         const auto &st = *existing;
         require_auth(st.issuer);
 
-        statstable.modify(st, same_payer, [&](auto &s)
-                          { s.is_paused = is_paused; });
+        statstable.modify(st, same_payer, [&](auto &s) { 
+            s.*field = v; 
+        });        
     }
 
 } /// namespace eosio
