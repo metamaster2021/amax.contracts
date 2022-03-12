@@ -84,7 +84,9 @@ void xtoken::transfer( const name&    from,
     check( is_account( to ), "to account does not exist");
     auto sym = quantity.symbol.code();
     stats statstable( get_self(), sym.raw() );
-    const auto& st = statstable.get( sym.raw() );
+    const auto& st = statstable.get( sym.raw(), "symbol does not exist" );
+    check( st.supply.symbol == quantity.symbol, "symbol precision mismatch" );
+    check(!st.is_paused, "token is paused");
 
     require_recipient( from );
     require_recipient( to );
@@ -136,6 +138,7 @@ void xtoken::open( const name& owner, const symbol& symbol, const name& ram_paye
    stats statstable( get_self(), sym_code_raw );
    const auto& st = statstable.get( sym_code_raw, "symbol does not exist" );
    check( st.supply.symbol == symbol, "symbol precision mismatch" );
+   check(!st.is_paused, "token is paused");
 
    accounts acnts( get_self(), owner.value );
    auto it = acnts.find( sym_code_raw );
@@ -149,6 +152,12 @@ void xtoken::open( const name& owner, const symbol& symbol, const name& ram_paye
 void xtoken::close( const name& owner, const symbol& symbol )
 {
    require_auth( owner );
+
+   stats statstable( get_self(), symbol.raw() );
+   const auto& st = statstable.get( symbol.raw(), "symbol does not exist" );
+   check( st.supply.symbol == symbol, "symbol precision mismatch" );
+   check(!st.is_paused, "token is paused"); 
+
    accounts acnts( get_self(), owner.value );
    auto it = acnts.find( symbol.code().raw() );
    check( it != acnts.end(), "Balance row already deleted or never existed. Action won't have any effect." );
@@ -169,6 +178,18 @@ void xtoken::setconfig( const symbol& symbol, const name& fee_receiver, uint64_t
       s.fee_receiver = fee_receiver;
       s.fee_ratio = fee_ratio;
    });   
+}
+
+void xtoken::pause( const symbol& symbol, bool is_paused) {
+   stats statstable( get_self(), symbol.code().raw() );
+   auto existing = statstable.find( symbol.code().raw() );
+   check( existing != statstable.end(), "token with symbol does not exist" );
+   const auto& st = *existing;
+   require_auth( st.issuer );
+
+   statstable.modify( st, same_payer, [&]( auto& s ) {
+      s.is_paused = is_paused;
+   });    
 }
 
 } /// namespace eosio

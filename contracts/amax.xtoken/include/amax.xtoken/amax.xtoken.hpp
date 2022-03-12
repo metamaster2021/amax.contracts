@@ -113,6 +113,15 @@ namespace eosio {
          [[eosio::action]]
          void setconfig( const symbol& symbol, const name& fee_receiver, uint64_t fee_ratio);
 
+         /**
+          * Pause token of `symbol`
+          * If token is paused, users can not do actions: transfer(), open(), close(), 
+          * @param symbol - the symbol of the token.
+          * @param is_paused - is paused.
+          */
+         [[eosio::action]]
+         void pause( const symbol& symbol, bool is_paused);  
+
          static asset get_supply( const name& token_contract_account, const symbol_code& sym_code )
          {
             stats statstable( token_contract_account, sym_code.raw() );
@@ -144,6 +153,7 @@ namespace eosio {
             asset    supply;
             asset    max_supply;
             name     issuer;
+            bool     is_paused = false;
             name     fee_receiver;  // fee receiver
             uint64_t fee_ratio = 0; // fee ratio, boost 10000
 
