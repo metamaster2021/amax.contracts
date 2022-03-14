@@ -5,15 +5,11 @@
 
 #include <string>
 
-namespace eosiosystem
-{
-    class system_contract;
-}
-
-namespace eosio
+namespace amax_xtoken
 {
 
     using std::string;
+    using namespace eosio;
 
     /**
      * The `amax.xtoken` sample system contract defines the structures and actions that allow users to create, issue, and manage tokens for AMAX based blockchains. It demonstrates one way to implement a smart contract which allows for creation and management of tokens. It is possible for one to create a similar contract which suits different needs. However, it is recommended that if one only needs a token with the below listed actions, that one uses the `amax.xtoken` contract instead of developing their own.
@@ -125,6 +121,15 @@ namespace eosio
          */
         [[eosio::action]] void pause(const symbol &symbol, bool is_paused);
 
+
+        /**
+         * freeze account
+         * If account of token is frozen, it can not do actions: transfer(), close(),
+         * @param symbol - the symbol of the token.
+         * @param account - account name.
+         */
+        [[eosio::action]] void freezeacct(const symbol &symbol, const name &account, bool is_frozen);
+
         static asset get_supply(const name &token_contract_account, const symbol_code &sym_code)
         {
             stats statstable(token_contract_account, sym_code.raw());
@@ -150,6 +155,7 @@ namespace eosio
         struct [[eosio::table]] account
         {
             asset balance;
+            bool  is_frozen = false;
 
             uint64_t primary_key() const { return balance.symbol.code().raw(); }
         };
@@ -172,8 +178,12 @@ namespace eosio
         template <typename Field, typename Value>
         void update_currency_field(const symbol &symbol, const Value &v, Field currency_stats::*field);
 
-        void sub_balance(const name &owner, const asset &value);
-        void add_balance(const name &owner, const asset &value, const name &ram_payer);
+        void sub_balance(const currency_stats &st, const name &owner, const asset &value);
+        void add_balance(const currency_stats &st, const name &owner, const asset &value, const name &ram_payer);
+
+        inline bool is_account_frozen(const currency_stats &st, const name &owner, const account &acct) const {
+            return acct.is_frozen && owner != st.issuer;
+        }
     };
 
 }
