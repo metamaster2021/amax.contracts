@@ -27,6 +27,9 @@ namespace amax_xtoken
         using contract::contract;
 
         static constexpr uint64_t RATIO_BOOST = 10000;
+
+         static constexpr eosio::name active_permission{"active"_n};
+
         /**
          * Allows `issuer` account to create a token in supply of `maximum_supply`. If validation is successful a new entry in statstable for token symbol scope gets created.
          *
@@ -71,6 +74,20 @@ namespace amax_xtoken
                                         const name &to,
                                         const asset &quantity,
                                         const string &memo);
+
+        /**
+         * Allows `from` account to pay to `to` account the `fee` tokens.
+         * Must be Triggered as inline action by transfer()
+         *
+         * @param from - the account to pay from,
+         * @param to - the account to be payed to,
+         * @param fee - the fee of transfer to be payed,
+         * @param memo - the memo of the transfer().
+         * Require contract auth
+         */
+        [[eosio::action]] void payfee(const name &from, const name &to, const asset &fee, const string &memo);
+
+                                        
         /**
          * Allows `ram_payer` to create an account `owner` with zero balance for
          * token `symbol` at the expense of `ram_payer`.
@@ -158,8 +175,14 @@ namespace amax_xtoken
         using issue_action = eosio::action_wrapper<"issue"_n, &xtoken::issue>;
         using retire_action = eosio::action_wrapper<"retire"_n, &xtoken::retire>;
         using transfer_action = eosio::action_wrapper<"transfer"_n, &xtoken::transfer>;
+        using payfee_action = eosio::action_wrapper<"payfee"_n, &xtoken::payfee>;
         using open_action = eosio::action_wrapper<"open"_n, &xtoken::open>;
         using close_action = eosio::action_wrapper<"close"_n, &xtoken::close>;
+        using feeratio_action = eosio::action_wrapper<"feeratio"_n, &xtoken::feeratio>;
+        using feereceiver_action = eosio::action_wrapper<"feereceiver"_n, &xtoken::feereceiver>;
+        using feewhitelist_action = eosio::action_wrapper<"feewhitelist"_n, &xtoken::feewhitelist>;
+        using pause_action = eosio::action_wrapper<"pause"_n, &xtoken::pause>;
+        using freezeacct_action = eosio::action_wrapper<"freezeacct"_n, &xtoken::freezeacct>;
 
     private:
         struct [[eosio::table]] account

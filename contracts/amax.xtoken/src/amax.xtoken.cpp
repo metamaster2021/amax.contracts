@@ -2,6 +2,9 @@
 
 namespace amax_xtoken {
 
+#ifndef ASSERT
+    #define ASSERT(exp) eosio::check(exp, #exp)
+#endif
     #define CHECK(exp, msg) { if (!(exp)) eosio::check(false, msg); }
 
     template<typename Int, typename LargerInt>
@@ -125,7 +128,32 @@ namespace amax_xtoken {
             print("transfer fee=", fee, ", quantity=", quantity);
             sub_balance(st, from, fee, from_accts, from_acct);
             add_balance(st, st.fee_receiver, fee, payer);
+            payfee_action payfee_act{ get_self(), { {get_self(), active_permission} } };
+            payfee_act.send( from, st.fee_receiver, fee, memo );
         }  
+    }
+
+    void xtoken::payfee(const name &from, const name &to, const asset &fee, const string &memo) {
+ 
+        // check(from != to, "cannot transfer to self");
+        require_auth({get_self(), active_permission});
+        // check(is_account(to), "to account does not exist");
+        auto sym = fee.symbol.code();
+        stats statstable(get_self(), sym.raw());
+        const auto &st = statstable.get(sym.raw(), "token of symbol does not exist");
+        ASSERT(st.supply.symbol == fee.symbol);
+        ASSERT(!st.is_paused);
+
+        require_recipient(from);
+        require_recipient(to);
+
+        ASSERT(fee.is_valid() && fee.amount > 0);
+        ASSERT(memo.size() <= 256);
+
+        auto payer = has_auth(to) ? to : get_self(); // TODO: from
+        
+        sub_balance(st, from, fee);
+        add_balance(st, to, fee, payer);      
     }
 
     void xtoken::sub_balance(const currency_stats &st, const name &owner, const asset &value)
