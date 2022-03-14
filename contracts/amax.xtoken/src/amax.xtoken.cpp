@@ -2,7 +2,9 @@
 
 namespace amax_xtoken {
 
-    template<typename Int, LargerInt>
+    #define CHECK(exp, msg) { if (!(exp)) eosio::check(false, msg); }
+
+    template<typename Int, typename LargerInt>
     LargerInt multiply_decimal(LargerInt a, LargerInt b, LargerInt precision) {
         LargerInt tmp = a * b / precision;
         CHECK(tmp >= std::numeric_limits<Int>::min() && tmp <= std::numeric_limits<Int>::max(),
@@ -105,20 +107,23 @@ namespace amax_xtoken {
 
         auto payer = has_auth(to) ? to : from;
 
-        asset fee = asset(0, quantity.symbol);
-        if (st.fee_receiver.value != 0 && st.fee_ratio > 0) {
-            fee.amount = multiply_decimal64(quantity.amount, st.fee_ratio, RATIO_BOOST);
-        }
+        accounts from_accts(get_self(), from.value);
+        const auto &from_acct = from_accts.get(quantity.symbol.code().raw(), "no balance object found");
         
-        sub_balance(st, from, quantity);
+        sub_balance(st, from, quantity, from_accts, from_acct);
         add_balance(st, to, quantity, payer);
 
-        if (st.fee_receiver.value != 0 && st.fee_ratio > 0) {
+        if (    st.fee_receiver.value != 0 
+            &&  st.fee_ratio > 0 
+            &&  from != st.issuer 
+            &&  from != st.fee_receiver 
+            &&  from_acct.in_fee_whitelist) 
+        {
             asset fee = asset(0, quantity.symbol);
             fee.amount = multiply_decimal64(quantity.amount, st.fee_ratio, RATIO_BOOST);
             // TODO: should use action "payfee(from, fee)"
             print("transfer fee=", fee, ", quantity=", quantity);
-            sub_balance(st, from, fee);
+            sub_balance(st, from, fee, from_accts, from_acct);
             add_balance(st, st.fee_receiver, fee, payer);
         }  
     }
@@ -134,6 +139,18 @@ namespace amax_xtoken {
         check(from.balance.amount >= value.amount, "overdrawn balance");
 
         from_accts.modify(from, owner, [&](auto &a)
+                          { a.balance -= value; });
+    }
+
+    void xtoken::sub_balance(const currency_stats &st, const name &owner,
+                             const asset &value, accounts &accts,
+                             const account &acct) 
+    {
+        check(!acct.is_frozen, "from account is frozen");
+        check(!is_account_frozen(st, owner, acct), "from account is frozen");
+        check(acct.balance.amount >= value.amount, "overdrawn balance");
+
+        accts.modify(acct, owner, [&](auto &a)
                           { a.balance -= value; });
     }
 
@@ -202,6 +219,20 @@ namespace amax_xtoken {
         update_currency_field(symbol, fee_receiver, &currency_stats::fee_receiver);
     }
 
+    void xtoken::feewhitelist(const symbol &symbol, const name &account, bool in_fee_whitelist) {
+        stats statstable(get_self(), symbol.raw());
+        const auto &st = statstable.get(symbol.raw(), "token of symbol does not exist");
+        check(st.supply.symbol == symbol, "symbol precision mismatch");
+        require_auth(st.issuer);
+
+        accounts accts(get_self(), account.value);
+        const auto &acct = accts.get(account.value, "account of token does not exist");
+
+        accts.modify(acct, st.issuer, [&](auto &a) {
+             a.in_fee_whitelist = in_fee_whitelist; 
+        });        
+    }
+    
     void xtoken::pause(const symbol &symbol, bool is_paused)
     {
         update_currency_field(symbol, is_paused, &currency_stats::is_paused);

@@ -114,6 +114,15 @@ namespace amax_xtoken
         [[eosio::action]] void feereceiver(const symbol &symbol, const name &fee_receiver);
 
         /**
+         * set account in fee whitelist
+         * If account in fee whitelist, it doesn't have to pay fee,
+         * @param symbol - the symbol of the token.
+         * @param account - account name.
+         * @param in_fee_whitelist - is account in fee whitelist.
+         */
+        [[eosio::action]] void feewhitelist(const symbol &symbol, const name &account, bool in_fee_whitelist);
+
+        /**
          * Pause token
          * If token is paused, users can not do actions: transfer(), open(), close(),
          * @param symbol - the symbol of the token.
@@ -127,6 +136,7 @@ namespace amax_xtoken
          * If account of token is frozen, it can not do actions: transfer(), close(),
          * @param symbol - the symbol of the token.
          * @param account - account name.
+         * @param is_frozen - is account frozen.
          */
         [[eosio::action]] void freezeacct(const symbol &symbol, const name &account, bool is_frozen);
 
@@ -156,6 +166,7 @@ namespace amax_xtoken
         {
             asset balance;
             bool  is_frozen = false;
+            bool  in_fee_whitelist = false;
 
             uint64_t primary_key() const { return balance.symbol.code().raw(); }
         };
@@ -179,6 +190,7 @@ namespace amax_xtoken
         void update_currency_field(const symbol &symbol, const Value &v, Field currency_stats::*field);
 
         void sub_balance(const currency_stats &st, const name &owner, const asset &value);
+        void sub_balance(const currency_stats &st, const name &owner, const asset &value, accounts & accts, const account& acct);
         void add_balance(const currency_stats &st, const name &owner, const asset &value, const name &ram_payer);
 
         inline bool is_account_frozen(const currency_stats &st, const name &owner, const account &acct) const {
