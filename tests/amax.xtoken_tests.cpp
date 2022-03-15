@@ -18,6 +18,8 @@ using mvo = fc::mutable_variant_object;
 
 #define SYMB(P,X) symbol(P,#X)
 
+#define REQUIRE_MATCHING_OBJECT_INVERSE(left, right) REQUIRE_MATCHING_OBJECT(right, left)
+
 class amax_xtoken_tester : public tester {
 public:
 
@@ -178,7 +180,7 @@ BOOST_FIXTURE_TEST_CASE( create_tests, amax_xtoken_tester ) try {
 
    auto token = create( N(alice), asset::from_string("1000.000 TKN"));
    auto stats = get_stats("3,TKN");
-   REQUIRE_MATCHING_OBJECT( stats, mvo()
+   REQUIRE_MATCHING_OBJECT_INVERSE( stats, mvo()
       ("supply", "0.000 TKN")
       ("max_supply", "1000.000 TKN")
       ("issuer", "alice")
@@ -199,7 +201,7 @@ BOOST_FIXTURE_TEST_CASE( symbol_already_exists, amax_xtoken_tester ) try {
 
    auto token = create( N(alice), asset::from_string("100 TKN"));
    auto stats = get_stats("0,TKN");
-   REQUIRE_MATCHING_OBJECT( stats, mvo()
+   REQUIRE_MATCHING_OBJECT_INVERSE( stats, mvo()
       ("supply", "0 TKN")
       ("max_supply", "100 TKN")
       ("issuer", "alice")
@@ -216,7 +218,7 @@ BOOST_FIXTURE_TEST_CASE( create_max_supply, amax_xtoken_tester ) try {
 
    auto token = create( N(alice), asset::from_string("4611686018427387903 TKN"));
    auto stats = get_stats("0,TKN");
-   REQUIRE_MATCHING_OBJECT( stats, mvo()
+   REQUIRE_MATCHING_OBJECT_INVERSE( stats, mvo()
       ("supply", "0 TKN")
       ("max_supply", "4611686018427387903 TKN")
       ("issuer", "alice")
@@ -240,7 +242,7 @@ BOOST_FIXTURE_TEST_CASE( create_max_decimals, amax_xtoken_tester ) try {
 
    auto token = create( N(alice), asset::from_string("1.000000000000000000 TKN"));
    auto stats = get_stats("18,TKN");
-   REQUIRE_MATCHING_OBJECT( stats, mvo()
+   REQUIRE_MATCHING_OBJECT_INVERSE( stats, mvo()
       ("supply", "0.000000000000000000 TKN")
       ("max_supply", "1.000000000000000000 TKN")
       ("issuer", "alice")
@@ -268,14 +270,14 @@ BOOST_FIXTURE_TEST_CASE( issue_tests, amax_xtoken_tester ) try {
    issue( N(alice), asset::from_string("500.000 TKN"), "hola" );
 
    auto stats = get_stats("3,TKN");
-   REQUIRE_MATCHING_OBJECT( stats, mvo()
+   REQUIRE_MATCHING_OBJECT_INVERSE( stats, mvo()
       ("supply", "500.000 TKN")
       ("max_supply", "1000.000 TKN")
       ("issuer", "alice")
    );
 
    auto alice_balance = get_account(N(alice), "3,TKN");
-   REQUIRE_MATCHING_OBJECT( alice_balance, mvo()
+   REQUIRE_MATCHING_OBJECT_INVERSE( alice_balance, mvo()
       ("balance", "500.000 TKN")
    );
 
@@ -302,26 +304,26 @@ BOOST_FIXTURE_TEST_CASE( retire_tests, amax_xtoken_tester ) try {
    BOOST_REQUIRE_EQUAL( success(), issue( N(alice), asset::from_string("500.000 TKN"), "hola" ) );
 
    auto stats = get_stats("3,TKN");
-   REQUIRE_MATCHING_OBJECT( stats, mvo()
+   REQUIRE_MATCHING_OBJECT_INVERSE( stats, mvo()
       ("supply", "500.000 TKN")
       ("max_supply", "1000.000 TKN")
       ("issuer", "alice")
    );
 
    auto alice_balance = get_account(N(alice), "3,TKN");
-   REQUIRE_MATCHING_OBJECT( alice_balance, mvo()
+   REQUIRE_MATCHING_OBJECT_INVERSE( alice_balance, mvo()
       ("balance", "500.000 TKN")
    );
 
    BOOST_REQUIRE_EQUAL( success(), retire( N(alice), asset::from_string("200.000 TKN"), "hola" ) );
    stats = get_stats("3,TKN");
-   REQUIRE_MATCHING_OBJECT( stats, mvo()
+   REQUIRE_MATCHING_OBJECT_INVERSE( stats, mvo()
       ("supply", "300.000 TKN")
       ("max_supply", "1000.000 TKN")
       ("issuer", "alice")
    );
    alice_balance = get_account(N(alice), "3,TKN");
-   REQUIRE_MATCHING_OBJECT( alice_balance, mvo()
+   REQUIRE_MATCHING_OBJECT_INVERSE( alice_balance, mvo()
       ("balance", "300.000 TKN")
    );
 
@@ -336,13 +338,13 @@ BOOST_FIXTURE_TEST_CASE( retire_tests, amax_xtoken_tester ) try {
 
    BOOST_REQUIRE_EQUAL( success(), retire( N(alice), asset::from_string("300.000 TKN"), "hola" ) );
    stats = get_stats("3,TKN");
-   REQUIRE_MATCHING_OBJECT( stats, mvo()
+   REQUIRE_MATCHING_OBJECT_INVERSE( stats, mvo()
       ("supply", "0.000 TKN")
       ("max_supply", "1000.000 TKN")
       ("issuer", "alice")
    );
    alice_balance = get_account(N(alice), "3,TKN");
-   REQUIRE_MATCHING_OBJECT( alice_balance, mvo()
+   REQUIRE_MATCHING_OBJECT_INVERSE( alice_balance, mvo()
       ("balance", "0.000 TKN")
    );
 
@@ -359,31 +361,27 @@ BOOST_FIXTURE_TEST_CASE( transfer_tests, amax_xtoken_tester ) try {
    issue( N(alice), asset::from_string("1000 CERO"), "hola" );
 
    auto stats = get_stats("0,CERO");
-   REQUIRE_MATCHING_OBJECT( stats, mvo()
+   REQUIRE_MATCHING_OBJECT_INVERSE( stats, mvo()
       ("supply", "1000 CERO")
       ("max_supply", "1000 CERO")
       ("issuer", "alice")
    );
 
    auto alice_balance = get_account(N(alice), "0,CERO");
-   REQUIRE_MATCHING_OBJECT( alice_balance, mvo()
+   REQUIRE_MATCHING_OBJECT_INVERSE( alice_balance, mvo()
       ("balance", "1000 CERO")
    );
 
    transfer( N(alice), N(bob), asset::from_string("300 CERO"), "hola" );
 
    alice_balance = get_account(N(alice), "0,CERO");
-   REQUIRE_MATCHING_OBJECT( alice_balance, mvo()
+   REQUIRE_MATCHING_OBJECT_INVERSE( alice_balance, mvo()
       ("balance", "700 CERO")
-      ("frozen", 0)
-      ("whitelist", 1)
    );
 
    auto bob_balance = get_account(N(bob), "0,CERO");
-   REQUIRE_MATCHING_OBJECT( bob_balance, mvo()
+   REQUIRE_MATCHING_OBJECT_INVERSE( bob_balance, mvo()
       ("balance", "300 CERO")
-      ("frozen", 0)
-      ("whitelist", 1)
    );
 
    BOOST_REQUIRE_EQUAL( wasm_assert_msg( "overdrawn balance" ),
@@ -411,7 +409,7 @@ BOOST_FIXTURE_TEST_CASE( open_tests, amax_xtoken_tester ) try {
    BOOST_REQUIRE_EQUAL( success(), issue( N(alice), asset::from_string("1000 CERO"), "issue" ) );
 
    alice_balance = get_account(N(alice), "0,CERO");
-   REQUIRE_MATCHING_OBJECT( alice_balance, mvo()
+   REQUIRE_MATCHING_OBJECT_INVERSE( alice_balance, mvo()
       ("balance", "1000 CERO")
    );
 
@@ -424,18 +422,18 @@ BOOST_FIXTURE_TEST_CASE( open_tests, amax_xtoken_tester ) try {
                         open( N(bob),         "0,CERO", N(alice) ) );
 
    bob_balance = get_account(N(bob), "0,CERO");
-   REQUIRE_MATCHING_OBJECT( bob_balance, mvo()
+   REQUIRE_MATCHING_OBJECT_INVERSE( bob_balance, mvo()
       ("balance", "0 CERO")
    );
 
    BOOST_REQUIRE_EQUAL( success(), transfer( N(alice), N(bob), asset::from_string("200 CERO"), "hola" ) );
 
    bob_balance = get_account(N(bob), "0,CERO");
-   REQUIRE_MATCHING_OBJECT( bob_balance, mvo()
+   REQUIRE_MATCHING_OBJECT_INVERSE( bob_balance, mvo()
       ("balance", "200 CERO")
    );
 
-   BOOST_REQUIRE_EQUAL( wasm_assert_msg( "symbol does not exist" ),
+   BOOST_REQUIRE_EQUAL( wasm_assert_msg( "token of symbol does not exist" ),
                         open( N(carol), "0,INVALID", N(alice) ) );
 
    BOOST_REQUIRE_EQUAL( wasm_assert_msg( "symbol precision mismatch" ),
@@ -453,14 +451,14 @@ BOOST_FIXTURE_TEST_CASE( close_tests, amax_xtoken_tester ) try {
    BOOST_REQUIRE_EQUAL( success(), issue( N(alice), asset::from_string("1000 CERO"), "hola" ) );
 
    alice_balance = get_account(N(alice), "0,CERO");
-   REQUIRE_MATCHING_OBJECT( alice_balance, mvo()
+   REQUIRE_MATCHING_OBJECT_INVERSE( alice_balance, mvo()
       ("balance", "1000 CERO")
    );
 
    BOOST_REQUIRE_EQUAL( success(), transfer( N(alice), N(bob), asset::from_string("1000 CERO"), "hola" ) );
 
    alice_balance = get_account(N(alice), "0,CERO");
-   REQUIRE_MATCHING_OBJECT( alice_balance, mvo()
+   REQUIRE_MATCHING_OBJECT_INVERSE( alice_balance, mvo()
       ("balance", "0 CERO")
    );
 
@@ -531,8 +529,8 @@ BOOST_FIXTURE_TEST_CASE( transfer_fee_tests, amax_xtoken_tester ) try {
       ("in_fee_whitelist", false)
    );
 
-   auto fee.receiver = get_account(N(fee.receiver), "4,CERO");
-      REQUIRE_MATCHING_OBJECT( fee.receiver, mvo()
+   auto fee_receiver_balance = get_account(N(fee.receiver), "4,CERO");
+      REQUIRE_MATCHING_OBJECT( fee_receiver_balance, mvo()
          ("balance", "0.9000 CERO")
          ("is_frozen", false)
          ("in_fee_whitelist", false)

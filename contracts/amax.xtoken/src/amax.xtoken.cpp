@@ -221,8 +221,8 @@ namespace amax_xtoken {
     {
         require_auth(owner);
 
-        stats statstable(get_self(), symbol.raw());
-        const auto &st = statstable.get(symbol.raw(), "token of symbol does not exist");
+        stats statstable(get_self(), symbol.code().raw());
+        const auto &st = statstable.get(symbol.code().raw(), "token of symbol does not exist");
         check(st.supply.symbol == symbol, "symbol precision mismatch");
         check(!st.is_paused, "token is paused");
 
