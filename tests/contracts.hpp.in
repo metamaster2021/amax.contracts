@@ -14,6 +14,8 @@ struct contracts {
    static std::vector<char>    wrap_abi() { return read_abi("${CMAKE_BINARY_DIR}/../contracts/amax.wrap/amax.wrap.abi"); }
    static std::vector<uint8_t> bios_wasm() { return read_wasm("${CMAKE_BINARY_DIR}/../contracts/amax.bios/amax.bios.wasm"); }
    static std::vector<char>    bios_abi() { return read_abi("${CMAKE_BINARY_DIR}/../contracts/amax.bios/amax.bios.abi"); }
+   static std::vector<uint8_t> xtoken_wasm() { return read_wasm("${CMAKE_BINARY_DIR}/../contracts/amax.xtoken/amax.xtoken.wasm"); }
+   static std::vector<char>    xtoken_abi() { return read_abi("${CMAKE_BINARY_DIR}/../contracts/amax.xtoken/amax.xtoken.abi"); }
 
    struct util {
       static std::vector<uint8_t> reject_all_wasm() { return read_wasm("${CMAKE_SOURCE_DIR}/test_contracts/reject_all.wasm"); }

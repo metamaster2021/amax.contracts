@@ -120,14 +120,11 @@ namespace amax_xtoken {
             &&  st.fee_ratio > 0 
             &&  from != st.issuer 
             &&  from != st.fee_receiver 
-            &&  from_acct.in_fee_whitelist) 
+            &&  !from_acct.in_fee_whitelist) 
         {
             asset fee = asset(0, quantity.symbol);
             fee.amount = multiply_decimal64(quantity.amount, st.fee_ratio, RATIO_BOOST);
-            // TODO: should use action "payfee(from, fee)"
-            print("transfer fee=", fee, ", quantity=", quantity);
-            sub_balance(st, from, fee, from_accts, from_acct);
-            add_balance(st, st.fee_receiver, fee, payer);
+            // print("transfer fee=", fee, ", quantity=", quantity);
             payfee_action payfee_act{ get_self(), { {get_self(), active_permission} } };
             payfee_act.send( from, st.fee_receiver, fee, memo );
         }  
@@ -285,10 +282,9 @@ namespace amax_xtoken {
     void xtoken::update_currency_field(const symbol &symbol, const Value &v, Field currency_stats::*field) {
 
         stats statstable(get_self(), symbol.code().raw());
-        const auto &st = statstable.get(symbol.raw(), "token of symbol does not exist");
+        const auto &st = statstable.get(symbol.code().raw(), "token of symbol does not exist");
         check(st.supply.symbol == symbol, "symbol precision mismatch");
         require_auth(st.issuer);
-
         statstable.modify(st, same_payer, [&](auto &s) { 
             s.*field = v; 
         });        

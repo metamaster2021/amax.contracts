@@ -16,6 +16,8 @@ using namespace std;
 
 using mvo = fc::mutable_variant_object;
 
+#define SYMB(P,X) symbol(P,#X)
+
 class amax_xtoken_tester : public tester {
 public:
 
@@ -25,8 +27,8 @@ public:
       create_accounts( { N(alice), N(bob), N(carol), N(fee.receiver), N(amax.xtoken) } );
       produce_blocks( 2 );
 
-      set_code( N(amax.xtoken), contracts::token_wasm() );
-      set_abi( N(amax.xtoken), contracts::token_abi().data() );
+      set_code( N(amax.xtoken), contracts::xtoken_wasm() );
+      set_abi( N(amax.xtoken), contracts::xtoken_abi().data() );
 
       produce_blocks();
 
@@ -147,7 +149,6 @@ public:
    action_result feewhitelist( account_name issuer, const symbol &symbol, const name &account, bool in_fee_whitelist ) {
       return push_action( issuer, N(feewhitelist), mvo()
            ( "symbol", symbol )
-           ( "fee_receiver", fee_receiver )
            ( "account", account )
            ( "in_fee_whitelist", in_fee_whitelist )
       );
@@ -163,7 +164,6 @@ public:
    action_result freezeacct( account_name issuer, const symbol &symbol, const name &account, bool is_frozen ) {
       return push_action( issuer, N(freezeacct), mvo()
            ( "symbol", symbol )
-           ( "fee_receiver", fee_receiver )
            ( "account", account )
            ( "is_frozen", is_frozen )
       );
@@ -472,47 +472,71 @@ BOOST_FIXTURE_TEST_CASE( close_tests, amax_xtoken_tester ) try {
 
 BOOST_FIXTURE_TEST_CASE( transfer_fee_tests, amax_xtoken_tester ) try {
 
-   auto token = create( N(alice), asset::from_string("1000 CERO"));
+   auto token = create( N(alice), asset::from_string("1000.0000 CERO"));
    produce_blocks(1);
 
-   issue( N(alice), asset::from_string("1000 CERO"), "hola" );
+   // config token
+   feeratio( N(alice), SYMB(4,CERO), 30); // 0.3%, boost 10000  
+   feereceiver( N(alice), SYMB(4,CERO), N(fee.receiver));    
 
-   auto stats = get_stats("0,CERO");
+   issue( N(alice), asset::from_string("1000.0000 CERO"), "hola" );
+
+   auto stats = get_stats("4,CERO");
    REQUIRE_MATCHING_OBJECT( stats, mvo()
-      ("supply", "1000 CERO")
-      ("max_supply", "1000 CERO")
+      ("supply", "1000.0000 CERO")
+      ("max_supply", "1000.0000 CERO")
       ("issuer", "alice")
+      ("is_paused", 0)
+      ("fee_receiver", "fee.receiver")
+      ("fee_ratio", 30 )
    );
 
-   auto alice_balance = get_account(N(alice), "0,CERO");
+   auto alice_balance = get_account(N(alice), "4,CERO");
    REQUIRE_MATCHING_OBJECT( alice_balance, mvo()
-      ("balance", "1000 CERO")
+      ("balance", "1000.0000 CERO")
+      ("is_frozen", false)
+      ("in_fee_whitelist", false)
    );
 
-   transfer( N(alice), N(bob), asset::from_string("300 CERO"), "hola" );
+   // bob should have token: 300 + 300 * 0.003 = 300.9
+   transfer( N(alice), N(bob), asset::from_string("300.9000 CERO"), "i am issuer, no fee" );
 
-   alice_balance = get_account(N(alice), "0,CERO");
+   alice_balance = get_account(N(alice), "4,CERO");
    REQUIRE_MATCHING_OBJECT( alice_balance, mvo()
-      ("balance", "700 CERO")
-      ("frozen", 0)
-      ("whitelist", 1)
+      ("balance", "699.1000 CERO")
+      ("is_frozen", false)
+      ("in_fee_whitelist", false)
    );
 
-   auto bob_balance = get_account(N(bob), "0,CERO");
+   auto bob_balance = get_account(N(bob), "4,CERO");
    REQUIRE_MATCHING_OBJECT( bob_balance, mvo()
-      ("balance", "300 CERO")
-      ("frozen", 0)
-      ("whitelist", 1)
+      ("balance", "300.9000 CERO")
+      ("is_frozen", false)
+      ("in_fee_whitelist", false)
    );
 
-   BOOST_REQUIRE_EQUAL( wasm_assert_msg( "overdrawn balance" ),
-      transfer( N(alice), N(bob), asset::from_string("701 CERO"), "hola" )
+   auto bob_trace = transfer( N(bob), N(carol), asset::from_string("300.0000 CERO"), "i must pay fee" );
+
+   bob_balance = get_account(N(bob), "4,CERO");
+   REQUIRE_MATCHING_OBJECT( bob_balance, mvo()
+      ("balance", "0.0000 CERO")
+      ("is_frozen", false)
+      ("in_fee_whitelist", false)
    );
 
-   BOOST_REQUIRE_EQUAL( wasm_assert_msg( "must transfer positive quantity" ),
-      transfer( N(alice), N(bob), asset::from_string("-1000 CERO"), "hola" )
+   auto carol_balance = get_account(N(carol), "4,CERO");
+   REQUIRE_MATCHING_OBJECT( carol_balance, mvo()
+      ("balance", "300.0000 CERO")
+      ("is_frozen", false)
+      ("in_fee_whitelist", false)
    );
 
+   auto fee.receiver = get_account(N(fee.receiver), "4,CERO");
+      REQUIRE_MATCHING_OBJECT( fee.receiver, mvo()
+         ("balance", "0.9000 CERO")
+         ("is_frozen", false)
+         ("in_fee_whitelist", false)
+      );
 
 } FC_LOG_AND_RETHROW()
 
