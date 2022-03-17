@@ -80,6 +80,7 @@ namespace eosiosystem {
    static constexpr int64_t  default_inflation_pay_factor  = 50000;   // producers pay share = 10000 / 50000 = 20% of the inflation
    static constexpr int64_t  default_votepay_factor        = 40000;   // per-block pay share = 10000 / 40000 = 25% of the producer pay
 
+   double get_continuous_rate(int64_t annual_rate);
   /**
    * The `amax.system` smart contract is provided by `block.one` as a sample system contract, and it defines the structures and actions needed for blockchain's core functionality.
    * 
@@ -177,9 +178,9 @@ namespace eosiosystem {
    // Defines new global state parameters to store inflation rate and distribution
    struct [[eosio::table("global4"), eosio::contract("amax.system")]] amax_global_state4 {
       amax_global_state4() { }
-      double   continuous_rate;
-      int64_t  inflation_pay_factor;
-      int64_t  votepay_factor;
+      double continuous_rate        = get_continuous_rate(default_annual_rate);
+      int64_t inflation_pay_factor  = default_inflation_pay_factor;
+      int64_t votepay_factor        = default_votepay_factor;
 
       EOSLIB_SERIALIZE( amax_global_state4, (continuous_rate)(inflation_pay_factor)(votepay_factor) )
    };
@@ -1389,7 +1390,6 @@ namespace eosiosystem {
 
          //defined in amax.system.cpp
          static amax_global_state get_default_parameters();
-         static amax_global_state4 get_default_inflation_parameters();
          symbol core_symbol()const;
          void update_ram_supply();
 
