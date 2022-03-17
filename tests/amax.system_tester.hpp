@@ -937,16 +937,6 @@ public:
       return data.empty() ? fc::variant() : abi_ser.binary_to_variant( "amax_global_state", data, abi_serializer::create_yield_function(abi_serializer_max_time) );
    }
 
-   fc::variant get_global_state2() {
-      vector<char> data = get_row_by_account( config::system_account_name, config::system_account_name, N(global2), N(global2) );
-      return data.empty() ? fc::variant() : abi_ser.binary_to_variant( "amax_global_state2", data, abi_serializer::create_yield_function(abi_serializer_max_time) );
-   }
-
-   fc::variant get_global_state3() {
-      vector<char> data = get_row_by_account( config::system_account_name, config::system_account_name, N(global3), N(global3) );
-      return data.empty() ? fc::variant() : abi_ser.binary_to_variant( "amax_global_state3", data, abi_serializer::create_yield_function(abi_serializer_max_time) );
-   }
-
    fc::variant get_refund_request( name account ) {
       vector<char> data = get_row_by_account( config::system_account_name, account, N(refunds), account );
       return data.empty() ? fc::variant() : abi_ser.binary_to_variant( "refund_request", data, abi_serializer::create_yield_function(abi_serializer_max_time) );

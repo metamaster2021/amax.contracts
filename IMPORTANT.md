@@ -1,6 +1,6 @@
 # Important Notice
 
-We (block.one and its affiliates) make available AMAX and other software, updates, patches and documentation (collectively, Software) on a voluntary basis as a member of the AMAX community.  A condition of you accessing any Software, websites, articles, media, publications, documents or other material (collectively, Material) is your acceptance of the terms of this important notice.
+We (Armoniax and its affiliates) make available AMAX and other software, updates, patches and documentation (collectively, Software) on a voluntary basis as a member of the AMAX community.  A condition of you accessing any Software, websites, articles, media, publications, documents or other material (collectively, Material) is your acceptance of the terms of this important notice.
 
 ## Software
 We are not responsible for ensuring the overall performance of Software or any related applications.  Any test results or performance figures are indicative and will not reflect performance under all conditions.  Software may contain components that are open sourced and subject to their own licenses; you are responsible for ensuring your compliance with those licenses.

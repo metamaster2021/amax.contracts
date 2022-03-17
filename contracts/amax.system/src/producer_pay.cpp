@@ -16,10 +16,10 @@ namespace eosiosystem {
       name producer;
       _ds >> timestamp >> producer;
 
-      // _gstate2.last_block_num is not used anywhere in the system contract code anymore.
+      // _gstate.last_block_num is not used anywhere in the system contract code anymore.
       // Although this field is deprecated, we will continue updating it for now until the last_block_num field
       // is eventually completely removed, at which point this line can be removed.
-      _gstate2.last_block_num = timestamp;
+      _gstate.last_block_num = timestamp;
 
       /** until activation, no new rewards are paid */
       if( _gstate.thresh_activated_stake_time == time_point() )
@@ -82,14 +82,14 @@ namespace eosiosystem {
       const auto usecs_since_last_fill = (ct - _gstate.last_pervote_bucket_fill).count();
 
       if( usecs_since_last_fill > 0 && _gstate.last_pervote_bucket_fill > time_point() ) {
-         double additional_inflation = (_gstate4.continuous_rate * double(token_supply.amount) * double(usecs_since_last_fill)) / double(useconds_per_year);
+         double additional_inflation = (_gstate.continuous_rate * double(token_supply.amount) * double(usecs_since_last_fill)) / double(useconds_per_year);
          check( additional_inflation <= double(std::numeric_limits<int64_t>::max() - ((1ll << 10) - 1)),
                 "overflow in calculating new tokens to be issued; inflation rate is too high" );
          int64_t new_tokens = (additional_inflation < 0.0) ? 0 : static_cast<int64_t>(additional_inflation);
 
-         int64_t to_producers     = (new_tokens * uint128_t(pay_factor_precision)) / _gstate4.inflation_pay_factor;
+         int64_t to_producers     = (new_tokens * uint128_t(pay_factor_precision)) / _gstate.inflation_pay_factor;
          int64_t to_savings       = new_tokens - to_producers;
-         int64_t to_per_block_pay = (to_producers * uint128_t(pay_factor_precision)) / _gstate4.votepay_factor;
+         int64_t to_per_block_pay = (to_producers * uint128_t(pay_factor_precision)) / _gstate.votepay_factor;
          int64_t to_per_vote_pay  = to_producers - to_per_block_pay;
 
          if( new_tokens > 0 ) {
@@ -150,7 +150,7 @@ namespace eosiosystem {
                                  );
 
       int64_t producer_per_vote_pay = 0;
-      if( _gstate2.revision > 0 ) {
+      if( _gstate.revision > 0 ) {
          double total_votepay_share = update_total_votepay_share( ct );
          if( total_votepay_share > 0 && !crossed_threshold ) {
             producer_per_vote_pay = int64_t((new_votepay_share * _gstate.pervote_bucket) / total_votepay_share);

@@ -153,27 +153,27 @@ namespace eosiosystem {
                                                        double shares_rate_delta )
    {
       double delta_total_votepay_share = 0.0;
-      if( ct > _gstate3.last_vpay_state_update ) {
-         delta_total_votepay_share = _gstate3.total_vpay_share_change_rate
-                                       * double( (ct - _gstate3.last_vpay_state_update).count() / 1E6 );
+      if( ct > _gstate.last_vpay_state_update ) {
+         delta_total_votepay_share = _gstate.total_vpay_share_change_rate
+                                       * double( (ct - _gstate.last_vpay_state_update).count() / 1E6 );
       }
 
       delta_total_votepay_share += additional_shares_delta;
-      if( delta_total_votepay_share < 0 && _gstate2.total_producer_votepay_share < -delta_total_votepay_share ) {
-         _gstate2.total_producer_votepay_share = 0.0;
+      if( delta_total_votepay_share < 0 && _gstate.total_producer_votepay_share < -delta_total_votepay_share ) {
+         _gstate.total_producer_votepay_share = 0.0;
       } else {
-         _gstate2.total_producer_votepay_share += delta_total_votepay_share;
+         _gstate.total_producer_votepay_share += delta_total_votepay_share;
       }
 
-      if( shares_rate_delta < 0 && _gstate3.total_vpay_share_change_rate < -shares_rate_delta ) {
-         _gstate3.total_vpay_share_change_rate = 0.0;
+      if( shares_rate_delta < 0 && _gstate.total_vpay_share_change_rate < -shares_rate_delta ) {
+         _gstate.total_vpay_share_change_rate = 0.0;
       } else {
-         _gstate3.total_vpay_share_change_rate += shares_rate_delta;
+         _gstate.total_vpay_share_change_rate += shares_rate_delta;
       }
 
-      _gstate3.last_vpay_state_update = ct;
+      _gstate.last_vpay_state_update = ct;
 
-      return _gstate2.total_producer_votepay_share;
+      return _gstate.total_producer_votepay_share;
    }
 
    double system_contract::update_producer_votepay_share( const producers_table2::const_iterator& prod_itr,

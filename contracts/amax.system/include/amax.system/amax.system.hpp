@@ -82,7 +82,7 @@ namespace eosiosystem {
 
    double get_continuous_rate(int64_t annual_rate);
   /**
-   * The `amax.system` smart contract is provided by `block.one` as a sample system contract, and it defines the structures and actions needed for blockchain's core functionality.
+   * The `amax.system` smart contract is provided by `Armoniax` as a sample system contract, and it defines the structures and actions needed for blockchain's core functionality.
    * 
    * Just like in the `amax.bios` sample contract implementation, there are a few actions which are not implemented at the contract level (`newaccount`, `updateauth`, `deleteauth`, `linkauth`, `unlinkauth`, `canceldelay`, `onerror`, `setabi`, `setcode`), they are just declared in the contract so they will show in the contract's ABI and users will be able to push those actions to the chain via the account holding the `amax.system` contract, but the implementation is at the AMAX core level. They are referred to as AMAX native actions.
    * 
@@ -144,45 +144,30 @@ namespace eosiosystem {
       double               total_producer_vote_weight = 0; /// the sum of all producer votes
       block_timestamp      last_name_close;
 
-      // explicit serialization macro is not necessary, used here only to improve compilation time
-      EOSLIB_SERIALIZE_DERIVED( amax_global_state, eosio::blockchain_parameters,
-                                (max_ram_size)(total_ram_bytes_reserved)(total_ram_stake)
-                                (last_producer_schedule_update)(last_pervote_bucket_fill)
-                                (pervote_bucket)(perblock_bucket)(total_unpaid_blocks)(total_activated_stake)(thresh_activated_stake_time)
-                                (last_producer_schedule_size)(total_producer_vote_weight)(last_name_close) )
-   };
-
-   // Defines new global state parameters added after version 1.0
-   struct [[eosio::table("global2"), eosio::contract("amax.system")]] amax_global_state2 {
-      amax_global_state2(){}
-
       uint16_t          new_ram_per_block = 0;
       block_timestamp   last_ram_increase;
       block_timestamp   last_block_num; /* deprecated */
       double            total_producer_votepay_share = 0;
       uint8_t           revision = 0; ///< used to track version updates in the future.
 
-      EOSLIB_SERIALIZE( amax_global_state2, (new_ram_per_block)(last_ram_increase)(last_block_num)
-                        (total_producer_votepay_share)(revision) )
-   };
-
-   // Defines new global state parameters added after version 1.3.0
-   struct [[eosio::table("global3"), eosio::contract("amax.system")]] amax_global_state3 {
-      amax_global_state3() { }
       time_point        last_vpay_state_update;
       double            total_vpay_share_change_rate = 0;
 
-      EOSLIB_SERIALIZE( amax_global_state3, (last_vpay_state_update)(total_vpay_share_change_rate) )
-   };
-
-   // Defines new global state parameters to store inflation rate and distribution
-   struct [[eosio::table("global4"), eosio::contract("amax.system")]] amax_global_state4 {
-      amax_global_state4() { }
       double continuous_rate        = get_continuous_rate(default_annual_rate);
       int64_t inflation_pay_factor  = default_inflation_pay_factor;
       int64_t votepay_factor        = default_votepay_factor;
 
-      EOSLIB_SERIALIZE( amax_global_state4, (continuous_rate)(inflation_pay_factor)(votepay_factor) )
+      // explicit serialization macro is not necessary, used here only to improve compilation time
+      EOSLIB_SERIALIZE_DERIVED( amax_global_state, eosio::blockchain_parameters,
+                                (max_ram_size)(total_ram_bytes_reserved)(total_ram_stake)
+                                (last_producer_schedule_update)(last_pervote_bucket_fill)
+                                (pervote_bucket)(perblock_bucket)(total_unpaid_blocks)(total_activated_stake)(thresh_activated_stake_time)
+                                (last_producer_schedule_size)(total_producer_vote_weight)(last_name_close) 
+                                (new_ram_per_block)(last_ram_increase)(last_block_num)
+                                (total_producer_votepay_share)(revision)
+                                (last_vpay_state_update)(total_vpay_share_change_rate)
+                                (continuous_rate)(inflation_pay_factor)(votepay_factor)
+      )
    };
 
    inline eosio::block_signing_authority convert_to_block_signing_authority( const eosio::public_key& producer_key ) {
@@ -319,12 +304,6 @@ namespace eosiosystem {
 
 
    typedef eosio::singleton< "global"_n, amax_global_state >   global_state_singleton;
-
-   typedef eosio::singleton< "global2"_n, amax_global_state2 > global_state2_singleton;
-
-   typedef eosio::singleton< "global3"_n, amax_global_state3 > global_state3_singleton;
-
-   typedef eosio::singleton< "global4"_n, amax_global_state4 > global_state4_singleton;
 
    struct [[eosio::table, eosio::contract("amax.system")]] user_resources {
       name          owner;
@@ -644,7 +623,7 @@ namespace eosiosystem {
                                > powerup_order_table;
 
    /**
-    * The `amax.system` smart contract is provided by `block.one` as a sample system contract, and it defines the structures and actions needed for blockchain's core functionality.
+    * The `amax.system` smart contract is provided by `Armoniax` as a sample system contract, and it defines the structures and actions needed for blockchain's core functionality.
     *
     * Just like in the `amax.bios` sample contract implementation, there are a few actions which are not implemented at the contract level (`newaccount`, `updateauth`, `deleteauth`, `linkauth`, `unlinkauth`, `canceldelay`, `onerror`, `setabi`, `setcode`), they are just declared in the contract so they will show in the contract's ABI and users will be able to push those actions to the chain via the account holding the `amax.system` contract, but the implementation is at the AMAX core level. They are referred to as AMAX native actions.
     *
@@ -664,13 +643,7 @@ namespace eosiosystem {
          producers_table          _producers;
          producers_table2         _producers2;
          global_state_singleton   _global;
-         global_state2_singleton  _global2;
-         global_state3_singleton  _global3;
-         global_state4_singleton  _global4;
          amax_global_state       _gstate;
-         amax_global_state2      _gstate2;
-         amax_global_state3      _gstate3;
-         amax_global_state4      _gstate4;
          rammarket                _rammarket;
          rex_pool_table           _rexpool;
          rex_return_pool_table    _rexretpool;
