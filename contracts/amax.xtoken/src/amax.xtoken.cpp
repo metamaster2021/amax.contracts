@@ -22,13 +22,14 @@ namespace amax_xtoken {
     {
         require_auth(get_self());
 
-        auto sym = maximum_supply.symbol;
+        const auto &sym = maximum_supply.symbol;
+        auto sym_code_raw = sym.code().raw();
         check(sym.is_valid(), "invalid symbol name");
         check(maximum_supply.is_valid(), "invalid supply");
         check(maximum_supply.amount > 0, "max-supply must be positive");
 
-        stats statstable(get_self(), sym.code().raw());
-        auto existing = statstable.find(sym.code().raw());
+        stats statstable(get_self(), sym_code_raw);
+        auto existing = statstable.find(sym_code_raw);
         check(existing == statstable.end(), "token with symbol already exists");
 
         statstable.emplace(get_self(), [&](auto &s)
@@ -40,12 +41,13 @@ namespace amax_xtoken {
 
     void xtoken::issue(const name &to, const asset &quantity, const string &memo)
     {
-        auto sym = quantity.symbol;
+        const auto& sym = quantity.symbol;
+        auto sym_code_raw = sym.code().raw();
         check(sym.is_valid(), "invalid symbol name");
         check(memo.size() <= 256, "memo has more than 256 bytes");
 
-        stats statstable(get_self(), sym.code().raw());
-        auto existing = statstable.find(sym.code().raw());
+        stats statstable(get_self(), sym_code_raw);
+        auto existing = statstable.find(sym_code_raw);
         check(existing != statstable.end(), "token with symbol does not exist, create token before issue");
         const auto &st = *existing;
         check(to == st.issuer, "tokens can only be issued to issuer account");
@@ -65,12 +67,13 @@ namespace amax_xtoken {
 
     void xtoken::retire(const asset &quantity, const string &memo)
     {
-        auto sym = quantity.symbol;
+        const auto& sym = quantity.symbol;
+        auto sym_code_raw = sym.code().raw();
         check(sym.is_valid(), "invalid symbol name");
         check(memo.size() <= 256, "memo has more than 256 bytes");
 
-        stats statstable(get_self(), sym.code().raw());
-        auto existing = statstable.find(sym.code().raw());
+        stats statstable(get_self(), sym_code_raw);
+        auto existing = statstable.find(sym_code_raw);
         check(existing != statstable.end(), "token with symbol does not exist");
         const auto &st = *existing;
 
@@ -94,9 +97,10 @@ namespace amax_xtoken {
         check(from != to, "cannot transfer to self");
         require_auth(from);
         check(is_account(to), "to account does not exist");
-        auto sym = quantity.symbol.code();
-        stats statstable(get_self(), sym.raw());
-        const auto &st = statstable.get(sym.raw(), "token of symbol does not exist");
+        const auto& sym = quantity.symbol;
+        auto sym_code_raw = quantity.symbol.code().raw();
+        stats statstable(get_self(), sym_code_raw);
+        const auto &st = statstable.get(sym_code_raw, "token of symbol does not exist");
         check(st.supply.symbol == quantity.symbol, "symbol precision mismatch");
         check(!st.is_paused, "token is paused");
 
@@ -111,7 +115,7 @@ namespace amax_xtoken {
         auto payer = has_auth(to) ? to : from;
 
         accounts from_accts(get_self(), from.value);
-        const auto &from_acct = from_accts.get(quantity.symbol.code().raw(), "no balance object found");
+        const auto &from_acct = from_accts.get(sym_code_raw, "no balance object found");
         
         sub_balance(st, from, quantity, from_accts, from_acct);
         add_balance(st, to, quantity, payer);
@@ -132,12 +136,10 @@ namespace amax_xtoken {
 
     void xtoken::payfee(const name &from, const name &to, const asset &fee, const string &memo) {
  
-        // check(from != to, "cannot transfer to self");
-        require_auth({get_self(), active_permission});
-        // check(is_account(to), "to account does not exist");
-        auto sym = fee.symbol.code();
-        stats statstable(get_self(), sym.raw());
-        const auto &st = statstable.get(sym.raw(), "token of symbol does not exist");
+        require_auth(get_self());
+        auto sym_code_raw = fee.symbol.code().raw();
+        stats statstable(get_self(), sym_code_raw);
+        const auto &st = statstable.get(sym_code_raw, "token of symbol does not exist");
         ASSERT(st.supply.symbol == fee.symbol);
         ASSERT(!st.is_paused);
 
@@ -221,13 +223,14 @@ namespace amax_xtoken {
     {
         require_auth(owner);
 
-        stats statstable(get_self(), symbol.code().raw());
-        const auto &st = statstable.get(symbol.code().raw(), "token of symbol does not exist");
+        auto sym_code_raw = symbol.code().raw();
+        stats statstable(get_self(), sym_code_raw);
+        const auto &st = statstable.get(sym_code_raw, "token of symbol does not exist");
         check(st.supply.symbol == symbol, "symbol precision mismatch");
         check(!st.is_paused, "token is paused");
 
         accounts accts(get_self(), owner.value);
-        auto it = accts.find(symbol.code().raw());
+        auto it = accts.find(sym_code_raw);
         check(it != accts.end(), "Balance row already deleted or never existed. Action won't have any effect.");
         check(!is_account_frozen(st, owner, *it), "account is frozen");
         check(it->balance.amount == 0, "Cannot close because the balance is not zero.");
@@ -245,13 +248,14 @@ namespace amax_xtoken {
     }
 
     void xtoken::feewhitelist(const symbol &symbol, const name &account, bool in_fee_whitelist) {
-        stats statstable(get_self(), symbol.code().raw());
-        const auto &st = statstable.get(symbol.code().raw(), "token of symbol does not exist");
+        auto sym_code_raw = symbol.code().raw();
+        stats statstable(get_self(), sym_code_raw);
+        const auto &st = statstable.get(sym_code_raw, "token of symbol does not exist");
         check(st.supply.symbol == symbol, "symbol precision mismatch");
         require_auth(st.issuer);
 
         accounts accts(get_self(), account.value);
-        const auto &acct = accts.get(account.value, "account of token does not exist");
+        const auto &acct = accts.get(sym_code_raw, "account of token does not exist");
 
         accts.modify(acct, st.issuer, [&](auto &a) {
              a.in_fee_whitelist = in_fee_whitelist; 
@@ -264,14 +268,14 @@ namespace amax_xtoken {
     }
 
     void xtoken::freezeacct(const symbol &symbol, const name &account, bool is_frozen) {
-
-        stats statstable(get_self(), symbol.code().raw());
-        const auto &st = statstable.get(symbol.code().raw(), "token of symbol does not exist");
+        auto sym_code_raw = symbol.code().raw();
+        stats statstable(get_self(), sym_code_raw);
+        const auto &st = statstable.get(sym_code_raw, "token of symbol does not exist");
         check(st.supply.symbol == symbol, "symbol precision mismatch");
         require_auth(st.issuer);
 
         accounts accts(get_self(), account.value);
-        const auto &acct = accts.get(account.value, "account of token does not exist");
+        const auto &acct = accts.get(sym_code_raw, "account of token does not exist");
 
         accts.modify(acct, st.issuer, [&](auto &a) {
              a.is_frozen = is_frozen; 
@@ -280,9 +284,9 @@ namespace amax_xtoken {
 
     template <typename Field, typename Value>
     void xtoken::update_currency_field(const symbol &symbol, const Value &v, Field currency_stats::*field) {
-
-        stats statstable(get_self(), symbol.code().raw());
-        const auto &st = statstable.get(symbol.code().raw(), "token of symbol does not exist");
+        auto sym_code_raw = symbol.code().raw();
+        stats statstable(get_self(), sym_code_raw);
+        const auto &st = statstable.get(sym_code_raw, "token of symbol does not exist");
         check(st.supply.symbol == symbol, "symbol precision mismatch");
         require_auth(st.issuer);
         statstable.modify(st, same_payer, [&](auto &s) { 

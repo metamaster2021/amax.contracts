@@ -536,6 +536,23 @@ BOOST_FIXTURE_TEST_CASE( transfer_fee_tests, amax_xtoken_tester ) try {
          ("in_fee_whitelist", false)
       );
 
+   feewhitelist( N(alice), SYMB(4,CERO), N(carol), true); // 0.3%, boost 10000 
+   transfer( N(carol), N(bob), asset::from_string("300.0000 CERO"), "i no need to pay fee" );
+
+   carol_balance = get_account(N(carol), "4,CERO");
+   REQUIRE_MATCHING_OBJECT( carol_balance, mvo()
+      ("balance", "0.0000 CERO")
+      ("is_frozen", false)
+      ("in_fee_whitelist", true)
+   );
+
+   bob_balance = get_account(N(bob), "4,CERO");
+   REQUIRE_MATCHING_OBJECT( bob_balance, mvo()
+      ("balance", "300.0000 CERO")
+      ("is_frozen", false)
+      ("in_fee_whitelist", false)
+   );
+
 } FC_LOG_AND_RETHROW()
 
 BOOST_AUTO_TEST_SUITE_END()
