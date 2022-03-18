@@ -245,8 +245,8 @@ namespace amax_xtoken {
     }
 
     void xtoken::feewhitelist(const symbol &symbol, const name &account, bool in_fee_whitelist) {
-        stats statstable(get_self(), symbol.raw());
-        const auto &st = statstable.get(symbol.raw(), "token of symbol does not exist");
+        stats statstable(get_self(), symbol.code().raw());
+        const auto &st = statstable.get(symbol.code().raw(), "token of symbol does not exist");
         check(st.supply.symbol == symbol, "symbol precision mismatch");
         require_auth(st.issuer);
 
@@ -265,8 +265,8 @@ namespace amax_xtoken {
 
     void xtoken::freezeacct(const symbol &symbol, const name &account, bool is_frozen) {
 
-        stats statstable(get_self(), symbol.raw());
-        const auto &st = statstable.get(symbol.raw(), "token of symbol does not exist");
+        stats statstable(get_self(), symbol.code().raw());
+        const auto &st = statstable.get(symbol.code().raw(), "token of symbol does not exist");
         check(st.supply.symbol == symbol, "symbol precision mismatch");
         require_auth(st.issuer);
 
