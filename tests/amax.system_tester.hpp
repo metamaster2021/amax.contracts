@@ -824,14 +824,6 @@ public:
       return get_producer_info( account_name(act) );
    }
 
-   fc::variant get_producer_info2( const account_name& act ) {
-      vector<char> data = get_row_by_account( config::system_account_name, config::system_account_name, N(producers2), act );
-      return abi_ser.binary_to_variant( "producer_info2", data, abi_serializer::create_yield_function(abi_serializer_max_time) );
-   }
-   fc::variant get_producer_info2( std::string_view act ) {
-      return get_producer_info2( account_name(act) );
-   }
-
    void create_currency( name contract, name manager, asset maxsupply ) {
       auto act =  mutable_variant_object()
          ("issuer",       manager )

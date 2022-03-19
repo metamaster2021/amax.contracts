@@ -15,7 +15,6 @@ namespace eosiosystem {
    :native(s,code,ds),
     _voters(get_self(), get_self().value),
     _producers(get_self(), get_self().value),
-    _producers2(get_self(), get_self().value),
     _global(get_self(), get_self().value),
     _rammarket(get_self(), get_self().value),
     _rexpool(get_self(), get_self().value),

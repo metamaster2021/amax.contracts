@@ -140,12 +140,7 @@ namespace eosiosystem {
       uint16_t          new_ram_per_block = 0;
       block_timestamp   last_ram_increase;
       block_timestamp   last_block_num; /* deprecated */
-      double            total_producer_votepay_share = 0;
       uint8_t           revision = 0; ///< used to track version updates in the future.
-
-      time_point        last_vpay_state_update;
-      double            total_vpay_share_change_rate = 0;
-
 
       // explicit serialization macro is not necessary, used here only to improve compilation time
       EOSLIB_SERIALIZE_DERIVED( amax_global_state, eosio::blockchain_parameters,
@@ -154,8 +149,7 @@ namespace eosiosystem {
                                 (total_activated_stake)(thresh_activated_stake_time)
                                 (last_producer_schedule_size)(total_producer_vote_weight)(last_name_close) 
                                 (new_ram_per_block)(last_ram_increase)(last_block_num)
-                                (total_producer_votepay_share)(revision)
-                                (last_vpay_state_update)(total_vpay_share_change_rate)
+                                (revision)
       )
    };
 
@@ -229,18 +223,6 @@ namespace eosiosystem {
       }
    };
 
-   // Defines new producer info structure to be stored in new producer info table, added after version 1.3.0
-   struct [[eosio::table, eosio::contract("amax.system")]] producer_info2 {
-      name            owner;
-      double          votepay_share = 0;
-      time_point      last_votepay_share_update;
-
-      uint64_t primary_key()const { return owner.value; }
-
-      // explicit serialization macro is not necessary, used here only to improve compilation time
-      EOSLIB_SERIALIZE( producer_info2, (owner)(votepay_share)(last_votepay_share_update) )
-   };
-
    // Voter info. Voter info stores information about the voter:
    // - `owner` the voter
    // - `proxy` the proxy set by the voter, if any
@@ -285,9 +267,6 @@ namespace eosiosystem {
    typedef eosio::multi_index< "producers"_n, producer_info,
                                indexed_by<"prototalvote"_n, const_mem_fun<producer_info, double, &producer_info::by_votes>  >
                              > producers_table;
-
-   typedef eosio::multi_index< "producers2"_n, producer_info2 > producers_table2;
-
 
    typedef eosio::singleton< "global"_n, amax_global_state >   global_state_singleton;
 
@@ -627,7 +606,6 @@ namespace eosiosystem {
       private:
          voters_table             _voters;
          producers_table          _producers;
-         producers_table2         _producers2;
          global_state_singleton   _global;
          amax_global_state       _gstate;
          rammarket                _rammarket;
@@ -644,10 +622,7 @@ namespace eosiosystem {
          static constexpr eosio::name ram_account{"amax.ram"_n};
          static constexpr eosio::name ramfee_account{"amax.ramfee"_n};
          static constexpr eosio::name stake_account{"amax.stake"_n};
-         static constexpr eosio::name bpay_account{"amax.bpay"_n};
-         static constexpr eosio::name vpay_account{"amax.vpay"_n};
          static constexpr eosio::name names_account{"amax.names"_n};
-         static constexpr eosio::name saving_account{"amax.saving"_n};
          static constexpr eosio::name rex_account{"amax.rex"_n};
          static constexpr eosio::name reserv_account{"amax.reserv"_n};
          static constexpr eosio::name null_account{"amax.null"_n};
@@ -1399,11 +1374,6 @@ namespace eosiosystem {
          void update_elected_producers( const block_timestamp& timestamp );
          void update_votes( const name& voter, const name& proxy, const std::vector<name>& producers, bool voting );
          void propagate_weight_change( const voter_info& voter );
-         double update_producer_votepay_share( const producers_table2::const_iterator& prod_itr,
-                                               const time_point& ct,
-                                               double shares_rate, bool reset_to_zero = false );
-         double update_total_votepay_share( const time_point& ct,
-                                            double additional_shares_delta = 0.0, double shares_rate_delta = 0.0 );
 
          template <auto system_contract::*...Ptrs>
          class registration {

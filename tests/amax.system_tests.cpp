@@ -1529,7 +1529,6 @@ BOOST_FIXTURE_TEST_CASE(change_inflation, eosio_system_tester) try {
    }
 
 } FC_LOG_AND_RETHROW()
-#endif // 
 
 BOOST_FIXTURE_TEST_CASE(votepay_share_invariant, eosio_system_tester, * boost::unit_test::tolerance(1e-10)) try {
 
@@ -1599,6 +1598,9 @@ BOOST_FIXTURE_TEST_CASE(votepay_share_invariant, eosio_system_tester, * boost::u
 
 } FC_LOG_AND_RETHROW()
 
+#endif // 
+
+#if 0
 BOOST_FIXTURE_TEST_CASE(votepay_share_proxy, eosio_system_tester, * boost::unit_test::tolerance(1e-5)) try {
 
    cross_15_percent_threshold();
@@ -1881,6 +1883,7 @@ BOOST_FIXTURE_TEST_CASE(votepay_transition, eosio_system_tester, * boost::unit_t
 
 } FC_LOG_AND_RETHROW()
 
+#endif
 
 // BOOST_AUTO_TEST_CASE(votepay_transition2, * boost::unit_test::tolerance(1e-10)) try {
 //    eosio_system_tester t(eosio_system_tester::setup_level::minimal);
