@@ -77,10 +77,7 @@ namespace eosiosystem {
    static constexpr int64_t  inflation_precision           = 100;     // 2 decimals
    static constexpr int64_t  default_annual_rate           = 500;     // 5% annual rate
    static constexpr int64_t  pay_factor_precision          = 10000;
-   static constexpr int64_t  default_inflation_pay_factor  = 50000;   // producers pay share = 10000 / 50000 = 20% of the inflation
-   static constexpr int64_t  default_votepay_factor        = 40000;   // per-block pay share = 10000 / 40000 = 25% of the producer pay
 
-   double get_continuous_rate(int64_t annual_rate);
   /**
    * The `amax.system` smart contract is provided by `Armoniax` as a sample system contract, and it defines the structures and actions needed for blockchain's core functionality.
    * 
@@ -134,10 +131,6 @@ namespace eosiosystem {
       int64_t              total_ram_stake = 0;
 
       block_timestamp      last_producer_schedule_update;
-      time_point           last_pervote_bucket_fill;
-      int64_t              pervote_bucket = 0;
-      int64_t              perblock_bucket = 0;
-      uint32_t             total_unpaid_blocks = 0; /// all blocks which have been produced but not paid
       int64_t              total_activated_stake = 0;
       time_point           thresh_activated_stake_time;
       uint16_t             last_producer_schedule_size = 0;
@@ -153,20 +146,16 @@ namespace eosiosystem {
       time_point        last_vpay_state_update;
       double            total_vpay_share_change_rate = 0;
 
-      double continuous_rate        = get_continuous_rate(default_annual_rate);
-      int64_t inflation_pay_factor  = default_inflation_pay_factor;
-      int64_t votepay_factor        = default_votepay_factor;
 
       // explicit serialization macro is not necessary, used here only to improve compilation time
       EOSLIB_SERIALIZE_DERIVED( amax_global_state, eosio::blockchain_parameters,
                                 (max_ram_size)(total_ram_bytes_reserved)(total_ram_stake)
-                                (last_producer_schedule_update)(last_pervote_bucket_fill)
-                                (pervote_bucket)(perblock_bucket)(total_unpaid_blocks)(total_activated_stake)(thresh_activated_stake_time)
+                                (last_producer_schedule_update)
+                                (total_activated_stake)(thresh_activated_stake_time)
                                 (last_producer_schedule_size)(total_producer_vote_weight)(last_name_close) 
                                 (new_ram_per_block)(last_ram_increase)(last_block_num)
                                 (total_producer_votepay_share)(revision)
                                 (last_vpay_state_update)(total_vpay_share_change_rate)
-                                (continuous_rate)(inflation_pay_factor)(votepay_factor)
       )
    };
 
@@ -181,7 +170,6 @@ namespace eosiosystem {
       eosio::public_key                                        producer_key; /// a packed public key object
       bool                                                     is_active = true;
       std::string                                              url;
-      uint32_t                                                 unpaid_blocks = 0;
       time_point                                               last_claim_time;
       uint16_t                                                 location = 0;
       eosio::binary_extension<eosio::block_signing_authority>  producer_authority; // added in version 1.9.0
@@ -220,7 +208,6 @@ namespace eosiosystem {
             << t.producer_key
             << t.is_active
             << t.url
-            << t.unpaid_blocks
             << t.last_claim_time
             << t.location;
 
@@ -236,7 +223,6 @@ namespace eosiosystem {
                    >> t.producer_key
                    >> t.is_active
                    >> t.url
-                   >> t.unpaid_blocks
                    >> t.last_claim_time
                    >> t.location
                    >> t.producer_authority;

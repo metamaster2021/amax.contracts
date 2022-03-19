@@ -11,10 +11,6 @@ namespace eosiosystem {
    using eosio::current_time_point;
    using eosio::token;
 
-   double get_continuous_rate(int64_t annual_rate) {
-      return std::log1p(double(annual_rate)/double(100*inflation_precision));
-   }
-
    system_contract::system_contract( name s, name code, datastream<const char*> ds )
    :native(s,code,ds),
     _voters(get_self(), get_self().value),
@@ -275,17 +271,6 @@ namespace eosiosystem {
 
    void system_contract::setinflation( int64_t annual_rate, int64_t inflation_pay_factor, int64_t votepay_factor ) {
       require_auth(get_self());
-      check(annual_rate >= 0, "annual_rate can't be negative");
-      if ( inflation_pay_factor < pay_factor_precision ) {
-         check( false, "inflation_pay_factor must not be less than " + std::to_string(pay_factor_precision) );
-      }
-      if ( votepay_factor < pay_factor_precision ) {
-         check( false, "votepay_factor must not be less than " + std::to_string(pay_factor_precision) );
-      }
-      _gstate.continuous_rate      = get_continuous_rate(annual_rate);
-      _gstate.inflation_pay_factor = inflation_pay_factor;
-      _gstate.votepay_factor       = votepay_factor;
-      _global.set( _gstate, get_self() );
    }
 
    /**
