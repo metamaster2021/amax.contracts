@@ -140,7 +140,7 @@ namespace eosiosystem {
 
       uint16_t          new_ram_per_block = 0;
       block_timestamp   last_ram_increase;
-      block_timestamp   inflation_start_time;         // inflation start time
+      time_point        inflation_start_time;         // inflation start time
       asset             initial_inflation_per_block;   // initial inflation per block
       block_timestamp   last_block_num; /* deprecated */
       uint8_t           revision = 0; ///< used to track version updates in the future.
@@ -168,8 +168,9 @@ namespace eosiosystem {
       eosio::public_key                                        producer_key; /// a packed public key object
       bool                                                     is_active = true;
       std::string                                              url;
-      time_point                                               last_claim_time;
       uint16_t                                                 location = 0;
+      time_point                                               last_claimed_time;
+      asset                                                    unclaimed_rewards;
       eosio::binary_extension<eosio::block_signing_authority>  producer_authority; // added in version 1.9.0
 
       uint64_t primary_key()const { return owner.value;                             }
@@ -206,8 +207,9 @@ namespace eosiosystem {
             << t.producer_key
             << t.is_active
             << t.url
-            << t.last_claim_time
-            << t.location;
+            << t.location
+            << t.last_claimed_time
+            << t.unclaimed_rewards;
 
          if( !t.producer_authority.has_value() ) return ds;
 
@@ -221,8 +223,9 @@ namespace eosiosystem {
                    >> t.producer_key
                    >> t.is_active
                    >> t.url
-                   >> t.last_claim_time
                    >> t.location
+                   >> t.last_claimed_time
+                   >> t.unclaimed_rewards
                    >> t.producer_authority;
       }
    };
@@ -1219,14 +1222,14 @@ namespace eosiosystem {
          void bidrefund( const name& bidder, const name& newname );
 
          /**
-          * Change the inflation params
-          * the inflation params only be set after contract init() and before inflation start.
+          * Set inflation Parameters
+          * Only be set after contract init() and before inflation start.
           *
           * @param inflation_start_time - inflation start time
           * @param initial_inflation_per_block initial inflation per block.
           */
          [[eosio::action]]
-         void setinflation( block_timestamp inflation_start_time, const asset& initial_inflation_per_block );
+         void setinflation( time_point inflation_start_time, const asset& initial_inflation_per_block );
 
          /**
           * Configure the `power` market. The market becomes available the first time this

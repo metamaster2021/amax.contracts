@@ -581,9 +581,8 @@ icon: @ICON_BASE_URL@/@ADMIN_ICON_URI@
 
 {{$action.account}} sets the inflation parameters as follows:
 
-* Annual inflation rate (in units of a hundredth of a percent): {{annual_rate}}
-* Fraction of inflation used to reward block producers: 10000/{{inflation_pay_factor}}
-* Fraction of block producer rewards to be distributed proportional to blocks produced: 10000/{{votepay_factor}}
+* Inflation start time: {{inflation_start_time}}
+* Initial inflation per block: {{initial_inflation_per_block}}
 
 <h1 class="contract">undelegatebw</h1>
 

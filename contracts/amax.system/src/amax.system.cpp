@@ -268,15 +268,16 @@ namespace eosiosystem {
       _gstate.revision = revision;
    }
 
-   void system_contract::setinflation(  block_timestamp inflation_start_time, const asset& initial_inflation_per_block ) {
+   void system_contract::setinflation(  time_point inflation_start_time, const asset& initial_inflation_per_block ) {
       require_auth(get_self());
       const auto& core_sym = core_symbol();
       check(core_sym != symbol(), "system contract has not been initialized");
       
-      if (inflation_start_time != block_timestamp() ) {
-         const auto& cbt = eosio::current_block_time();
-         check( cbt < inflation_start_time, "inflation has been started");
+      const auto& ct = eosio::current_time_point();
+      if (_gstate.inflation_start_time != time_point() ) {
+         check( ct < _gstate.inflation_start_time, "inflation has been started");
       }
+      check(inflation_start_time > ct, "inflation start time must larger then current time");
       check(initial_inflation_per_block.symbol == core_sym, "inflation symbol mismatch with core symbol");
 
       _gstate.inflation_start_time = inflation_start_time;

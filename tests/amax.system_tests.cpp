@@ -1873,12 +1873,12 @@ BOOST_FIXTURE_TEST_CASE(votepay_transition, eosio_system_tester, * boost::unit_t
                                N(producers2) ) );
    BOOST_REQUIRE( !tbl );
    BOOST_REQUIRE_EQUAL( success(), regproducer(N(defproducera)) );
-   BOOST_REQUIRE( microseconds_since_epoch_of_iso_string( get_producer_info(N(defproducera))["last_claim_time"] ) < microseconds_since_epoch_of_iso_string( get_producer_info2(N(defproducera))["last_votepay_share_update"] ) );
+   BOOST_REQUIRE( microseconds_since_epoch_of_iso_string( get_producer_info(N(defproducera))["last_claimed_time"] ) < microseconds_since_epoch_of_iso_string( get_producer_info2(N(defproducera))["last_votepay_share_update"] ) );
 
    create_account_with_resources( N(defproducer1), config::system_account_name, core_sym::from_string("1.0000"), false, net, cpu );
    BOOST_REQUIRE_EQUAL( success(), regproducer(N(defproducer1)) );
-   BOOST_REQUIRE( 0 < microseconds_since_epoch_of_iso_string( get_producer_info(N(defproducer1))["last_claim_time"] ) );
-   BOOST_REQUIRE_EQUAL( get_producer_info(N(defproducer1))["last_claim_time"].as_string(),
+   BOOST_REQUIRE( 0 < microseconds_since_epoch_of_iso_string( get_producer_info(N(defproducer1))["last_claimed_time"] ) );
+   BOOST_REQUIRE_EQUAL( get_producer_info(N(defproducer1))["last_claimed_time"].as_string(),
                         get_producer_info2(N(defproducer1))["last_votepay_share_update"].as_string() );
 
 } FC_LOG_AND_RETHROW()

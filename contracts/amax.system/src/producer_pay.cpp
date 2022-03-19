@@ -7,6 +7,14 @@ namespace eosiosystem {
    using eosio::microseconds;
    using eosio::token;
 
+   inline constexpr int64_t power(int64_t base, int64_t exp) {
+      int64_t ret = 1;
+      while( exp > 0  ) {
+         ret *= base; --exp;
+      }
+      return ret;
+   }
+
    void system_contract::onblock( ignore<block_header> ) {
       using namespace eosio;
 
@@ -29,12 +37,22 @@ namespace eosiosystem {
        * At startup the initial producer may not be one that is registered / elected
        * and therefore there may be no producer object for them.
        */
-      // auto prod = _producers.find( producer.value );
-      // if ( prod != _producers.end() ) {
-      //    _producers.modify( prod, same_payer, [&](auto& p ) {
-      //          p.unpaid_blocks++;
-      //    });
-      // }
+      const auto ct = current_time_point();
+      if ( _gstate.inflation_start_time != time_point() && ct >= _gstate.inflation_start_time ) {
+         int64_t periods = (ct - _gstate.inflation_start_time).count() / (4 * useconds_per_year); 
+         int64_t inflation_per_block = periods >= 0 && periods < 62 ? 
+               _gstate.initial_inflation_per_block.amount / power(2, periods) : 0;
+         if (inflation_per_block > 0 ) {
+            auto prod = _producers.find( producer.value );
+            if ( prod != _producers.end() ) {
+               _producers.modify( prod, same_payer, [&](auto& p ) {
+                     p.unclaimed_rewards.amount += inflation_per_block;
+               });
+            }
+         }
+      }
+      
+
 
       /// only update block producers once every minute
       if( timestamp.slot - _gstate.last_producer_schedule_update.slot > blocks_per_minute ) {
@@ -69,9 +87,12 @@ namespace eosiosystem {
       check( _gstate.thresh_activated_stake_time != time_point(),
                     "cannot claim rewards until the chain is activated (at least 15% of all tokens participate in voting)" );
 
-      // const auto ct = current_time_point();
 
-      // check( ct - prod.last_claim_time > microseconds(useconds_per_day), "already claimed rewards within past day" );
+      const auto ct = current_time_point();
+      check( ct >= _gstate.inflation_start_time, "inflation has not been started");
+
+      check( false, "inflation and claimrewards are not supported" );
+      // check( ct - prod.last_claimed_time > microseconds(useconds_per_day), "already claimed rewards within past day" );
 
    }
 } //namespace eosiosystem
