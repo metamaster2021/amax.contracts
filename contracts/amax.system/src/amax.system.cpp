@@ -268,8 +268,19 @@ namespace eosiosystem {
       _gstate.revision = revision;
    }
 
-   void system_contract::setinflation( int64_t annual_rate, int64_t inflation_pay_factor, int64_t votepay_factor ) {
+   void system_contract::setinflation(  block_timestamp inflation_start_time, const asset& initial_inflation_per_block ) {
       require_auth(get_self());
+      const auto& core_sym = core_symbol();
+      check(core_sym != symbol(), "system contract has not been initialized");
+      
+      if (inflation_start_time != block_timestamp() ) {
+         const auto& cbt = eosio::current_block_time();
+         check( cbt < inflation_start_time, "inflation has been started");
+      }
+      check(initial_inflation_per_block.symbol == core_sym, "inflation symbol mismatch with core symbol");
+
+      _gstate.inflation_start_time = inflation_start_time;
+      _gstate.initial_inflation_per_block = initial_inflation_per_block;
    }
 
    /**

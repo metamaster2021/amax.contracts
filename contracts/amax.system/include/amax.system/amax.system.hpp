@@ -139,6 +139,8 @@ namespace eosiosystem {
 
       uint16_t          new_ram_per_block = 0;
       block_timestamp   last_ram_increase;
+      block_timestamp   inflation_start_time;         // inflation start time
+      asset             initial_inflation_per_block;   // initial inflation per block
       block_timestamp   last_block_num; /* deprecated */
       uint8_t           revision = 0; ///< used to track version updates in the future.
 
@@ -148,8 +150,9 @@ namespace eosiosystem {
                                 (last_producer_schedule_update)
                                 (total_activated_stake)(thresh_activated_stake_time)
                                 (last_producer_schedule_size)(total_producer_vote_weight)(last_name_close) 
-                                (new_ram_per_block)(last_ram_increase)(last_block_num)
-                                (revision)
+                                (new_ram_per_block)(last_ram_increase)
+                                (inflation_start_time)(initial_inflation_per_block)
+                                (last_block_num)(revision)
       )
    };
 
@@ -1215,23 +1218,14 @@ namespace eosiosystem {
          void bidrefund( const name& bidder, const name& newname );
 
          /**
-          * Change the annual inflation rate of the core token supply and specify how
-          * the new issued tokens will be distributed based on the following structure.
+          * Change the inflation params
+          * the inflation params only be set after contract init() and before inflation start.
           *
-          * @param annual_rate - Annual inflation rate of the core token supply.
-          *     (eg. For 5% Annual inflation => annual_rate=500
-          *          For 1.5% Annual inflation => annual_rate=150
-          * @param inflation_pay_factor - Inverse of the fraction of the inflation used to reward block producers.
-          *     The remaining inflation will be sent to the `amax.saving` account.
-          *     (eg. For 20% of inflation going to block producer rewards   => inflation_pay_factor = 50000
-          *          For 100% of inflation going to block producer rewards  => inflation_pay_factor = 10000).
-          * @param votepay_factor - Inverse of the fraction of the block producer rewards to be distributed proportional to blocks produced.
-          *     The remaining rewards will be distributed proportional to votes received.
-          *     (eg. For 25% of block producer rewards going towards block pay => votepay_factor = 40000
-          *          For 75% of block producer rewards going towards block pay => votepay_factor = 13333).
+          * @param inflation_start_time - inflation start time
+          * @param initial_inflation_per_block initial inflation per block.
           */
          [[eosio::action]]
-         void setinflation( int64_t annual_rate, int64_t inflation_pay_factor, int64_t votepay_factor );
+         void setinflation( block_timestamp inflation_start_time, const asset& initial_inflation_per_block );
 
          /**
           * Configure the `power` market. The market becomes available the first time this
