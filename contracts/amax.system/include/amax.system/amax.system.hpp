@@ -171,34 +171,19 @@ namespace eosiosystem {
       uint16_t                                                 location = 0;
       time_point                                               last_claimed_time;
       asset                                                    unclaimed_rewards;
-      eosio::binary_extension<eosio::block_signing_authority>  producer_authority; // added in version 1.9.0
+      eosio::block_signing_authority                           producer_authority;
 
       uint64_t primary_key()const { return owner.value;                             }
       double   by_votes()const    { return is_active ? -total_votes : total_votes;  }
       bool     active()const      { return is_active;                               }
-      void     deactivate()       { producer_key = public_key(); producer_authority.reset(); is_active = false; }
-
-      eosio::block_signing_authority get_producer_authority()const {
-         if( producer_authority.has_value() ) {
-            bool zero_threshold = std::visit( [](auto&& auth ) -> bool {
-               return (auth.threshold == 0);
-            }, *producer_authority );
-            // zero_threshold could be true despite the validation done in regproducer2 because the v1.9.0 amax.system
-            // contract has a bug which may have modified the producer table such that the producer_authority field
-            // contains a default constructed eosio::block_signing_authority (which has a 0 threshold and so is invalid).
-            if( !zero_threshold ) return *producer_authority;
-         }
-         return convert_to_block_signing_authority( producer_key );
+      void     deactivate()       {
+         producer_key = public_key(); 
+         std::visit( [](auto&& auth ) -> void {
+               auth.threshold = 0; 
+               auth.keys.clear();
+            }, producer_authority );
+         is_active = false; 
       }
-
-      // The unregprod and claimrewards actions modify unrelated fields of the producers table and under the default
-      // serialization behavior they would increase the size of the serialized table if the producer_authority field
-      // was not already present. This is acceptable (though not necessarily desired) because those two actions require
-      // the authority of the producer who pays for the table rows.
-      // However, the rmvproducer action and the onblock transaction would also modify the producer table in a similar
-      // way and increasing its serialized size is not acceptable in that context.
-      // So, a custom serialization is defined to handle the binary_extension producer_authority
-      // field in the desired way. (Note: v1.9.0 did not have this custom serialization behavior.)
 
       template<typename DataStream>
       friend DataStream& operator << ( DataStream& ds, const producer_info& t ) {
@@ -209,11 +194,9 @@ namespace eosiosystem {
             << t.url
             << t.location
             << t.last_claimed_time
-            << t.unclaimed_rewards;
-
-         if( !t.producer_authority.has_value() ) return ds;
-
-         return ds << t.producer_authority;
+            << t.unclaimed_rewards
+            << t.producer_authority;
+         return ds;
       }
 
       template<typename DataStream>

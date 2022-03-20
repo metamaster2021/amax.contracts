@@ -46,7 +46,7 @@ namespace eosiosystem {
             info.is_active          = true;
             info.url                = url;
             info.location           = location;
-            info.producer_authority.emplace( producer_authority );
+            info.producer_authority = producer_authority;
             if ( info.last_claimed_time == time_point() )
                info.last_claimed_time = ct;
          });
@@ -60,7 +60,7 @@ namespace eosiosystem {
             info.location           = location;
             info.last_claimed_time    = ct;
             info.unclaimed_rewards     = asset(0, core_sym);
-            info.producer_authority.emplace( producer_authority );
+            info.producer_authority = producer_authority;
          });
       }
 
@@ -106,7 +106,7 @@ namespace eosiosystem {
          top_producers.emplace_back(
             eosio::producer_authority{
                .producer_name = it->owner,
-               .authority     = it->get_producer_authority()
+               .authority     = it->producer_authority
             },
             it->location
          );
