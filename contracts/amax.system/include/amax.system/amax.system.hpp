@@ -182,34 +182,10 @@ namespace eosiosystem {
                auth.keys.clear();
             }, producer_authority );
          is_active = false; 
-      }
-
-      template<typename DataStream>
-      friend DataStream& operator << ( DataStream& ds, const producer_info& t ) {
-         ds << t.owner
-            << t.total_votes
-            << t.producer_key
-            << t.is_active
-            << t.url
-            << t.location
-            << t.last_claimed_time
-            << t.unclaimed_rewards
-            << t.producer_authority;
-         return ds;
-      }
-
-      template<typename DataStream>
-      friend DataStream& operator >> ( DataStream& ds, producer_info& t ) {
-         return ds >> t.owner
-                   >> t.total_votes
-                   >> t.producer_key
-                   >> t.is_active
-                   >> t.url
-                   >> t.location
-                   >> t.last_claimed_time
-                   >> t.unclaimed_rewards
-                   >> t.producer_authority;
-      }
+      }      
+      // explicit serialization macro is not necessary, used here only to improve compilation time
+      EOSLIB_SERIALIZE( producer_info, (owner)(total_votes)(producer_key)(is_active)(url)(location)
+                                       (last_claimed_time)(unclaimed_rewards)(producer_authority) )
    };
 
    // Voter info. Voter info stores information about the voter:
