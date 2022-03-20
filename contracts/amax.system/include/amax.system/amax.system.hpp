@@ -142,7 +142,6 @@ namespace eosiosystem {
       block_timestamp   last_ram_increase;
       time_point        inflation_start_time;         // inflation start time
       asset             initial_inflation_per_block;   // initial inflation per block
-      block_timestamp   last_block_num; /* deprecated */
       uint8_t           revision = 0; ///< used to track version updates in the future.
 
       // explicit serialization macro is not necessary, used here only to improve compilation time
@@ -153,7 +152,7 @@ namespace eosiosystem {
                                 (last_producer_schedule_size)(total_producer_vote_weight)(last_name_close) 
                                 (new_ram_per_block)(last_ram_increase)
                                 (inflation_start_time)(initial_inflation_per_block)
-                                (last_block_num)(revision)
+                                (revision)
       )
    };
 
