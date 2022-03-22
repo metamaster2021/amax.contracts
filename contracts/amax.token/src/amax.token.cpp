@@ -7,6 +7,7 @@ void token::create( const name&   issuer,
 {
     require_auth( get_self() );
 
+    check(is_account(issuer), "issuer account does not exist");
     auto sym = maximum_supply.symbol;
     check( sym.is_valid(), "invalid symbol name" );
     check( maximum_supply.is_valid(), "invalid supply");

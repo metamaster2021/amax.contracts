@@ -22,6 +22,7 @@ namespace amax_xtoken {
     {
         require_auth(get_self());
 
+        check(is_account(issuer), "issuer account does not exist");
         const auto &sym = maximum_supply.symbol;
         auto sym_code_raw = sym.code().raw();
         check(sym.is_valid(), "invalid symbol name");
@@ -34,9 +35,9 @@ namespace amax_xtoken {
 
         statstable.emplace(get_self(), [&](auto &s)
                            {
-       s.supply.symbol = maximum_supply.symbol;
-       s.max_supply    = maximum_supply;
-       s.issuer        = issuer; });
+        s.supply.symbol = maximum_supply.symbol;
+        s.max_supply    = maximum_supply;
+        s.issuer        = issuer; });
     }
 
     void xtoken::issue(const name &to, const asset &quantity, const string &memo)
