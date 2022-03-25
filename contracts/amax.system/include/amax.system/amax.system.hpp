@@ -597,7 +597,7 @@ namespace eosiosystem {
          ~system_contract();
 
          // Returns the core symbol, used by native
-         static std::function<const symbol&()> get_core_symbol;
+         static symbol get_core_symbol(const name& self);
 
          // Actions:
          /**

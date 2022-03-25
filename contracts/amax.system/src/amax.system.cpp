@@ -25,7 +25,14 @@ namespace eosiosystem {
     _rexorders(get_self(), get_self().value)
    {
       _gstate  = _global.exists() ? _global.get() : get_default_parameters();
-      system_contract::get_core_symbol= std::bind(&system_contract::core_symbol, this);
+   }
+
+   symbol system_contract::get_core_symbol(const name& self) {
+      global_state_singleton   global(self, self.value);
+      check(global.exists(), "global does not exist");
+      const auto& sym = global.get().core_symbol;
+      check(sym.raw() != 0, "system contract must first be initialized");
+      return sym;
    }
 
    amax_global_state system_contract::get_default_parameters() {
@@ -324,8 +331,9 @@ namespace eosiosystem {
 
       userres.emplace( newact, [&]( auto& res ) {
         res.owner = newact;
-        res.net_weight = asset( 0, system_contract::get_core_symbol() );
-        res.cpu_weight = asset( 0, system_contract::get_core_symbol() );
+        const auto& core_sym = system_contract::get_core_symbol(get_self());
+        res.net_weight = asset( 0, core_sym );
+        res.cpu_weight = asset( 0, core_sym );
       });
 
       set_resource_limits( newact, 0, 0, 0 );
@@ -356,8 +364,10 @@ namespace eosiosystem {
 
       auto system_token_supply   = eosio::token::get_supply(token_account, core.code() );
       check( system_token_supply.symbol == core, "specified core symbol does not exist (precision mismatch)" );
-
       check( system_token_supply.amount > 0, "system token supply must be greater than 0" );
+      
+      _gstate.core_symbol = core;
+
       _rammarket.emplace( get_self(), [&]( auto& m ) {
          m.supply.amount = 100000000000000ll;
          m.supply.symbol = ramcore_symbol;
