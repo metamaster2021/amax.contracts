@@ -127,6 +127,7 @@ namespace eosiosystem {
    struct [[eosio::table("global"), eosio::contract("amax.system")]] amax_global_state : eosio::blockchain_parameters {
       uint64_t free_ram()const { return max_ram_size - total_ram_bytes_reserved; }
 
+      symbol               core_symbol;
       uint64_t             max_ram_size = 64ll*1024 * 1024 * 1024;
       uint64_t             total_ram_bytes_reserved = 0;
       int64_t              total_ram_stake = 0;
@@ -146,7 +147,7 @@ namespace eosiosystem {
 
       // explicit serialization macro is not necessary, used here only to improve compilation time
       EOSLIB_SERIALIZE_DERIVED( amax_global_state, eosio::blockchain_parameters,
-                                (max_ram_size)(total_ram_bytes_reserved)(total_ram_stake)
+                                (core_symbol)(max_ram_size)(total_ram_bytes_reserved)(total_ram_stake)
                                 (last_producer_schedule_update)
                                 (total_activated_stake)(thresh_activated_stake_time)
                                 (last_producer_schedule_size)(total_producer_vote_weight)(last_name_close) 
@@ -598,13 +599,8 @@ namespace eosiosystem {
          system_contract( name s, name code, datastream<const char*> ds );
          ~system_contract();
 
-          // Returns the core symbol by system account name
-          // @param system_account - the system account to get the core symbol for.
-         static symbol get_core_symbol( name system_account = "amax"_n ) {
-            rammarket rm(system_account, system_account.value);
-            const static auto sym = get_core_symbol( rm );
-            return sym;
-         }
+         // Returns the core symbol, used by native
+         static std::function<const symbol&()> get_core_symbol;
 
          // Actions:
          /**
@@ -1270,17 +1266,11 @@ namespace eosiosystem {
          using powerup_action = eosio::action_wrapper<"powerup"_n, &system_contract::powerup>;
 
       private:
-         // Implementation details:
-
-         static symbol get_core_symbol( const rammarket& rm ) {
-            auto itr = rm.find(ramcore_symbol.raw());
-            check(itr != rm.end(), "system contract must first be initialized");
-            return itr->quote.balance.symbol;
-         }
-
          //defined in amax.system.cpp
          static amax_global_state get_default_parameters();
-         symbol core_symbol()const;
+
+         const symbol& core_symbol() const;
+
          void update_ram_supply();
 
          // defined in rex.cpp

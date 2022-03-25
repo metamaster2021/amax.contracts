@@ -25,6 +25,7 @@ namespace eosiosystem {
     _rexorders(get_self(), get_self().value)
    {
       _gstate  = _global.exists() ? _global.get() : get_default_parameters();
+      system_contract::get_core_symbol= std::bind(&system_contract::core_symbol, this);
    }
 
    amax_global_state system_contract::get_default_parameters() {
@@ -33,9 +34,9 @@ namespace eosiosystem {
       return dp;
    }
 
-   symbol system_contract::core_symbol()const {
-      const static auto sym = get_core_symbol( _rammarket );
-      return sym;
+   const symbol& system_contract::core_symbol()const {
+      check(_gstate.core_symbol.raw() != 0, "system contract must first be initialized");
+      return _gstate.core_symbol;
    }
 
    system_contract::~system_contract() {
@@ -270,15 +271,13 @@ namespace eosiosystem {
 
    void system_contract::setinflation(  time_point inflation_start_time, const asset& initial_inflation_per_block ) {
       require_auth(get_self());
-      const auto& core_sym = core_symbol();
-      check(core_sym != symbol(), "system contract has not been initialized");
+      check(initial_inflation_per_block.symbol == core_symbol(), "inflation symbol mismatch with core symbol");
       
       const auto& ct = eosio::current_time_point();
       if (_gstate.inflation_start_time != time_point() ) {
          check( ct < _gstate.inflation_start_time, "inflation has been started");
       }
       check(inflation_start_time > ct, "inflation start time must larger then current time");
-      check(initial_inflation_per_block.symbol == core_sym, "inflation symbol mismatch with core symbol");
 
       _gstate.inflation_start_time = inflation_start_time;
       _gstate.initial_inflation_per_block = initial_inflation_per_block;
@@ -350,9 +349,10 @@ namespace eosiosystem {
    void system_contract::init( unsigned_int version, const symbol& core ) {
       require_auth( get_self() );
       check( version.value == 0, "unsupported version for init action" );
+      check( _gstate.core_symbol.raw() == 0, "system contract has already been initialized" );
 
       auto itr = _rammarket.find(ramcore_symbol.raw());
-      check( itr == _rammarket.end(), "system contract has already been initialized" );
+      check( itr == _rammarket.end(), "ramcore symbol has already been initialized" );
 
       auto system_token_supply   = eosio::token::get_supply(token_account, core.code() );
       check( system_token_supply.symbol == core, "specified core symbol does not exist (precision mismatch)" );

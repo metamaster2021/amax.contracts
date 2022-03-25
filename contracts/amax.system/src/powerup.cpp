@@ -119,7 +119,7 @@ void update_utilization(time_point_sec now, powerup_state_resource& res) {
 void system_contract::cfgpowerup(powerup_config& args) {
    require_auth(get_self());
    time_point_sec         now         = eosio::current_time_point();
-   auto                   core_symbol = get_core_symbol();
+   auto                   core_symbol = this->core_symbol();
    powerup_state_singleton state_sing{ get_self(), 0 };
    auto                   state = state_sing.get_or_default();
 
@@ -321,7 +321,7 @@ void system_contract::powerupexec(const name& user, uint16_t max) {
    eosio::check(state_sing.exists(), "powerup hasn't been initialized");
    auto           state       = state_sing.get();
    time_point_sec now         = eosio::current_time_point();
-   auto           core_symbol = get_core_symbol();
+   auto           core_symbol = this->core_symbol();
 
    int64_t net_delta_available = 0;
    int64_t cpu_delta_available = 0;
@@ -339,7 +339,7 @@ void system_contract::powerup(const name& payer, const name& receiver, uint32_t 
    eosio::check(state_sing.exists(), "powerup hasn't been initialized");
    auto           state       = state_sing.get();
    time_point_sec now         = eosio::current_time_point();
-   auto           core_symbol = get_core_symbol();
+   auto           core_symbol = this->core_symbol();
    eosio::check(max_payment.symbol == core_symbol, "max_payment doesn't match core symbol");
    eosio::check(days == state.powerup_days, "days doesn't match configuration");
    eosio::check(net_frac >= 0, "net_frac can't be negative");
