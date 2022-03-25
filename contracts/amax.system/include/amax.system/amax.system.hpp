@@ -70,7 +70,7 @@ namespace eosiosystem {
    static constexpr uint32_t blocks_per_minute     = 60 * 1000 / block_timestamp::block_interval_ms;
    static constexpr uint32_t blocks_per_day        = seconds_per_day * 1000 / block_timestamp::block_interval_ms;
 
-   static constexpr int64_t  min_activated_stake   = 150'000'000'0000;
+   static constexpr int64_t  min_activated_stake   = 50'000'000'0000'0000;
    static constexpr int64_t  ram_gift_bytes        = 1400;
 
    static constexpr uint32_t refund_delay_sec      = 3 * seconds_per_day;
