@@ -27,7 +27,6 @@ namespace eosiosystem {
    void system_contract::register_producer( const name& producer, const eosio::block_signing_authority& producer_authority, const std::string& url, uint16_t location ) {
 
       const auto& core_sym = core_symbol();
-      check(core_sym != symbol(), "system contract has not been initialized");
       auto prod = _producers.find( producer.value );
       const auto ct = current_time_point();
 
