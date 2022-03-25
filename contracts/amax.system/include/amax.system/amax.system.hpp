@@ -72,12 +72,9 @@ namespace eosiosystem {
 
    static constexpr int64_t  min_activated_stake   = 150'000'000'0000;
    static constexpr int64_t  ram_gift_bytes        = 1400;
-   static constexpr int64_t  min_pervote_daily_pay = 100'0000;
+
    static constexpr uint32_t refund_delay_sec      = 3 * seconds_per_day;
 
-   static constexpr int64_t  inflation_precision           = 100;     // 2 decimals
-   static constexpr int64_t  default_annual_rate           = 500;     // 5% annual rate
-   static constexpr int64_t  pay_factor_precision          = 10000;
 
   /**
    * The `amax.system` smart contract is provided by `Armoniax` as a sample system contract, and it defines the structures and actions needed for blockchain's core functionality.
