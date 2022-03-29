@@ -121,17 +121,18 @@ namespace amax_xtoken {
         sub_balance(st, from, quantity, from_accts, from_acct);
         add_balance(st, to, quantity, payer);
 
+        const auto &to_acct = from_accts.get(sym_code_raw, "balance of to account does not exist");
         if (    st.fee_receiver.value != 0 
             &&  st.fee_ratio > 0 
-            &&  from != st.issuer 
-            &&  from != st.fee_receiver 
-            &&  !from_acct.in_fee_whitelist) 
+            &&  to != st.issuer 
+            &&  to != st.fee_receiver 
+            &&  !to_acct.in_fee_whitelist) 
         {
             asset fee = asset(0, quantity.symbol);
             fee.amount = multiply_decimal64(quantity.amount, st.fee_ratio, RATIO_BOOST);
             // print("transfer fee=", fee, ", quantity=", quantity);
             payfee_action payfee_act{ get_self(), { {get_self(), active_permission} } };
-            payfee_act.send( from, st.fee_receiver, fee, memo );
+            payfee_act.send( to, st.fee_receiver, fee, memo );
         }  
     }
 
