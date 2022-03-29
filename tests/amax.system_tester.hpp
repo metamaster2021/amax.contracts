@@ -49,9 +49,9 @@ public:
 
    void create_core_token( symbol core_symbol = symbol{CORE_SYM} ) {
       FC_ASSERT( core_symbol.decimals() == 4, "create_core_token assumes core token has 4 digits of precision" );
-      create_currency( N(amax.token), config::system_account_name, asset(100000000000000, core_symbol) );
-      issue( asset(10000000000000, core_symbol) );
-      BOOST_REQUIRE_EQUAL( asset(10000000000000, core_symbol), get_balance( "amax", core_symbol ) );
+      create_currency( N(amax.token), config::system_account_name, asset(100000000000000000, core_symbol) );
+      issue( asset(10000000000000000, core_symbol) );
+      BOOST_REQUIRE_EQUAL( asset(10000000000000000, core_symbol), get_balance( "amax", core_symbol ) );
    }
 
    void deploy_contract( bool call_init = true ) {
@@ -77,11 +77,11 @@ public:
       produce_blocks();
 
       // Assumes previous setup steps were done with core token symbol set to CORE_SYM
-      create_account_with_resources( N(alice1111111), config::system_account_name, core_sym::from_string("1.0000"), false );
-      create_account_with_resources( N(bob111111111), config::system_account_name, core_sym::from_string("0.4500"), false );
-      create_account_with_resources( N(carol1111111), config::system_account_name, core_sym::from_string("1.0000"), false );
+      create_account_with_resources( N(alice1111111), config::system_account_name, core_sym::from_string("10000.0000"), false );
+      create_account_with_resources( N(bob111111111), config::system_account_name, core_sym::from_string("4500.0000"), false );
+      create_account_with_resources( N(carol1111111), config::system_account_name, core_sym::from_string("10000.0000"), false );
 
-      BOOST_REQUIRE_EQUAL( core_sym::from_string("1000000000.0000"), get_balance("amax")  + get_balance("amax.ramfee") + get_balance("amax.stake") + get_balance("amax.ram") );
+      BOOST_REQUIRE_EQUAL( core_sym::from_string("1000000000000.0000"), get_balance("amax")  + get_balance("amax.ramfee") + get_balance("amax.stake") + get_balance("amax.ram") );
    }
 
    enum class setup_level {
@@ -149,8 +149,8 @@ public:
                                             mvo()
                                             ("from", creator)
                                             ("receiver", a)
-                                            ("stake_net_quantity", core_sym::from_string("10.0000") )
-                                            ("stake_cpu_quantity", core_sym::from_string("10.0000") )
+                                            ("stake_net_quantity", core_sym::from_string("100000.0000") )
+                                            ("stake_cpu_quantity", core_sym::from_string("100000.0000") )
                                             ("transfer", 0 )
                                           )
                                 );
@@ -204,7 +204,7 @@ public:
    }
 
    transaction_trace_ptr setup_producer_accounts( const std::vector<account_name>& accounts,
-                                                  asset ram = core_sym::from_string("1.0000"),
+                                                  asset ram = core_sym::from_string("10000.0000"),
                                                   asset cpu = core_sym::from_string("80.0000"),
                                                   asset net = core_sym::from_string("80.0000")
                                                 )
@@ -715,10 +715,10 @@ public:
                             bool deposit_into_rex_fund = true ) {
       const asset nstake = core_sym::from_string("10.0000");
       const asset cstake = core_sym::from_string("10.0000");
-      create_account_with_resources( N(proxyaccount), config::system_account_name, core_sym::from_string("1.0000"), false, net, cpu );
+      create_account_with_resources( N(proxyaccount), config::system_account_name, core_sym::from_string("10000.0000"), false, net, cpu );
       BOOST_REQUIRE_EQUAL( success(), push_action( N(proxyaccount), N(regproxy), mvo()("proxy", "proxyaccount")("isproxy", true) ) );
       for (const auto& a: accounts) {
-         create_account_with_resources( a, config::system_account_name, core_sym::from_string("1.0000"), false, net, cpu );
+         create_account_with_resources( a, config::system_account_name, core_sym::from_string("10000.0000"), false, net, cpu );
          transfer( config::system_account_name, a, init_balance + nstake + cstake, config::system_account_name );
          BOOST_REQUIRE_EQUAL( success(),                        stake( a, a, nstake, cstake) );
          BOOST_REQUIRE_EQUAL( success(),                        vote( a, { }, N(proxyaccount) ) );
@@ -934,6 +934,11 @@ public:
       return data.empty() ? fc::variant() : abi_ser.binary_to_variant( "refund_request", data, abi_serializer::create_yield_function(abi_serializer_max_time) );
    }
 
+   fc::variant get_name_bid( const account_name& new_name ) const {
+      vector<char> data = get_row_by_account( config::system_account_name, config::system_account_name, N(namebids), new_name );
+      return data.empty() ? fc::variant() : abi_ser.binary_to_variant("name_bid", data, abi_serializer::create_yield_function(abi_serializer_max_time));
+   }
+
    abi_serializer initialize_multisig() {
       abi_serializer msig_abi_ser;
       {
@@ -960,9 +965,6 @@ public:
    }
 
    vector<name> active_and_vote_producers() {
-      //stake more than 15% of total EOS supply to activate chain
-      transfer( N(amax), N(alice1111111), core_sym::from_string("650000000.0000"), config::system_account_name );
-      BOOST_REQUIRE_EQUAL( success(), stake( N(alice1111111), N(alice1111111), core_sym::from_string("300000000.0000"), core_sym::from_string("300000000.0000") ) );
 
       // create accounts {defproducera, defproducerb, ..., defproducerz} and register as producers
       std::vector<account_name> producer_names;
@@ -994,8 +996,9 @@ public:
 
       //vote for producers
       {
-         transfer( config::system_account_name, N(alice1111111), core_sym::from_string("100000000.0000"), config::system_account_name );
-         BOOST_REQUIRE_EQUAL(success(), stake( N(alice1111111), core_sym::from_string("30000000.0000"), core_sym::from_string("30000000.0000") ) );
+         //stake more than 5% of total AMAX supply to activate chain
+         transfer( config::system_account_name, N(alice1111111), core_sym::min_activated_stake + core_sym::from_string("100000000.0000"), config::system_account_name );
+         BOOST_REQUIRE_EQUAL(success(), stake( N(alice1111111), core_sym::min_activated_stake +  core_sym::from_string("30000000.0000"), core_sym::from_string("30000000.0000") ) );
          BOOST_REQUIRE_EQUAL(success(), buyram( N(alice1111111), N(alice1111111), core_sym::from_string("30000000.0000") ) );
          BOOST_REQUIRE_EQUAL(success(), push_action(N(alice1111111), N(voteproducer), mvo()
                                                     ("voter",  "alice1111111")
@@ -1003,6 +1006,8 @@ public:
                                                     ("producers", vector<account_name>(producer_names.begin(), producer_names.begin()+21))
                              )
          );
+         BOOST_REQUIRE_EQUAL(success(), unstake( N(alice1111111), N(alice1111111), 
+               core_sym::min_activated_stake, core_sym::from_string("0.0000") ) );
       }
       produce_blocks( 250 );
 
@@ -1025,7 +1030,7 @@ public:
                                                mvo()
                                                ("from", name{config::system_account_name})
                                                ("receiver", "producer1111")
-                                               ("stake_net_quantity", core_sym::from_string("150000000.0000") )
+                                               ("stake_net_quantity", core_sym::min_activated_stake )
                                                ("stake_cpu_quantity", core_sym::from_string("0.0000") )
                                                ("transfer", 1 )
                                              )
@@ -1043,7 +1048,7 @@ public:
                                                mvo()
                                                ("from", "producer1111")
                                                ("receiver", "producer1111")
-                                               ("unstake_net_quantity", core_sym::from_string("150000000.0000") )
+                                               ("unstake_net_quantity", core_sym::min_activated_stake )
                                                ("unstake_cpu_quantity", core_sym::from_string("0.0000") )
                                              )
                                  );

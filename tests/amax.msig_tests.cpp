@@ -40,7 +40,9 @@ public:
    }
 
    transaction_trace_ptr create_account_with_resources( account_name a, account_name creator, asset ramfunds, bool multisig,
-                                                        asset net = core_sym::from_string("10.0000"), asset cpu = core_sym::from_string("10.0000") ) {
+                                                        asset net = core_sym::from_string("100000.0000"), 
+                                                        asset cpu = core_sym::from_string("100000.0000") ) 
+   {
       signed_transaction trx;
       set_transaction_headers(trx);
 
@@ -438,9 +440,9 @@ BOOST_FIXTURE_TEST_CASE( update_system_contract_all_approve, eosio_msig_tester )
                               ("core", CORE_SYM_STR)
    );
    produce_blocks();
-   create_account_with_resources( N(alice1111111), N(amax), core_sym::from_string("1.0000"), false );
-   create_account_with_resources( N(bob111111111), N(amax), core_sym::from_string("0.4500"), false );
-   create_account_with_resources( N(carol1111111), N(amax), core_sym::from_string("1.0000"), false );
+   create_account_with_resources( N(alice1111111), N(amax), core_sym::from_string("10000.0000"), false );
+   create_account_with_resources( N(bob111111111), N(amax), core_sym::from_string("4500.0000"), false );
+   create_account_with_resources( N(carol1111111), N(amax), core_sym::from_string("10000.0000"), false );
 
    BOOST_REQUIRE_EQUAL( core_sym::from_string("1000000000.0000"),
                         get_balance(config::system_account_name) + get_balance(N(amax.ramfee)) + get_balance(N(amax.stake)) + get_balance(N(amax.ram)) );
@@ -551,9 +553,9 @@ BOOST_FIXTURE_TEST_CASE( update_system_contract_major_approve, eosio_msig_tester
    set_code( N(amax.token), contracts::token_wasm() );
    set_abi( N(amax.token), contracts::token_abi().data() );
 
-   create_currency( N(amax.token), config::system_account_name, core_sym::from_string("10000000000.0000") );
-   issue(config::system_account_name, core_sym::from_string("1000000000.0000"));
-   BOOST_REQUIRE_EQUAL( core_sym::from_string("1000000000.0000"), get_balance( config::system_account_name ) );
+   create_currency( N(amax.token), config::system_account_name, core_sym::from_string("10000000000000.0000") );
+   issue(config::system_account_name, core_sym::from_string("10000000000000.0000"));
+   BOOST_REQUIRE_EQUAL( core_sym::from_string("10000000000000.0000"), get_balance( config::system_account_name ) );
 
    set_code( config::system_account_name, contracts::system_wasm() );
    set_abi( config::system_account_name, contracts::system_abi().data() );
@@ -563,12 +565,11 @@ BOOST_FIXTURE_TEST_CASE( update_system_contract_major_approve, eosio_msig_tester
                                  ("core", CORE_SYM_STR)
    );
    produce_blocks();
+   create_account_with_resources( N(alice1111111), N(amax), core_sym::from_string("10000.0000"), false );
+   create_account_with_resources( N(bob111111111), N(amax), core_sym::from_string("4500.0000"), false );
+   create_account_with_resources( N(carol1111111), N(amax), core_sym::from_string("10000.0000"), false );
 
-   create_account_with_resources( N(alice1111111), N(amax), core_sym::from_string("1.0000"), false );
-   create_account_with_resources( N(bob111111111), N(amax), core_sym::from_string("0.4500"), false );
-   create_account_with_resources( N(carol1111111), N(amax), core_sym::from_string("1.0000"), false );
-
-   BOOST_REQUIRE_EQUAL( core_sym::from_string("1000000000.0000"),
+   BOOST_REQUIRE_EQUAL( core_sym::from_string("10000000000000.0000"),
                         get_balance(config::system_account_name) + get_balance(N(amax.ramfee)) + get_balance(N(amax.stake)) + get_balance(N(amax.ram)) );
 
    vector<permission_level> perm = { { N(alice), config::active_name }, { N(bob), config::active_name },

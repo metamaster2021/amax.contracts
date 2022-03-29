@@ -35,6 +35,14 @@ bool within_one(int64_t a, int64_t b) { return within_error(a, b, 1); }
 
 BOOST_FIXTURE_TEST_CASE( buysell, eosio_system_tester ) try {
 
+
+   auto get_ram_market = [this]() -> fc::variant {
+      vector<char> data = get_row_by_account( config::system_account_name, config::system_account_name,
+                                              N(rammarket), account_name(symbol{SY(4,RAMCORE)}.value()) );
+      BOOST_REQUIRE( !data.empty() );
+      return abi_ser.binary_to_variant("exchange_state", data, abi_serializer::create_yield_function(abi_serializer_max_time));
+   };
+
    BOOST_REQUIRE_EQUAL( core_sym::from_string("0.0000"), get_balance( "alice1111111" ) );
 
    transfer( "amax", "alice1111111", core_sym::from_string("1000.0000"), "amax" );
@@ -45,8 +53,11 @@ BOOST_FIXTURE_TEST_CASE( buysell, eosio_system_tester ) try {
 
    const asset initial_ram_balance = get_balance(N(amax.ram));
    const asset initial_ramfee_balance = get_balance(N(amax.ramfee));
+
+   wdump ( (get_ram_market()) );
    BOOST_REQUIRE_EQUAL( success(), buyram( "alice1111111", "alice1111111", core_sym::from_string("200.0000") ) );
-   BOOST_REQUIRE_EQUAL( core_sym::from_string("800.0000"), get_balance( "alice1111111" ) );
+   auto alice_balance = get_balance( "alice1111111" );
+   BOOST_REQUIRE_EQUAL( core_sym::from_string("800.0000"), alice_balance );
    BOOST_REQUIRE_EQUAL( initial_ram_balance + core_sym::from_string("199.0000"), get_balance(N(amax.ram)) );
    BOOST_REQUIRE_EQUAL( initial_ramfee_balance + core_sym::from_string("1.0000"), get_balance(N(amax.ramfee)) );
 
@@ -56,47 +67,72 @@ BOOST_FIXTURE_TEST_CASE( buysell, eosio_system_tester ) try {
    wdump((init_bytes)(bought_bytes)(bytes) );
 
    BOOST_REQUIRE_EQUAL( true, 0 < bought_bytes );
-
+   auto ram_market = get_ram_market();
+   wdump ( (ram_market) );
+   asset base_reserve = ram_market["base"].as<connector>().balance;
+   asset quote_reserve = ram_market["quote"].as<connector>().balance;
+   auto out_amount = bancor_convert( base_reserve.get_amount(), quote_reserve.get_amount(), bought_bytes );
+   out_amount -= (out_amount + 199) / 200; // sub 5% fee
+   alice_balance += asset(out_amount, CORE_SYMBOL);
    BOOST_REQUIRE_EQUAL( success(), sellram( "alice1111111", bought_bytes ) );
-   BOOST_REQUIRE_EQUAL( core_sym::from_string("998.0049"), get_balance( "alice1111111" ) );
+   BOOST_REQUIRE_EQUAL( alice_balance, get_balance( "alice1111111" ) );
    total = get_total_stake( "alice1111111" );
    BOOST_REQUIRE_EQUAL( true, total["ram_bytes"].as_uint64() == init_bytes );
 
    transfer( "amax", "alice1111111", core_sym::from_string("100000000.0000"), "amax" );
-   BOOST_REQUIRE_EQUAL( core_sym::from_string("100000998.0049"), get_balance( "alice1111111" ) );
+   alice_balance += core_sym::from_string("100000000.0000");
+   BOOST_REQUIRE_EQUAL( alice_balance, get_balance( "alice1111111" ) );
    // alice buys ram for 10000000.0000, 0.5% = 50000.0000 go to ramfee
    // after fee 9950000.0000 go to bought bytes
    // when selling back bought bytes, pay 0.5% fee and get back 99.5% of 9950000.0000 = 9900250.0000
    // expected account after that is 90000998.0049 + 9900250.0000 = 99901248.0049 with a difference
    // of order 0.0001 due to rounding errors
    BOOST_REQUIRE_EQUAL( success(), buyram( "alice1111111", "alice1111111", core_sym::from_string("10000000.0000") ) );
-   BOOST_REQUIRE_EQUAL( core_sym::from_string("90000998.0049"), get_balance( "alice1111111" ) );
+   alice_balance -= core_sym::from_string("10000000.0000");
+   BOOST_REQUIRE_EQUAL( alice_balance, get_balance( "alice1111111" ) );
 
    total = get_total_stake( "alice1111111" );
    bytes = total["ram_bytes"].as_uint64();
    bought_bytes = bytes - init_bytes;
    wdump((init_bytes)(bought_bytes)(bytes) );
+
+   ram_market = get_ram_market();
+   wdump ( (ram_market) );
+   base_reserve = ram_market["base"].as<connector>().balance;
+   quote_reserve = ram_market["quote"].as<connector>().balance;
+   out_amount = bancor_convert( base_reserve.get_amount(), quote_reserve.get_amount(), bought_bytes );
+   out_amount -= (out_amount + 199) / 200; // sub 5% fee
+   alice_balance += asset(out_amount, CORE_SYMBOL);
 
    BOOST_REQUIRE_EQUAL( success(), sellram( "alice1111111", bought_bytes ) );
    total = get_total_stake( "alice1111111" );
 
    bytes = total["ram_bytes"].as_uint64();
-   bought_bytes = bytes - init_bytes;
-   wdump((init_bytes)(bought_bytes)(bytes) );
+   // bought_bytes = bytes - init_bytes;
+   // wdump((init_bytes)(bought_bytes)(bytes) );
 
    BOOST_REQUIRE_EQUAL( true, total["ram_bytes"].as_uint64() == init_bytes );
-   BOOST_REQUIRE_EQUAL( core_sym::from_string("99901248.0048"), get_balance( "alice1111111" ) );
+   BOOST_REQUIRE_EQUAL( alice_balance, get_balance( "alice1111111" ) );
 
    BOOST_REQUIRE_EQUAL( success(), buyram( "alice1111111", "alice1111111", core_sym::from_string("100.0000") ) );
+   alice_balance -= core_sym::from_string("100.0000");
    BOOST_REQUIRE_EQUAL( success(), buyram( "alice1111111", "alice1111111", core_sym::from_string("100.0000") ) );
+   alice_balance -= core_sym::from_string("100.0000");
    BOOST_REQUIRE_EQUAL( success(), buyram( "alice1111111", "alice1111111", core_sym::from_string("100.0000") ) );
+   alice_balance -= core_sym::from_string("100.0000");
    BOOST_REQUIRE_EQUAL( success(), buyram( "alice1111111", "alice1111111", core_sym::from_string("100.0000") ) );
+   alice_balance -= core_sym::from_string("100.0000");
    BOOST_REQUIRE_EQUAL( success(), buyram( "alice1111111", "alice1111111", core_sym::from_string("100.0000") ) );
+   alice_balance -= core_sym::from_string("100.0000");
    BOOST_REQUIRE_EQUAL( success(), buyram( "alice1111111", "alice1111111", core_sym::from_string("10.0000") ) );
+   alice_balance -= core_sym::from_string("10.0000");
    BOOST_REQUIRE_EQUAL( success(), buyram( "alice1111111", "alice1111111", core_sym::from_string("10.0000") ) );
+   alice_balance -= core_sym::from_string("10.0000");
    BOOST_REQUIRE_EQUAL( success(), buyram( "alice1111111", "alice1111111", core_sym::from_string("10.0000") ) );
+   alice_balance -= core_sym::from_string("10.0000");
    BOOST_REQUIRE_EQUAL( success(), buyram( "alice1111111", "alice1111111", core_sym::from_string("30.0000") ) );
-   BOOST_REQUIRE_EQUAL( core_sym::from_string("99900688.0048"), get_balance( "alice1111111" ) );
+   alice_balance -= core_sym::from_string("30.0000");
+   BOOST_REQUIRE_EQUAL( alice_balance, get_balance( "alice1111111" ) );
 
    auto newtotal = get_total_stake( "alice1111111" );
 
@@ -104,22 +140,39 @@ BOOST_FIXTURE_TEST_CASE( buysell, eosio_system_tester ) try {
    bought_bytes = newbytes - bytes;
    wdump((newbytes)(bytes)(bought_bytes) );
 
+   ram_market = get_ram_market();
+   wdump ( (ram_market) );
+   base_reserve = ram_market["base"].as<connector>().balance;
+   quote_reserve = ram_market["quote"].as<connector>().balance;
+   out_amount = bancor_convert( base_reserve.get_amount(), quote_reserve.get_amount(), bought_bytes );
+   out_amount -= (out_amount + 199) / 200; // sub 5% fee
+   alice_balance += asset(out_amount, CORE_SYMBOL);   
+
    BOOST_REQUIRE_EQUAL( success(), sellram( "alice1111111", bought_bytes ) );
-   BOOST_REQUIRE_EQUAL( core_sym::from_string("99901242.4187"), get_balance( "alice1111111" ) );
+   BOOST_REQUIRE_EQUAL( alice_balance, get_balance( "alice1111111" ) );
 
    newtotal = get_total_stake( "alice1111111" );
    auto startbytes = newtotal["ram_bytes"].as_uint64();
 
    BOOST_REQUIRE_EQUAL( success(), buyram( "alice1111111", "alice1111111", core_sym::from_string("10000000.0000") ) );
+   alice_balance -= core_sym::from_string("10000000.0000");
    BOOST_REQUIRE_EQUAL( success(), buyram( "alice1111111", "alice1111111", core_sym::from_string("10000000.0000") ) );
+   alice_balance -= core_sym::from_string("10000000.0000");
    BOOST_REQUIRE_EQUAL( success(), buyram( "alice1111111", "alice1111111", core_sym::from_string("10000000.0000") ) );
+   alice_balance -= core_sym::from_string("10000000.0000");
    BOOST_REQUIRE_EQUAL( success(), buyram( "alice1111111", "alice1111111", core_sym::from_string("10000000.0000") ) );
+   alice_balance -= core_sym::from_string("10000000.0000");
    BOOST_REQUIRE_EQUAL( success(), buyram( "alice1111111", "alice1111111", core_sym::from_string("10000000.0000") ) );
+   alice_balance -= core_sym::from_string("10000000.0000");
    BOOST_REQUIRE_EQUAL( success(), buyram( "alice1111111", "alice1111111", core_sym::from_string("100000.0000") ) );
+   alice_balance -= core_sym::from_string("100000.0000");
    BOOST_REQUIRE_EQUAL( success(), buyram( "alice1111111", "alice1111111", core_sym::from_string("100000.0000") ) );
+   alice_balance -= core_sym::from_string("100000.0000");
    BOOST_REQUIRE_EQUAL( success(), buyram( "alice1111111", "alice1111111", core_sym::from_string("100000.0000") ) );
+   alice_balance -= core_sym::from_string("100000.0000");
    BOOST_REQUIRE_EQUAL( success(), buyram( "alice1111111", "alice1111111", core_sym::from_string("300000.0000") ) );
-   BOOST_REQUIRE_EQUAL( core_sym::from_string("49301242.4187"), get_balance( "alice1111111" ) );
+   alice_balance -= core_sym::from_string("300000.0000");
+   BOOST_REQUIRE_EQUAL( alice_balance, get_balance( "alice1111111" ) );
 
    auto finaltotal = get_total_stake( "alice1111111" );
    auto endbytes = finaltotal["ram_bytes"].as_uint64();
@@ -131,13 +184,6 @@ BOOST_FIXTURE_TEST_CASE( buysell, eosio_system_tester ) try {
 
    BOOST_REQUIRE_EQUAL( false, get_row_by_account( config::system_account_name, config::system_account_name,
                                                    N(rammarket), account_name(symbol{SY(4,RAMCORE)}.value()) ).empty() );
-
-   auto get_ram_market = [this]() -> fc::variant {
-      vector<char> data = get_row_by_account( config::system_account_name, config::system_account_name,
-                                              N(rammarket), account_name(symbol{SY(4,RAMCORE)}.value()) );
-      BOOST_REQUIRE( !data.empty() );
-      return abi_ser.binary_to_variant("exchange_state", data, abi_serializer::create_yield_function(abi_serializer_max_time));
-   };
 
    {
       transfer( config::system_account_name, N(alice1111111), core_sym::from_string("10000000.0000"), config::system_account_name );
@@ -161,7 +207,7 @@ BOOST_FIXTURE_TEST_CASE( buysell, eosio_system_tester ) try {
    }
 
    {
-      transfer( config::system_account_name, N(bob111111111), core_sym::from_string("100000.0000"), config::system_account_name );
+      transfer( config::system_account_name, N(bob111111111), core_sym::from_string("1000000000.0000"), config::system_account_name );
       BOOST_REQUIRE_EQUAL( wasm_assert_msg("must reserve a positive amount"),
                            buyrambytes( "bob111111111", "bob111111111", 1 ) );
 
@@ -1450,12 +1496,12 @@ BOOST_FIXTURE_TEST_CASE(change_inflation, eosio_system_tester) try {
 
    {
       const asset large_asset = core_sym::from_string("80.0000");
-      create_account_with_resources( N(defproducera), config::system_account_name, core_sym::from_string("1.0000"), false, large_asset, large_asset );
-      create_account_with_resources( N(defproducerb), config::system_account_name, core_sym::from_string("1.0000"), false, large_asset, large_asset );
-      create_account_with_resources( N(defproducerc), config::system_account_name, core_sym::from_string("1.0000"), false, large_asset, large_asset );
+      create_account_with_resources( N(defproducera), config::system_account_name, core_sym::from_string("10000.0000"), false, large_asset, large_asset );
+      create_account_with_resources( N(defproducerb), config::system_account_name, core_sym::from_string("10000.0000"), false, large_asset, large_asset );
+      create_account_with_resources( N(defproducerc), config::system_account_name, core_sym::from_string("10000.0000"), false, large_asset, large_asset );
 
-      create_account_with_resources( N(producvotera), config::system_account_name, core_sym::from_string("1.0000"), false, large_asset, large_asset );
-      create_account_with_resources( N(producvoterb), config::system_account_name, core_sym::from_string("1.0000"), false, large_asset, large_asset );
+      create_account_with_resources( N(producvotera), config::system_account_name, core_sym::from_string("10000.0000"), false, large_asset, large_asset );
+      create_account_with_resources( N(producvoterb), config::system_account_name, core_sym::from_string("10000.0000"), false, large_asset, large_asset );
 
       BOOST_REQUIRE_EQUAL(success(), regproducer(N(defproducera)));
       BOOST_REQUIRE_EQUAL(success(), regproducer(N(defproducerb)));
@@ -1538,7 +1584,7 @@ BOOST_FIXTURE_TEST_CASE(votepay_share_invariant, eosio_system_tester, * boost::u
    const asset cpu = core_sym::from_string("80.0000");
    const std::vector<account_name> accounts = { N(aliceaccount), N(bobbyaccount), N(carolaccount), N(emilyaccount) };
    for (const auto& a: accounts) {
-      create_account_with_resources( a, config::system_account_name, core_sym::from_string("1.0000"), false, net, cpu );
+      create_account_with_resources( a, config::system_account_name, core_sym::from_string("10000.0000"), false, net, cpu );
       transfer( config::system_account_name, a, core_sym::from_string("1000.0000"), config::system_account_name );
    }
    const auto vota  = accounts[0];
@@ -1609,7 +1655,7 @@ BOOST_FIXTURE_TEST_CASE(votepay_share_proxy, eosio_system_tester, * boost::unit_
    const asset cpu = core_sym::from_string("80.0000");
    const std::vector<account_name> accounts = { N(aliceaccount), N(bobbyaccount), N(carolaccount), N(emilyaccount) };
    for (const auto& a: accounts) {
-      create_account_with_resources( a, config::system_account_name, core_sym::from_string("1.0000"), false, net, cpu );
+      create_account_with_resources( a, config::system_account_name, core_sym::from_string("10000.0000"), false, net, cpu );
       transfer( config::system_account_name, a, core_sym::from_string("1000.0000"), config::system_account_name );
    }
    const auto alice = accounts[0];
@@ -1759,7 +1805,7 @@ BOOST_FIXTURE_TEST_CASE(votepay_share_update_order, eosio_system_tester, * boost
    const asset cpu = core_sym::from_string("80.0000");
    const std::vector<account_name> accounts = { N(aliceaccount), N(bobbyaccount), N(carolaccount), N(emilyaccount) };
    for (const auto& a: accounts) {
-      create_account_with_resources( a, config::system_account_name, core_sym::from_string("1.0000"), false, net, cpu );
+      create_account_with_resources( a, config::system_account_name, core_sym::from_string("10000.0000"), false, net, cpu );
       transfer( config::system_account_name, a, core_sym::from_string("1000.0000"), config::system_account_name );
    }
    const auto alice = accounts[0];
@@ -1875,7 +1921,7 @@ BOOST_FIXTURE_TEST_CASE(votepay_transition, eosio_system_tester, * boost::unit_t
    BOOST_REQUIRE_EQUAL( success(), regproducer(N(defproducera)) );
    BOOST_REQUIRE( microseconds_since_epoch_of_iso_string( get_producer_info(N(defproducera))["last_claimed_time"] ) < microseconds_since_epoch_of_iso_string( get_producer_info2(N(defproducera))["last_votepay_share_update"] ) );
 
-   create_account_with_resources( N(defproducer1), config::system_account_name, core_sym::from_string("1.0000"), false, net, cpu );
+   create_account_with_resources( N(defproducer1), config::system_account_name, core_sym::from_string("10000.0000"), false, net, cpu );
    BOOST_REQUIRE_EQUAL( success(), regproducer(N(defproducer1)) );
    BOOST_REQUIRE( 0 < microseconds_since_epoch_of_iso_string( get_producer_info(N(defproducer1))["last_claimed_time"] ) );
    BOOST_REQUIRE_EQUAL( get_producer_info(N(defproducer1))["last_claimed_time"].as_string(),
@@ -1907,7 +1953,7 @@ BOOST_FIXTURE_TEST_CASE(votepay_transition, eosio_system_tester, * boost::unit_t
 //    const asset cpu = old_core_from_string("80.0000");
 //    const std::vector<account_name> voters = { N(producvotera), N(producvoterb), N(producvoterc), N(producvoterd) };
 //    for (const auto& v: voters) {
-//       t.create_account_with_resources( v, config::system_account_name, old_core_from_string("1.0000"), false, net, cpu );
+//       t.create_account_with_resources( v, config::system_account_name, old_core_from_string("10000.0000"), false, net, cpu );
 //       t.transfer( config::system_account_name, v, old_core_from_string("100000000.0000"), config::system_account_name );
 //       BOOST_REQUIRE_EQUAL(t.success(), t.stake(v, old_core_from_string("30000000.0000"), old_core_from_string("30000000.0000")) );
 //    }
@@ -2077,9 +2123,9 @@ BOOST_FIXTURE_TEST_CASE(producers_upgrade_system_contract, eosio_system_tester) 
 BOOST_FIXTURE_TEST_CASE(producer_onblock_check, eosio_system_tester) try {
 
    const asset large_asset = core_sym::from_string("80.0000");
-   create_account_with_resources( N(producvotera), config::system_account_name, core_sym::from_string("1.0000"), false, large_asset, large_asset );
-   create_account_with_resources( N(producvoterb), config::system_account_name, core_sym::from_string("1.0000"), false, large_asset, large_asset );
-   create_account_with_resources( N(producvoterc), config::system_account_name, core_sym::from_string("1.0000"), false, large_asset, large_asset );
+   create_account_with_resources( N(producvotera), config::system_account_name, core_sym::from_string("10000.0000"), false, large_asset, large_asset );
+   create_account_with_resources( N(producvoterb), config::system_account_name, core_sym::from_string("10000.0000"), false, large_asset, large_asset );
+   create_account_with_resources( N(producvoterc), config::system_account_name, core_sym::from_string("10000.0000"), false, large_asset, large_asset );
 
    // create accounts {defproducera, defproducerb, ..., defproducerz} and register as producers
    std::vector<account_name> producer_names;
@@ -2098,9 +2144,9 @@ BOOST_FIXTURE_TEST_CASE(producer_onblock_check, eosio_system_tester) try {
    BOOST_REQUIRE_EQUAL(0, get_producer_info( producer_names.front() )["total_votes"].as<double>());
    BOOST_REQUIRE_EQUAL(0, get_producer_info( producer_names.back() )["total_votes"].as<double>());
 
-
-   transfer(config::system_account_name, "producvotera", core_sym::from_string("200000000.0000"), config::system_account_name);
-   BOOST_REQUIRE_EQUAL(success(), stake("producvotera", core_sym::from_string("70000000.0000"), core_sym::from_string("70000000.0000") ));
+   BOOST_REQUIRE_EQUAL( core_sym::min_activated_stake, core_sym::from_string("500000000000.0000"));
+   transfer(config::system_account_name, "producvotera", core_sym::from_string("300000000000.0000"), config::system_account_name);
+   BOOST_REQUIRE_EQUAL(success(), stake("producvotera", core_sym::from_string("150000000000.0000"), core_sym::from_string("150000000000.0000") ));
    BOOST_REQUIRE_EQUAL(success(), vote( N(producvotera), vector<account_name>(producer_names.begin(), producer_names.begin()+10)));
    BOOST_CHECK_EQUAL( wasm_assert_msg( "cannot undelegate bandwidth until the chain is activated (at least 15% of all tokens participate in voting)" ),
                       unstake( "producvotera", core_sym::from_string("50.0000"), core_sym::from_string("50.0000") ) );
@@ -2135,11 +2181,11 @@ BOOST_FIXTURE_TEST_CASE(producer_onblock_check, eosio_system_tester) try {
       BOOST_REQUIRE_EQUAL(0, get_balance(producer_names.back()).get_amount());
    }
 #endif
-   // stake across 15% boundary
-   transfer(config::system_account_name, "producvoterb", core_sym::from_string("100000000.0000"), config::system_account_name);
-   BOOST_REQUIRE_EQUAL(success(), stake("producvoterb", core_sym::from_string("4000000.0000"), core_sym::from_string("4000000.0000")));
-   transfer(config::system_account_name, "producvoterc", core_sym::from_string("100000000.0000"), config::system_account_name);
-   BOOST_REQUIRE_EQUAL(success(), stake("producvoterc", core_sym::from_string("2000000.0000"), core_sym::from_string("2000000.0000")));
+   // stake across 5% boundary
+   transfer(config::system_account_name, "producvoterb", core_sym::from_string("200000000000.0000"), config::system_account_name);
+   BOOST_REQUIRE_EQUAL(success(), stake("producvoterb", core_sym::from_string("100000000000.0000"), core_sym::from_string("100000000000.0000")));
+   transfer(config::system_account_name, "producvoterc", core_sym::from_string("100000000000.0000"), config::system_account_name);
+   BOOST_REQUIRE_EQUAL(success(), stake("producvoterc", core_sym::from_string("50000000000.0000"), core_sym::from_string("50000000000.0000")));
 
    BOOST_REQUIRE_EQUAL(success(), vote( N(producvoterb), vector<account_name>(producer_names.begin(), producer_names.begin()+21)));
    BOOST_REQUIRE_EQUAL(success(), vote( N(producvoterc), vector<account_name>(producer_names.begin(), producer_names.end())));
@@ -2401,9 +2447,10 @@ BOOST_FIXTURE_TEST_CASE( elect_producers /*_and_parameters*/, eosio_system_teste
    BOOST_REQUIRE_EQUAL( success(), regproducer( N(defproducer2), 2) );
    BOOST_REQUIRE_EQUAL( success(), regproducer( N(defproducer3), 3) );
 
-   //stake more than 15% of total EOS supply to activate chain
-   transfer( "amax", "alice1111111", core_sym::from_string("600000000.0000"), "amax" );
-   BOOST_REQUIRE_EQUAL( success(), stake( "alice1111111", "alice1111111", core_sym::from_string("300000000.0000"), core_sym::from_string("300000000.0000") ) );
+   //stake more than 5% of total AMAX supply to activate chain
+   BOOST_REQUIRE_EQUAL( core_sym::min_activated_stake, core_sym::from_string("500000000000.0000"));
+   transfer( "amax", "alice1111111", core_sym::from_string("600000000000.0000"), "amax" );
+   BOOST_REQUIRE_EQUAL( success(), stake( "alice1111111", "alice1111111", core_sym::from_string("250000000000.0000"), core_sym::from_string("250000000000.0000") ) );
    //vote for producers
    BOOST_REQUIRE_EQUAL( success(), vote( N(alice1111111), { N(defproducer1) } ) );
    produce_blocks(250);
@@ -2464,13 +2511,18 @@ BOOST_FIXTURE_TEST_CASE( elect_producers /*_and_parameters*/, eosio_system_teste
 
 BOOST_FIXTURE_TEST_CASE( buyname, eosio_system_tester ) try {
    create_accounts_with_resources( { N(dan), N(sam) } );
-   transfer( config::system_account_name, "dan", core_sym::from_string( "10000.0000" ) );
-   transfer( config::system_account_name, "sam", core_sym::from_string( "10000.0000" ) );
-   stake_with_transfer( config::system_account_name, N(sam), core_sym::from_string( "80000000.0000" ), core_sym::from_string( "80000000.0000" ) );
-   stake_with_transfer( config::system_account_name, N(dan), core_sym::from_string( "80000000.0000" ), core_sym::from_string( "80000000.0000" ) );
+
+   //stake more than 5% of total AMAX supply to activate chain
+   BOOST_REQUIRE_EQUAL( core_sym::min_activated_stake, core_sym::from_string("500000000000.0000"));
+   transfer( config::system_account_name, "dan", core_sym::from_string( "100000000.0000" ) );
+   transfer( config::system_account_name, "sam", core_sym::from_string( "100000000.0000" ) );
+   stake_with_transfer( config::system_account_name, N(sam), core_sym::from_string( "250000000000.0000" ), core_sym::from_string( "250000000000.0000" ) );
+   stake_with_transfer( config::system_account_name, N(dan), core_sym::from_string( "100000000000.0000" ), core_sym::from_string( "100000000000.0000" ) );
+
 
    regproducer( config::system_account_name );
    BOOST_REQUIRE_EQUAL( success(), vote( N(sam), { config::system_account_name } ) );
+   // wdump( ((control->head_block_time()))(get_global_state()) );
    // wait 14 days after min required amount has been staked
    produce_block( fc::days(7) );
    BOOST_REQUIRE_EQUAL( success(), vote( N(dan), { config::system_account_name } ) );
@@ -2488,9 +2540,11 @@ BOOST_FIXTURE_TEST_CASE( buyname, eosio_system_tester ) try {
    BOOST_REQUIRE_EXCEPTION( create_accounts_with_resources( { N(nofail) }, N(dan) ), // dan shoudn't be able to do this, sam won
                             eosio_assert_message_exception, eosio_assert_message_is( "only highest bidder can claim" ) );
    //wlog( "verify sam can create nofail" );
+   wdump( (get_global_state()) );
+   wdump( (control->head_block_time()) (get_name_bid(N(nofail))) );
    create_accounts_with_resources( { N(nofail) }, N(sam) ); // sam should be able to do this, he won the bid
    //wlog( "verify nofail can create test.nofail" );
-   transfer( "amax", "nofail", core_sym::from_string( "1000.0000" ) );
+   transfer( config::system_account_name, "nofail", core_sym::from_string( "10000000.0000" ) );
    create_accounts_with_resources( { N(test.nofail) }, N(nofail) ); // only nofail can create test.nofail
    //wlog( "verify dan cannot create test.fail" );
    BOOST_REQUIRE_EXCEPTION( create_accounts_with_resources( { N(test.fail) }, N(dan) ), // dan shouldn't be able to do this
@@ -2675,7 +2729,7 @@ BOOST_FIXTURE_TEST_CASE( vote_producers_in_and_out, eosio_system_tester ) try {
    const asset cpu = core_sym::from_string("80.0000");
    std::vector<account_name> voters = { N(producvotera), N(producvoterb), N(producvoterc), N(producvoterd) };
    for (const auto& v: voters) {
-      create_account_with_resources(v, config::system_account_name, core_sym::from_string("1.0000"), false, net, cpu);
+      create_account_with_resources(v, config::system_account_name, core_sym::from_string("10000.0000"), false, net, cpu);
    }
 
    // create accounts {defproducera, defproducerb, ..., defproducerz} and register as producers
@@ -2849,7 +2903,7 @@ BOOST_FIXTURE_TEST_CASE( setram_effect, eosio_system_tester ) try {
    const asset cpu = core_sym::from_string("8.0000");
    std::vector<account_name> accounts = { N(aliceaccount), N(bobbyaccount) };
    for (const auto& a: accounts) {
-      create_account_with_resources(a, config::system_account_name, core_sym::from_string("1.0000"), false, net, cpu);
+      create_account_with_resources(a, config::system_account_name, core_sym::from_string("10000.0000"), false, net, cpu);
    }
 
    {

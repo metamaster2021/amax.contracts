@@ -80,12 +80,12 @@ struct powerup_tester : eosio_system_tester {
    powerup_tester() { create_accounts_with_resources({ N(amax.reserv) }); }
 
    void start_rex() {
-      create_account_with_resources(N(rexholder111), config::system_account_name, core_sym::from_string("1.0000"),
+      create_account_with_resources(N(rexholder111), config::system_account_name, core_sym::from_string("10000.0000"),
                                     false);
       transfer(config::system_account_name, N(rexholder111), core_sym::from_string("1001.0000"));
       BOOST_REQUIRE_EQUAL("", stake(N(rexholder111), N(rexholder111), core_sym::from_string("500.0000"),
                                     core_sym::from_string("500.0000")));
-      create_account_with_resources(N(proxyaccount), config::system_account_name, core_sym::from_string("1.0000"),
+      create_account_with_resources(N(proxyaccount), config::system_account_name, core_sym::from_string("10000.0000"),
                                     false, core_sym::from_string("500.0000"), core_sym::from_string("500.0000"));
       BOOST_REQUIRE_EQUAL("",
                           push_action(N(proxyaccount), N(regproxy), mvo()("proxy", "proxyaccount")("isproxy", true)));
@@ -549,7 +549,7 @@ BOOST_AUTO_TEST_CASE(rent_tests) try {
       auto cpu_weight = stake_weight;
 
       t.start_rex();
-      t.create_account_with_resources(N(aaaaaaaaaaaa), config::system_account_name, core_sym::from_string("1.0000"),
+      t.create_account_with_resources(N(aaaaaaaaaaaa), config::system_account_name, core_sym::from_string("10000.0000"),
                                       false, core_sym::from_string("500.0000"), core_sym::from_string("500.0000"));
 
       // 10%, 20%
@@ -607,9 +607,9 @@ BOOST_AUTO_TEST_CASE(rent_tests) try {
       if (rex)
          t.start_rex();
 
-      t.create_account_with_resources(N(aaaaaaaaaaaa), config::system_account_name, core_sym::from_string("1.0000"),
+      t.create_account_with_resources(N(aaaaaaaaaaaa), config::system_account_name, core_sym::from_string("10000.0000"),
                                       false, core_sym::from_string("500.0000"), core_sym::from_string("500.0000"));
-      t.create_account_with_resources(N(bbbbbbbbbbbb), config::system_account_name, core_sym::from_string("1.0000"),
+      t.create_account_with_resources(N(bbbbbbbbbbbb), config::system_account_name, core_sym::from_string("10000.0000"),
                                       false, core_sym::from_string("500.0000"), core_sym::from_string("500.0000"));
    };
    auto net_weight = stake_weight * 3;
