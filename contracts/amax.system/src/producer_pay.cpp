@@ -34,21 +34,20 @@ namespace eosiosystem {
        */
       const auto ct = current_time_point();
       if ( _gstate.inflation_start_time != time_point() && ct >= _gstate.inflation_start_time ) {
-         int64_t periods = (ct - _gstate.inflation_start_time).count() / (4 * useconds_per_year); 
-         int64_t inflation_per_block = periods >= 0 && periods < 62 ? 
-               _gstate.initial_inflation_per_block.amount / power(2, periods) : 0;
-         if (inflation_per_block > 0 ) {
-            auto prod = _producers.find( producer.value );
-            if ( prod != _producers.end() ) {
-               _producers.modify( prod, same_payer, [&](auto& p ) {
-                     p.unclaimed_rewards.amount += inflation_per_block;
-               });
-            }
-         }
+         // TODO: block inflation
+         // int64_t periods = (ct - _gstate.inflation_start_time).count() / (4 * useconds_per_year); 
+         // int64_t inflation_per_block = periods >= 0 && periods < 62 ? 
+         //       _gstate.initial_inflation_per_block.amount / power(2, periods) : 0;
+         // if (inflation_per_block > 0 ) {
+         //    auto prod = _producers.find( producer.value );
+         //    if ( prod != _producers.end() ) {
+         //       _producers.modify( prod, same_payer, [&](auto& p ) {
+         //             p.unclaimed_rewards.amount += inflation_per_block;
+         //       });
+         //    }
+         // }
       }
       
-
-
       /// only update block producers once every minute
       if( timestamp.slot - _gstate.last_producer_schedule_update.slot > blocks_per_minute ) {
          update_elected_producers( timestamp );
