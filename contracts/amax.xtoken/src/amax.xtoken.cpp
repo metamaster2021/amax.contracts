@@ -5,7 +5,8 @@ namespace amax_xtoken {
 #ifndef ASSERT
     #define ASSERT(exp) eosio::check(exp, #exp)
 #endif
-    #define CHECK(exp, msg) { if (!(exp)) eosio::check(false, msg); }
+
+#define CHECK(exp, msg) { if (!(exp)) eosio::check(false, msg); }
 
     template<typename Int, typename LargerInt>
     LargerInt multiply_decimal(LargerInt a, LargerInt b, LargerInt precision) {
@@ -129,9 +130,12 @@ namespace amax_xtoken {
             &&  to != st.fee_receiver 
             &&  !to_acct.in_fee_whitelist) 
         {
+            CHECK(quantity > st.min_fee_quantity, "quantity must less than min fee:" + st.min_fee_quantity.to_string());
             asset fee = asset(0, quantity.symbol);
-            fee.amount = multiply_decimal64(quantity.amount, st.fee_ratio, RATIO_BOOST);
-            // print("transfer fee=", fee, ", quantity=", quantity);
+            fee.amount = std::max( st.min_fee_quantity.amount, 
+                              (int64_t)multiply_decimal64(quantity.amount, st.fee_ratio, RATIO_BOOST) );
+            CHECK(fee < quantity, "the calculated fee must less than quantity");
+
             payfee_action payfee_act{ get_self(), { {get_self(), active_permission} } };
             payfee_act.send( to, st.fee_receiver, fee, memo );
         }  
