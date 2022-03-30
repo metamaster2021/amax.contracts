@@ -116,68 +116,63 @@ namespace amax_xtoken {
         check(quantity.symbol == st.supply.symbol, "symbol precision mismatch");
         check(memo.size() <= 256, "memo has more than 256 bytes");
 
-        auto payer = has_auth(to) ? to : from;
-        
-        account from_acct, to_acct;
-        sub_balance(st, from, quantity, from, &from_acct);
-        add_balance(st, to, quantity, payer, &to_acct);
+        CHECK(quantity > st.min_fee_quantity, "quantity must larger than min fee:" + st.min_fee_quantity.to_string());
 
-        check(!is_account_frozen(st, from, from_acct), "from account is frozen");
-
+        asset actual_recv = quantity;
+        asset fee = asset(0, quantity.symbol);
         if (    st.fee_receiver.value != 0 
             &&  st.fee_ratio > 0 
             &&  to != st.issuer 
-            &&  to != st.fee_receiver 
-            &&  !to_acct.in_fee_whitelist) 
+            &&  to != st.fee_receiver ) 
         {
-            CHECK(quantity > st.min_fee_quantity, "quantity must less than min fee:" + st.min_fee_quantity.to_string());
-            asset fee = asset(0, quantity.symbol);
-            fee.amount = std::max( st.min_fee_quantity.amount, 
-                              (int64_t)multiply_decimal64(quantity.amount, st.fee_ratio, RATIO_BOOST) );
-            CHECK(fee < quantity, "the calculated fee must less than quantity");
+            accounts to_accts(get_self(), to.value);
+            auto to_acct = to_accts.find(sym_code_raw);
+            bool to_acct_in_fee_whitelist = (to_acct != to_accts.end()) && to_acct->in_fee_whitelist;
+            if ( to_acct == to_accts.end() || !to_acct->in_fee_whitelist)
+            {
+                fee.amount = std::max( st.min_fee_quantity.amount, 
+                                (int64_t)multiply_decimal64(quantity.amount, st.fee_ratio, RATIO_BOOST) );
+                CHECK(fee < quantity, "the calculated fee must less than quantity");
+                actual_recv -= fee;
+            }
+        } 
 
+        auto payer = has_auth(to) ? to : from;
+        
+        sub_balance(st, from, quantity, true);
+        add_balance(st, to, actual_recv, payer, true);
+
+        if (fee.amount > 0) {
+            add_balance(st, st.fee_receiver, fee, payer);
             payfee_action payfee_act{ get_self(), { {get_self(), active_permission} } };
             payfee_act.send( to, st.fee_receiver, fee, memo );
-        }  
+        }
     }
 
     void xtoken::payfee(const name &from, const name &to, const asset &fee, const string &memo) {
- 
         require_auth(get_self());
-        auto sym_code_raw = fee.symbol.code().raw();
-        stats statstable(get_self(), sym_code_raw);
-        const auto &st = statstable.get(sym_code_raw, "token of symbol does not exist");
-        ASSERT(st.supply.symbol == fee.symbol);
-        ASSERT(!st.is_paused);
         require_recipient(from);
-        require_recipient(to);
-
-        ASSERT(fee.is_valid() && fee.amount > 0);
-        ASSERT(memo.size() <= 256);
-
-        auto from_payer = has_auth(from) ? from : ( has_auth(to) ? to : get_self() );
-        auto to_payer = has_auth(from) ? from : ( has_auth(to) ? to : get_self() );
-        
-        sub_balance(st, from, fee, from_payer);  
-        add_balance(st, to, fee, to_payer);     
+        require_recipient(to);   
     }
 
     void xtoken::sub_balance(const currency_stats &st, const name &owner, const asset &value, 
-                             const name &ram_payer, account *acct_out)
+                             bool is_check_frozen)
     {
         accounts from_accts(get_self(), owner.value);
-        const auto &from = from_accts.get(value.symbol.code().raw(), "no balance object found");            
+        const auto &from = from_accts.get(value.symbol.code().raw(), "no balance object found");
+        if (is_check_frozen) {
+            check(!is_account_frozen(st, owner, from), "from account is frozen");
+        }
         check(from.balance.amount >= value.amount, "overdrawn balance");
             
-        from_accts.modify(from, ram_payer, [&](auto &a) { 
+        from_accts.modify(from, owner, [&](auto &a) { 
             a.balance -= value; 
-            if (acct_out != nullptr) *acct_out = a;
         });
         
     }
 
     void xtoken::add_balance(const currency_stats &st, const name &owner, const asset &value, 
-                             const name &ram_payer, account *acct_out)
+                             const name &ram_payer, bool is_check_frozen)
     {
         accounts to_accts(get_self(), owner.value);
         auto to = to_accts.find(value.symbol.code().raw());
@@ -185,14 +180,15 @@ namespace amax_xtoken {
         {
             to_accts.emplace(ram_payer, [&](auto &a) { 
                 a.balance = value; 
-                if (acct_out != nullptr) *acct_out = a;
             });
         }
         else
-        {  
+        { 
+            if (is_check_frozen) {
+                check(!is_account_frozen(st, owner, *to), "to account is frozen");
+            }
             to_accts.modify(to, same_payer, [&](auto &a) { 
                 a.balance += value; 
-                if (acct_out != nullptr) *acct_out = a;
             });
         }
     }

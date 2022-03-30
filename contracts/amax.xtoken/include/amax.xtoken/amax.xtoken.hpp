@@ -222,14 +222,11 @@ namespace amax_xtoken
         template <typename Field, typename Value>
         void update_currency_field(const symbol &symbol, const Value &v, Field currency_stats::*field,
                                    currency_stats *st_out = nullptr);
-
-        void sub_balance(const currency_stats &st, const name &owner, const asset &value) {
-            sub_balance(st, owner, value, owner, nullptr);
-        }        
+       
         void sub_balance(const currency_stats &st, const name &owner, const asset &value, 
-                         const name &ram_payer, account *acct_out = nullptr);
+                         bool is_check_frozen = false);
         void add_balance(const currency_stats &st, const name &owner, const asset &value, 
-                         const name &ram_payer, account *acct_out = nullptr);
+                         const name &ram_payer, bool is_check_frozen = false);
 
         inline bool is_account_frozen(const currency_stats &st, const name &owner, const account &acct) const {
             return acct.is_frozen && owner != st.issuer;
