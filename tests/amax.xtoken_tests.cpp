@@ -487,6 +487,7 @@ BOOST_FIXTURE_TEST_CASE( transfer_fee_tests, amax_xtoken_tester ) try {
       ("is_paused", 0)
       ("fee_receiver", "fee.receiver")
       ("fee_ratio", 30 )
+      ("min_fee_quantity", "0.0000 CERO")
    );
 
    auto alice_balance = get_account(N(alice), "4,CERO");
@@ -496,8 +497,18 @@ BOOST_FIXTURE_TEST_CASE( transfer_fee_tests, amax_xtoken_tester ) try {
       ("in_fee_whitelist", false)
    );
 
+   BOOST_REQUIRE_EQUAL( success(),
+      open( N(bob), "4,CERO",  N(alice) )
+   );
+   BOOST_REQUIRE_EQUAL( success(),
+      feewhitelist(N(alice), SYMB(4,CERO), N(bob), true) 
+   );
+
    // bob should have token: 300 + 300 * 0.003 = 300.9
-   transfer( N(alice), N(bob), asset::from_string("300.9000 CERO"), "i am issuer, no fee" );
+   BOOST_REQUIRE_EQUAL( success(),
+      transfer( N(alice), N(bob), asset::from_string("300.9000 CERO"), "bob is in whitelist, no fee" )
+   );
+
 
    alice_balance = get_account(N(alice), "4,CERO");
    REQUIRE_MATCHING_OBJECT( alice_balance, mvo()
@@ -510,21 +521,23 @@ BOOST_FIXTURE_TEST_CASE( transfer_fee_tests, amax_xtoken_tester ) try {
    REQUIRE_MATCHING_OBJECT( bob_balance, mvo()
       ("balance", "300.9000 CERO")
       ("is_frozen", false)
-      ("in_fee_whitelist", false)
+      ("in_fee_whitelist", true)
    );
 
-   auto bob_trace = transfer( N(bob), N(carol), asset::from_string("300.0000 CERO"), "i must pay fee" );
+   BOOST_REQUIRE_EQUAL( success(),
+      transfer( N(bob), N(carol), asset::from_string("300.0000 CERO"), "carol must pay fee" )
+   );
 
    bob_balance = get_account(N(bob), "4,CERO");
    REQUIRE_MATCHING_OBJECT( bob_balance, mvo()
-      ("balance", "0.0000 CERO")
+      ("balance", "0.9000 CERO")
       ("is_frozen", false)
-      ("in_fee_whitelist", false)
+      ("in_fee_whitelist", true)
    );
 
    auto carol_balance = get_account(N(carol), "4,CERO");
    REQUIRE_MATCHING_OBJECT( carol_balance, mvo()
-      ("balance", "300.0000 CERO")
+      ("balance", "299.1000 CERO")
       ("is_frozen", false)
       ("in_fee_whitelist", false)
    );
@@ -535,23 +548,6 @@ BOOST_FIXTURE_TEST_CASE( transfer_fee_tests, amax_xtoken_tester ) try {
          ("is_frozen", false)
          ("in_fee_whitelist", false)
       );
-
-   feewhitelist( N(alice), SYMB(4,CERO), N(carol), true); // 0.3%, boost 10000 
-   transfer( N(carol), N(bob), asset::from_string("300.0000 CERO"), "i no need to pay fee" );
-
-   carol_balance = get_account(N(carol), "4,CERO");
-   REQUIRE_MATCHING_OBJECT( carol_balance, mvo()
-      ("balance", "0.0000 CERO")
-      ("is_frozen", false)
-      ("in_fee_whitelist", true)
-   );
-
-   bob_balance = get_account(N(bob), "4,CERO");
-   REQUIRE_MATCHING_OBJECT( bob_balance, mvo()
-      ("balance", "300.0000 CERO")
-      ("is_frozen", false)
-      ("in_fee_whitelist", false)
-   );
 
 } FC_LOG_AND_RETHROW()
 

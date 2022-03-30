@@ -131,6 +131,14 @@ namespace amax_xtoken
         [[eosio::action]] void feereceiver(const symbol &symbol, const name &fee_receiver);
 
         /**
+         * Set token min fee quantity
+         *
+         * @param symbol - the symbol of the token.
+         * @param min_fee_quantity - min fee quantity.
+         */
+        [[eosio::action]] void minfee(const symbol &symbol, const asset &min_fee_quantity);
+
+        /**
          * set account in fee whitelist
          * If account in fee whitelist, it doesn't have to pay fee,
          * @param symbol - the symbol of the token.
@@ -180,6 +188,7 @@ namespace amax_xtoken
         using close_action = eosio::action_wrapper<"close"_n, &xtoken::close>;
         using feeratio_action = eosio::action_wrapper<"feeratio"_n, &xtoken::feeratio>;
         using feereceiver_action = eosio::action_wrapper<"feereceiver"_n, &xtoken::feereceiver>;
+        using minfee_action = eosio::action_wrapper<"minfee"_n, &xtoken::minfee>;
         using feewhitelist_action = eosio::action_wrapper<"feewhitelist"_n, &xtoken::feewhitelist>;
         using pause_action = eosio::action_wrapper<"pause"_n, &xtoken::pause>;
         using freezeacct_action = eosio::action_wrapper<"freezeacct"_n, &xtoken::freezeacct>;
@@ -200,8 +209,9 @@ namespace amax_xtoken
             asset max_supply;
             name issuer;
             bool is_paused = false;
-            name fee_receiver;      // fee receiver
-            uint64_t fee_ratio = 0; // fee ratio, boost 10000
+            name fee_receiver;              // fee receiver
+            uint64_t fee_ratio = 0;         // fee ratio, boost 10000
+            asset min_fee_quantity;         // min fee quantity
 
             uint64_t primary_key() const { return supply.symbol.code().raw(); }
         };
@@ -210,15 +220,22 @@ namespace amax_xtoken
         typedef eosio::multi_index<"stat"_n, currency_stats> stats;
 
         template <typename Field, typename Value>
-        void update_currency_field(const symbol &symbol, const Value &v, Field currency_stats::*field);
+        void update_currency_field(const symbol &symbol, const Value &v, Field currency_stats::*field,
+                                   currency_stats *st_out = nullptr);
 
-        void sub_balance(const currency_stats &st, const name &owner, const asset &value);
-        void sub_balance(const currency_stats &st, const name &owner, const asset &value, accounts & accts, const account& acct);
-        void add_balance(const currency_stats &st, const name &owner, const asset &value, const name &ram_payer);
+        void sub_balance(const currency_stats &st, const name &owner, const asset &value) {
+            sub_balance(st, owner, value, owner, nullptr);
+        }        
+        void sub_balance(const currency_stats &st, const name &owner, const asset &value, 
+                         const name &ram_payer, account *acct_out = nullptr);
+        void add_balance(const currency_stats &st, const name &owner, const asset &value, 
+                         const name &ram_payer, account *acct_out = nullptr);
 
         inline bool is_account_frozen(const currency_stats &st, const name &owner, const account &acct) const {
             return acct.is_frozen && owner != st.issuer;
         }
+        
+        bool open_account(const name &owner, const symbol &symbol, const name &ram_payer);
     };
 
 }
