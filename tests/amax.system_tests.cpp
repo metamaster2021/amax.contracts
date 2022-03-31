@@ -2576,56 +2576,73 @@ BOOST_FIXTURE_TEST_CASE( multiple_namebids, eosio_system_tester ) try {
 
    std::vector<account_name> accounts = { N(alice), N(bob), N(carl), N(david), N(eve) };
    create_accounts_with_resources( accounts );
+   auto init_balance = core_sym::from_string( "100000000.0000" );
    for ( const auto& a: accounts ) {
-      transfer( config::system_account_name, a, core_sym::from_string( "10000.0000" ) );
-      BOOST_REQUIRE_EQUAL( core_sym::from_string( "10000.0000" ), get_balance(a) );
+      transfer( config::system_account_name, a, init_balance );
+      BOOST_REQUIRE_EQUAL( init_balance, get_balance(a) );
    }
    create_accounts_with_resources( { N(producer) } );
    BOOST_REQUIRE_EQUAL( success(), regproducer( N(producer) ) );
 
    produce_block();
    // stake but but not enough to go live
-   stake_with_transfer( config::system_account_name, N(bob),  core_sym::from_string( "35000000.0000" ), core_sym::from_string( "35000000.0000" ) );
-   stake_with_transfer( config::system_account_name, N(carl), core_sym::from_string( "35000000.0000" ), core_sym::from_string( "35000000.0000" ) );
+
+   //stake more than 5% of total AMAX supply to activate chain
+   BOOST_REQUIRE_EQUAL( core_sym::min_activated_stake, core_sym::from_string("500000000000.0000"));
+
+   stake_with_transfer( config::system_account_name, N(bob),  core_sym::from_string( "100000000000.0000" ), core_sym::from_string( "100000000000.0000" ) );
+   stake_with_transfer( config::system_account_name, N(carl), core_sym::from_string( "100000000000.0000" ), core_sym::from_string( "100000000000.0000" ) );
    BOOST_REQUIRE_EQUAL( success(), vote( N(bob), { N(producer) } ) );
    BOOST_REQUIRE_EQUAL( success(), vote( N(carl), { N(producer) } ) );
 
    // start bids
    bidname( "bob",  "prefa", core_sym::from_string("1.0003") );
-   BOOST_REQUIRE_EQUAL( core_sym::from_string( "9998.9997" ), get_balance("bob") );
+   auto bob_balance = init_balance - core_sym::from_string( "1.0003" );
+   BOOST_REQUIRE_EQUAL( bob_balance, get_balance("bob") );
    bidname( "bob",  "prefb", core_sym::from_string("1.0000") );
+   bob_balance -= core_sym::from_string("1.0000");
    bidname( "bob",  "prefc", core_sym::from_string("1.0000") );
-   BOOST_REQUIRE_EQUAL( core_sym::from_string( "9996.9997" ), get_balance("bob") );
+   bob_balance -= core_sym::from_string("1.0000");
+   BOOST_REQUIRE_EQUAL( bob_balance, get_balance("bob") );
 
+   auto carl_balance = init_balance;
    bidname( "carl", "prefd", core_sym::from_string("1.0000") );
+   carl_balance -= core_sym::from_string("1.0000");
    bidname( "carl", "prefe", core_sym::from_string("1.0000") );
-   BOOST_REQUIRE_EQUAL( core_sym::from_string( "9998.0000" ), get_balance("carl") );
+   carl_balance -= core_sym::from_string("1.0000");
+   BOOST_REQUIRE_EQUAL( carl_balance, get_balance("carl") );
 
    BOOST_REQUIRE_EQUAL( error("assertion failure with message: account is already highest bidder"),
                         bidname( "bob", "prefb", core_sym::from_string("1.1001") ) );
    BOOST_REQUIRE_EQUAL( error("assertion failure with message: must increase bid by 10%"),
                         bidname( "alice", "prefb", core_sym::from_string("1.0999") ) );
-   BOOST_REQUIRE_EQUAL( core_sym::from_string( "9996.9997" ), get_balance("bob") );
-   BOOST_REQUIRE_EQUAL( core_sym::from_string( "10000.0000" ), get_balance("alice") );
+   BOOST_REQUIRE_EQUAL( bob_balance, get_balance("bob") );
+   auto alice_balance = init_balance;
+   BOOST_REQUIRE_EQUAL( alice_balance, get_balance("alice") );
 
    // alice outbids bob on prefb
    {
       const asset initial_names_balance = get_balance(N(amax.names));
       BOOST_REQUIRE_EQUAL( success(),
                            bidname( "alice", "prefb", core_sym::from_string("1.1001") ) );
-      BOOST_REQUIRE_EQUAL( core_sym::from_string( "9997.9997" ), get_balance("bob") );
-      BOOST_REQUIRE_EQUAL( core_sym::from_string( "9998.8999" ), get_balance("alice") );
+      alice_balance -= core_sym::from_string("1.1001");
+      bob_balance += core_sym::from_string("1.0000");
+      BOOST_REQUIRE_EQUAL( bob_balance, get_balance("bob") );
+      BOOST_REQUIRE_EQUAL( alice_balance, get_balance("alice") );
       BOOST_REQUIRE_EQUAL( initial_names_balance + core_sym::from_string("0.1001"), get_balance(N(amax.names)) );
    }
 
    // david outbids carl on prefd
    {
-      BOOST_REQUIRE_EQUAL( core_sym::from_string( "9998.0000" ), get_balance("carl") );
-      BOOST_REQUIRE_EQUAL( core_sym::from_string( "10000.0000" ), get_balance("david") );
+      BOOST_REQUIRE_EQUAL( carl_balance, get_balance("carl") );
+      auto david_balance = init_balance;
+      BOOST_REQUIRE_EQUAL( david_balance, get_balance("david") );
       BOOST_REQUIRE_EQUAL( success(),
                            bidname( "david", "prefd", core_sym::from_string("1.9900") ) );
-      BOOST_REQUIRE_EQUAL( core_sym::from_string( "9999.0000" ), get_balance("carl") );
-      BOOST_REQUIRE_EQUAL( core_sym::from_string( "9998.0100" ), get_balance("david") );
+      david_balance -= core_sym::from_string("1.9900");
+      carl_balance += core_sym::from_string("1.0000");
+      BOOST_REQUIRE_EQUAL( carl_balance, get_balance("carl") );
+      BOOST_REQUIRE_EQUAL( david_balance, get_balance("david") );
    }
 
    // eve outbids carl on prefe
@@ -2642,7 +2659,7 @@ BOOST_FIXTURE_TEST_CASE( multiple_namebids, eosio_system_tester ) try {
                             fc::exception, fc_assert_exception_message_is( not_closed_message ) );
 
    // stake enough to go above the 15% threshold
-   stake_with_transfer( config::system_account_name, N(alice), core_sym::from_string( "10000000.0000" ), core_sym::from_string( "10000000.0000" ) );
+   stake_with_transfer( config::system_account_name, N(alice), core_sym::from_string( "50000000000.0000" ), core_sym::from_string( "50000000000.0000" ) );
    // BOOST_REQUIRE_EQUAL(0, get_producer_info("producer")["unpaid_blocks"].as<uint32_t>());
    BOOST_REQUIRE_EQUAL( success(), vote( N(alice), { N(producer) } ) );
 
@@ -2699,7 +2716,7 @@ BOOST_FIXTURE_TEST_CASE( multiple_namebids, eosio_system_tester ) try {
    // prefe can now create *.prefe
    BOOST_REQUIRE_EXCEPTION( create_account_with_resources( N(xyz.prefe), N(carl) ),
                             fc::exception, fc_assert_exception_message_is("only suffix may create this account") );
-   transfer( config::system_account_name, N(prefe), core_sym::from_string("10000.0000") );
+   transfer( config::system_account_name, N(prefe), core_sym::from_string("100000000.0000") );
    create_account_with_resources( N(xyz.prefe), N(prefe) );
 
    // other auctions haven't closed
@@ -2711,8 +2728,8 @@ BOOST_FIXTURE_TEST_CASE( multiple_namebids, eosio_system_tester ) try {
 BOOST_FIXTURE_TEST_CASE( namebid_pending_winner, eosio_system_tester ) try {
    cross_15_percent_threshold();
    produce_block( fc::hours(14*24) );    //wait 14 day for name auction activation
-   transfer( config::system_account_name, N(alice1111111), core_sym::from_string("10000.0000") );
-   transfer( config::system_account_name, N(bob111111111), core_sym::from_string("10000.0000") );
+   transfer( config::system_account_name, N(alice1111111), core_sym::from_string("100000000.0000") );
+   transfer( config::system_account_name, N(bob111111111), core_sym::from_string("100000000.0000") );
 
    BOOST_REQUIRE_EQUAL( success(), bidname( "alice1111111", "prefa", core_sym::from_string( "50.0000" ) ));
    BOOST_REQUIRE_EQUAL( success(), bidname( "bob111111111", "prefb", core_sym::from_string( "30.0000" ) ));
