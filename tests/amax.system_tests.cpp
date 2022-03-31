@@ -26,7 +26,29 @@ struct connector {
 };
 FC_REFLECT( connector, (balance)(weight) );
 
+
 using namespace eosio_system;
+
+static int64_t calc_buyram_out(eosio_system_tester& tester, const asset &quote_in) {
+      auto ram_market = tester.get_ram_market();
+      // wdump ( (ram_market) );
+      asset base_reserve = ram_market["base"].as<connector>().balance;
+      asset quote_reserve = ram_market["quote"].as<connector>().balance;
+      int64_t fee = (quote_in.get_amount() + 199) / 200;
+      int64_t quote_in_no_fee = quote_in.get_amount() - fee;
+      return tester.bancor_convert( quote_reserve.get_amount(), base_reserve.get_amount(), quote_in_no_fee );
+}
+
+static asset calc_sellram_out(eosio_system_tester& tester, int64_t bytes) {
+      auto ram_market = tester.get_ram_market();
+      // wdump ( (ram_market) );
+      asset base_reserve = ram_market["base"].as<connector>().balance;
+      asset quote_reserve = ram_market["quote"].as<connector>().balance;
+      int64_t amount = tester.bancor_convert( base_reserve.get_amount(), quote_reserve.get_amount(), bytes );
+      int64_t fee = (amount + 199) / 200;
+      return asset(amount - fee, CORE_SYMBOL);
+}
+
 
 BOOST_AUTO_TEST_SUITE(eosio_system_tests)
 
@@ -2918,23 +2940,37 @@ BOOST_FIXTURE_TEST_CASE( setram_effect, eosio_system_tester ) try {
 
    const asset net = core_sym::from_string("8.0000");
    const asset cpu = core_sym::from_string("8.0000");
+   auto init_balance = core_sym::from_string("10000.0000");
    std::vector<account_name> accounts = { N(aliceaccount), N(bobbyaccount) };
    for (const auto& a: accounts) {
-      create_account_with_resources(a, config::system_account_name, core_sym::from_string("10000.0000"), false, net, cpu);
+      create_account_with_resources(a, config::system_account_name, init_balance, false, net, cpu);
    }
 
    {
       const auto name_a = accounts[0];
-      transfer( config::system_account_name, name_a, core_sym::from_string("1000.0000") );
-      BOOST_REQUIRE_EQUAL( core_sym::from_string("1000.0000"), get_balance(name_a) );
+      auto a_balance = init_balance;
+      transfer( config::system_account_name, name_a, a_balance );
+      BOOST_REQUIRE_EQUAL( a_balance, get_balance(name_a) );
       const uint64_t init_bytes_a = get_total_stake(name_a)["ram_bytes"].as_uint64();
-      BOOST_REQUIRE_EQUAL( success(), buyram( name_a, name_a, core_sym::from_string("300.0000") ) );
-      BOOST_REQUIRE_EQUAL( core_sym::from_string("700.0000"), get_balance(name_a) );
-      const uint64_t bought_bytes_a = get_total_stake(name_a)["ram_bytes"].as_uint64() - init_bytes_a;
+      // wdump( (get_ram_market()) );
+      auto expected_bytes = calc_buyram_out(*this, core_sym::from_string("300.0000"));
+      wdump( (expected_bytes) );
 
-      // after buying and selling balance should be 700 + 300 * 0.995 * 0.995 = 997.0075 (actually 997.0074 due to rounding fees up)
+
+      BOOST_REQUIRE_EQUAL( success(), buyram( name_a, name_a, core_sym::from_string("300.0000") ) );
+      // wdump( (get_ram_market()) );
+      a_balance -= core_sym::from_string("300.0000");
+      BOOST_REQUIRE_EQUAL( a_balance, get_balance(name_a) );
+      const uint64_t bought_bytes_a = get_total_stake(name_a)["ram_bytes"].as_uint64() - init_bytes_a;
+      BOOST_REQUIRE_EQUAL( expected_bytes, bought_bytes_a );
+
+      auto expected_cores = calc_sellram_out(*this, bought_bytes_a);
+      wdump( (expected_cores) );
+      // after buying and selling balance should be a_balance + 300 * 0.995 * 0.995 = 997.0075 (actually 997.0074 due to rounding fees up)
       BOOST_REQUIRE_EQUAL( success(), sellram(name_a, bought_bytes_a ) );
-      BOOST_REQUIRE_EQUAL( core_sym::from_string("997.0074"), get_balance(name_a) );
+      // wdump( (get_ram_market()) );
+      a_balance += expected_cores;
+      BOOST_REQUIRE_EQUAL( a_balance, get_balance(name_a) );
    }
 
    {

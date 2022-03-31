@@ -824,6 +824,12 @@ public:
       return get_producer_info( account_name(act) );
    }
 
+   fc::variant get_ram_market( const symbol& sym = symbol(4, "RAMCORE")) {
+      auto acct = account_name(sym.value());
+      vector<char> data = get_row_by_account( config::system_account_name, config::system_account_name, N(rammarket), acct );
+      return data.empty() ? fc::variant() : abi_ser.binary_to_variant( "exchange_state", data, abi_serializer::create_yield_function(abi_serializer_max_time) );
+   };
+
    void create_currency( name contract, name manager, asset maxsupply ) {
       auto act =  mutable_variant_object()
          ("issuer",       manager )
