@@ -4923,7 +4923,7 @@ BOOST_FIXTURE_TEST_CASE( change_limited_account_back_to_unlimited, eosio_system_
 BOOST_FIXTURE_TEST_CASE( buy_pin_sell_ram, eosio_system_tester ) try {
    BOOST_REQUIRE( get_total_stake( "amax" ).is_null() );
 
-   transfer( N(amax), N(alice1111111), core_sym::from_string("1020.0000") );
+   transfer( N(amax), N(alice1111111), core_sym::from_string("10200000.0000") );
 
    auto error_msg = stake( N(alice1111111), N(amax), core_sym::from_string("10.0000"), core_sym::from_string("10.0000") );
    auto semicolon_pos = error_msg.find(';');
