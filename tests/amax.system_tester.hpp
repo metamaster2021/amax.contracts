@@ -3,6 +3,7 @@
 #include <eosio/testing/tester.hpp>
 #include <eosio/chain/abi_serializer.hpp>
 #include <eosio/chain/resource_limits.hpp>
+#include <eosio/chain/resource_limits_private.hpp>
 #include "contracts.hpp"
 #include "test_symbol.hpp"
 
@@ -945,6 +946,12 @@ public:
       return data.empty() ? fc::variant() : abi_ser.binary_to_variant("name_bid", data, abi_serializer::create_yield_function(abi_serializer_max_time));
    }
 
+   using resource_limits_state_object = eosio::chain::resource_limits::resource_limits_state_object;
+   
+   resource_limits_state_object get_resource_limits_state() {
+      return control->db().get<resource_limits_state_object>();
+   }
+
    abi_serializer initialize_multisig() {
       abi_serializer msig_abi_ser;
       {
@@ -1004,6 +1011,7 @@ public:
       {
          //stake more than 5% of total AMAX supply to activate chain
          transfer( config::system_account_name, N(alice1111111), core_sym::min_activated_stake + core_sym::from_string("100000000.0000"), config::system_account_name );
+         // wdump( (get_resource_limits_state()) );
          BOOST_REQUIRE_EQUAL(success(), stake( N(alice1111111), core_sym::min_activated_stake +  core_sym::from_string("30000000.0000"), core_sym::from_string("30000000.0000") ) );
          BOOST_REQUIRE_EQUAL(success(), buyram( N(alice1111111), N(alice1111111), core_sym::from_string("30000000.0000") ) );
          BOOST_REQUIRE_EQUAL(success(), push_action(N(alice1111111), N(voteproducer), mvo()
