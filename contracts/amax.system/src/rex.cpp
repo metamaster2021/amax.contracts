@@ -12,6 +12,9 @@ namespace eosiosystem {
    {
       require_auth( owner );
 
+      ///FIXME: to upgrade it in the future!!!
+      check( false, "not activated yet!!!" );
+
       check( amount.symbol == core_symbol(), "must deposit core token" );
       check( 0 < amount.amount, "must deposit a positive amount" );
       // inline transfer from owner's token balance
@@ -25,6 +28,9 @@ namespace eosiosystem {
    void system_contract::withdraw( const name& owner, const asset& amount )
    {
       require_auth( owner );
+
+      ///FIXME: to upgrade it in the future!!!
+      check( false, "not activated yet!!!" );
 
       check( amount.symbol == core_symbol(), "must withdraw core token" );
       check( 0 < amount.amount, "must withdraw a positive amount" );
@@ -40,6 +46,9 @@ namespace eosiosystem {
    void system_contract::buyrex( const name& from, const asset& amount )
    {
       require_auth( from );
+
+      ///FIXME: to upgrade it in the future!!!
+      check( false, "not activated yet!!!" );
 
       check( amount.symbol == core_symbol(), "asset must be core token" );
       check( 0 < amount.amount, "must use positive amount" );
@@ -57,6 +66,9 @@ namespace eosiosystem {
    void system_contract::unstaketorex( const name& owner, const name& receiver, const asset& from_net, const asset& from_cpu )
    {
       require_auth( owner );
+
+      ///FIXME: to upgrade it in the future!!!
+      check( false, "not activated yet!!!" );
 
       check( from_net.symbol == core_symbol() && from_cpu.symbol == core_symbol(), "asset must be core token" );
       check( (0 <= from_net.amount) && (0 <= from_cpu.amount) && (0 < from_net.amount || 0 < from_cpu.amount),
@@ -97,6 +109,9 @@ namespace eosiosystem {
    void system_contract::sellrex( const name& from, const asset& rex )
    {
       require_auth( from );
+
+      ///FIXME: to upgrade it in the future!!!
+      check( false, "not activated yet!!!" );
 
       runrex(2);
 
@@ -145,6 +160,9 @@ namespace eosiosystem {
    {
       require_auth( owner );
 
+      ///FIXME: to upgrade it in the future!!!
+      check( false, "not activated yet!!!" );
+
       auto itr = _rexorders.require_find( owner.value, "no sellrex order is scheduled" );
       check( itr->is_open, "sellrex order has been filled and cannot be canceled" );
       _rexorders.erase( itr );
@@ -153,6 +171,9 @@ namespace eosiosystem {
    void system_contract::rentcpu( const name& from, const name& receiver, const asset& loan_payment, const asset& loan_fund )
    {
       require_auth( from );
+
+      ///FIXME: to upgrade it in the future!!!
+      check( false, "not activated yet!!!" );
 
       rex_cpu_loan_table cpu_loans( get_self(), get_self().value );
       int64_t rented_tokens = rent_rex( cpu_loans, from, receiver, loan_payment, loan_fund );
@@ -163,6 +184,9 @@ namespace eosiosystem {
    {
       require_auth( from );
 
+      ///FIXME: to upgrade it in the future!!!
+      check( false, "not activated yet!!!" );
+
       rex_net_loan_table net_loans( get_self(), get_self().value );
       int64_t rented_tokens = rent_rex( net_loans, from, receiver, loan_payment, loan_fund );
       update_resource_limits( from, receiver, rented_tokens, 0 );
@@ -172,6 +196,9 @@ namespace eosiosystem {
    {
       require_auth( from );
 
+      ///FIXME: to upgrade it in the future!!!
+      check( false, "not activated yet!!!" );
+
       rex_cpu_loan_table cpu_loans( get_self(), get_self().value );
       fund_rex_loan( cpu_loans, from, loan_num, payment  );
    }
@@ -179,6 +206,9 @@ namespace eosiosystem {
    void system_contract::fundnetloan( const name& from, uint64_t loan_num, const asset& payment )
    {
       require_auth( from );
+
+      ///FIXME: to upgrade it in the future!!!
+      check( false, "not activated yet!!!" );
 
       rex_net_loan_table net_loans( get_self(), get_self().value );
       fund_rex_loan( net_loans, from, loan_num, payment );
@@ -188,6 +218,9 @@ namespace eosiosystem {
    {
       require_auth( from );
 
+      ///FIXME: to upgrade it in the future!!!
+      check( false, "not activated yet!!!" );
+
       rex_cpu_loan_table cpu_loans( get_self(), get_self().value );
       defund_rex_loan( cpu_loans, from, loan_num, amount );
    }
@@ -196,6 +229,9 @@ namespace eosiosystem {
    {
       require_auth( from );
 
+      ///FIXME: to upgrade it in the future!!!
+      check( false, "not activated yet!!!" );
+
       rex_net_loan_table net_loans( get_self(), get_self().value );
       defund_rex_loan( net_loans, from, loan_num, amount );
    }
@@ -203,6 +239,9 @@ namespace eosiosystem {
    void system_contract::updaterex( const name& owner )
    {
       require_auth( owner );
+
+      ///FIXME: to upgrade it in the future!!!
+      check( false, "not activated yet!!!" );
 
       runrex(2);
 
@@ -230,6 +269,9 @@ namespace eosiosystem {
    {
       require_auth( "amax"_n );
 
+      ///FIXME: to upgrade it in the future!!!
+      check( false, "not activated yet!!!" );
+
       check( balance.amount > 0, "balance must be set to have a positive amount" );
       check( balance.symbol == core_symbol(), "balance symbol must be core symbol" );
       check( rex_system_initialized(), "rex system is not initialized" );
@@ -242,12 +284,18 @@ namespace eosiosystem {
    {
       require_auth( user );
 
+      ///FIXME: to upgrade it in the future!!!
+      check( false, "not activated yet!!!" );
+
       runrex( max );
    }
 
    void system_contract::consolidate( const name& owner )
    {
       require_auth( owner );
+
+      ///FIXME: to upgrade it in the future!!!
+      check( false, "not activated yet!!!" );
 
       runrex(2);
 
@@ -259,6 +307,9 @@ namespace eosiosystem {
    void system_contract::mvtosavings( const name& owner, const asset& rex )
    {
       require_auth( owner );
+
+      ///FIXME: to upgrade it in the future!!!
+      check( false, "not activated yet!!!" );
 
       runrex(2);
 
@@ -294,6 +345,9 @@ namespace eosiosystem {
    {
       require_auth( owner );
 
+      ///FIXME: to upgrade it in the future!!!
+      check( false, "not activated yet!!!" );
+
       runrex(2);
 
       auto bitr = _rexbalance.require_find( owner.value, "account has no REX balance" );
@@ -316,6 +370,9 @@ namespace eosiosystem {
    void system_contract::closerex( const name& owner )
    {
       require_auth( owner );
+
+      ///FIXME: to upgrade it in the future!!!
+      check( false, "not activated yet!!!" );
 
       if ( rex_system_initialized() )
          runrex(2);
@@ -1018,7 +1075,9 @@ namespace eosiosystem {
        * to exceed that limit, maximum amount of indivisible units cannot be set to a value larger than 4 * 10^14.
        * If precision of CORE_SYMBOL is 4, that corresponds to a maximum supply of 40 billion tokens.
        */
-      const int64_t rex_ratio = 10000;
+      // const int64_t rex_ratio = 1; // 1 AMAX = 1 REX (instead of 10000 REX)
+      const int64_t rex_ratio = 1;  //FIXME: when rex pool is open
+
       const asset   init_total_rent( 20'000'0000, core_symbol() ); /// base balance prevents renting profitably until at least a minimum number of core_symbol() is made available
       asset rex_received( 0, rex_symbol );
       auto itr = _rexpool.begin();
