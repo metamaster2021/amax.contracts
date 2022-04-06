@@ -104,11 +104,11 @@ public:
       );
    }
 
-   action_result payfee( account_name from,
+   action_result notifypayfee( account_name from,
                   account_name to,
                   asset        fee,
                   string       memo ) {
-      return push_action( from, N(payfee), mvo()
+      return push_action( from, N(notifypayfee), mvo()
            ( "from", from)
            ( "to", to)
            ( "fee", fee)

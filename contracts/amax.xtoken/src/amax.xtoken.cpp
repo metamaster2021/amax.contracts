@@ -144,12 +144,12 @@ namespace amax_xtoken {
 
         if (fee.amount > 0) {
             add_balance(st, st.fee_receiver, fee, payer);
-            payfee_action payfee_act{ get_self(), { {get_self(), active_permission} } };
-            payfee_act.send( to, st.fee_receiver, fee, memo );
+            notifypayfee_action notifypayfee_act{ get_self(), { {get_self(), active_permission} } };
+            notifypayfee_act.send( to, st.fee_receiver, fee, memo );
         }
     }
 
-    void xtoken::payfee(const name &from, const name &to, const asset &fee, const string &memo) {
+    void xtoken::notifypayfee(const name &from, const name &to, const asset &fee, const string &memo) {
         require_auth(get_self());
         require_recipient(from);
         require_recipient(to);   

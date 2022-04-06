@@ -85,7 +85,7 @@ namespace amax_xtoken
          * @param memo - the memo of the transfer().
          * Require contract auth
          */
-        [[eosio::action]] void payfee(const name &from, const name &to, const asset &fee, const string &memo);
+        [[eosio::action]] void notifypayfee(const name &from, const name &to, const asset &fee, const string &memo);
 
                                         
         /**
@@ -183,7 +183,7 @@ namespace amax_xtoken
         using issue_action = eosio::action_wrapper<"issue"_n, &xtoken::issue>;
         using retire_action = eosio::action_wrapper<"retire"_n, &xtoken::retire>;
         using transfer_action = eosio::action_wrapper<"transfer"_n, &xtoken::transfer>;
-        using payfee_action = eosio::action_wrapper<"payfee"_n, &xtoken::payfee>;
+        using notifypayfee_action = eosio::action_wrapper<"notifypayfee"_n, &xtoken::notifypayfee>;
         using open_action = eosio::action_wrapper<"open"_n, &xtoken::open>;
         using close_action = eosio::action_wrapper<"close"_n, &xtoken::close>;
         using feeratio_action = eosio::action_wrapper<"feeratio"_n, &xtoken::feeratio>;
