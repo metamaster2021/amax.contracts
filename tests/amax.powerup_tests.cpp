@@ -1,3 +1,8 @@
+
+
+// TODO: FIXME: to upgrade it in the future!!!
+#ifdef ENABLED_REX
+
 #include <Runtime/Runtime.h>
 #include <boost/test/unit_test.hpp>
 #include <cstdlib>
@@ -863,3 +868,5 @@ BOOST_AUTO_TEST_CASE(rent_tests) try {
 FC_LOG_AND_RETHROW()
 
 BOOST_AUTO_TEST_SUITE_END()
+
+#endif// ENABLED_REX

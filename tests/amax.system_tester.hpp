@@ -708,7 +708,9 @@ public:
       memcpy( data.data(), itr->value.data(), data.size() );
       return data.empty() ? fc::variant() : abi_ser.binary_to_variant( "rex_return_buckets", data, abi_serializer::create_yield_function(abi_serializer_max_time) );
    }
-      
+
+// TODO: FIXME: to upgrade it in the future!!!
+#ifdef ENABLED_REX  
    void setup_rex_accounts( const std::vector<account_name>& accounts,
                             const asset& init_balance,
                             const asset& net = core_sym::from_string("80.0000"),
@@ -724,14 +726,16 @@ public:
          BOOST_REQUIRE_EQUAL( success(),                        stake( a, a, nstake, cstake) );
          BOOST_REQUIRE_EQUAL( success(),                        vote( a, { }, N(proxyaccount) ) );
          BOOST_REQUIRE_EQUAL( init_balance,                     get_balance(a) );
+       
          BOOST_REQUIRE_EQUAL( asset::from_string("0.0000 REX"), get_rex_balance(a) );
          if (deposit_into_rex_fund) {
             BOOST_REQUIRE_EQUAL( success(),    deposit( a, init_balance ) );
             BOOST_REQUIRE_EQUAL( init_balance, get_rex_fund( a ) );
             BOOST_REQUIRE_EQUAL( 0,            get_balance( a ).get_amount() );
-         }
+         }       
       }
    }
+#endif// ENABLED_REX  
 
    action_result bidname( const account_name& bidder, const account_name& newname, const asset& bid ) {
       return push_action( name(bidder), N(bidname), mvo()
