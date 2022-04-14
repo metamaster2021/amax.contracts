@@ -14,6 +14,10 @@
 
 static const fc::microseconds block_interval_us = fc::microseconds(eosio::chain::config::block_interval_us);
 
+constexpr uint64_t billable_size_key_value_object = config::billable_size_v<key_value_object>;
+constexpr uint64_t billable_size_table_id_object = config::billable_size_v<table_id_object>;
+static constexpr int64_t  ram_gift_bytes        = 1400;
+
 struct _abi_hash {
    name owner;
    fc::sha256 hash;
@@ -30,30 +34,84 @@ FC_REFLECT( connector, (balance)(weight) );
 using namespace eosio_system;
 
 static int64_t calc_buyram_out(eosio_system_tester& tester, const asset &quote_in) {
-      auto ram_market = tester.get_ram_market();
-      // wdump ( (ram_market) );
-      asset base_reserve = ram_market["base"].as<connector>().balance;
-      asset quote_reserve = ram_market["quote"].as<connector>().balance;
-      int64_t fee = (quote_in.get_amount() + 199) / 200;
-      int64_t quote_in_no_fee = quote_in.get_amount() - fee;
-      return tester.bancor_convert( quote_reserve.get_amount(), base_reserve.get_amount(), quote_in_no_fee );
+   auto ram_market = tester.get_ram_market();
+   // wdump ( (ram_market) );
+   asset base_reserve = ram_market["base"].as<connector>().balance;
+   asset quote_reserve = ram_market["quote"].as<connector>().balance;
+   int64_t fee = (quote_in.get_amount() + 199) / 200;
+   int64_t quote_in_no_fee = quote_in.get_amount() - fee;
+   return tester.bancor_convert( quote_reserve.get_amount(), base_reserve.get_amount(), quote_in_no_fee );
 }
 
 static asset calc_sellram_out(eosio_system_tester& tester, int64_t bytes) {
-      auto ram_market = tester.get_ram_market();
-      // wdump ( (ram_market) );
-      asset base_reserve = ram_market["base"].as<connector>().balance;
-      asset quote_reserve = ram_market["quote"].as<connector>().balance;
-      int64_t amount = tester.bancor_convert( base_reserve.get_amount(), quote_reserve.get_amount(), bytes );
-      int64_t fee = (amount + 199) / 200;
-      return asset(amount - fee, CORE_SYMBOL);
+   auto ram_market = tester.get_ram_market();
+   // wdump ( (ram_market) );
+   asset base_reserve = ram_market["base"].as<connector>().balance;
+   asset quote_reserve = ram_market["quote"].as<connector>().balance;
+   int64_t amount = tester.bancor_convert( base_reserve.get_amount(), quote_reserve.get_amount(), bytes );
+   int64_t fee = (amount + 199) / 200;
+   return asset(amount - fee, CORE_SYMBOL);
 }
 
+static asset calc_buyram_in(eosio_system_tester& tester, int64_t bytes) {
+   auto ram_market = tester.get_ram_market();
+   // wdump ( (ram_market) );
+   asset base_reserve = ram_market["base"].as<connector>().balance;
+   asset quote_reserve = ram_market["quote"].as<connector>().balance;
+   int64_t amount = tester.get_bancor_input( base_reserve.get_amount(), quote_reserve.get_amount(), bytes );
+   // int64_t fee = (amount + 199) / 200;
+   amount = amount / double(0.995);
+   auto ret = asset(amount, CORE_SYMBOL);
+   wdump( (calc_buyram_out(tester, ret)) );
+   while (calc_buyram_out(tester, ret) < bytes) {
+       ret += asset(1, CORE_SYMBOL);
+   }
+   return ret;
+}
 
 BOOST_AUTO_TEST_SUITE(eosio_system_tests)
 
 bool within_error(int64_t a, int64_t b, int64_t err) { return std::abs(a - b) <= err; };
 bool within_one(int64_t a, int64_t b) { return within_error(a, b, 1); }
+
+BOOST_AUTO_TEST_CASE( newaccount ) try {
+   eosio_system_tester t(eosio_system_tester::setup_level::core_token);
+   t.deploy_contract();
+   auto rlm = t.control->get_resource_limits_manager();
+
+   // key-value data header size
+   BOOST_REQUIRE_EQUAL(billable_size_key_value_object, 112);
+   // ram usage for creating table
+   BOOST_REQUIRE_EQUAL(billable_size_table_id_object, 112);
+
+   int64_t min_newaccount_ram = 2996;
+   int64_t init_ram = min_newaccount_ram - ram_gift_bytes;
+   auto init_ram_in = calc_buyram_in(t, init_ram);
+
+   t.create_account_with_resources( N(alice1111111), config::system_account_name,
+      init_ram_in, false, core_sym::from_string("10.0000"), core_sym::from_string("10.0000") );
+   auto userres = t.get_total_stake( N(alice1111111) );
+   auto bought_ram = userres["ram_bytes"];
+   // BOOST_REQUIRE_EQUAL( userres["ram_bytes"].as_uint64() + ram_gift, ram_bytes );
+   wdump( (t.get_account_limits( N(alice1111111) )) (t.get_account_ram_available( N(alice1111111) ))
+      (rlm.get_account_ram_usage(N(alice1111111))) (userres["ram_bytes"]) );
+   BOOST_REQUIRE_EQUAL( init_ram, bought_ram );
+   BOOST_REQUIRE_EQUAL( t.get_account_ram_amount( N(alice1111111) ), init_ram + ram_gift_bytes );
+   BOOST_REQUIRE_EQUAL( t.get_account_ram_available( N(alice1111111)), 0 );
+
+   t.transfer(config::system_account_name, N(alice1111111), core_sym::from_string("1000000.0000") );
+
+   int64_t insufficient_ram = 2000;
+   auto insufficient_ram_in = calc_buyram_in(t, insufficient_ram);
+
+   // alice1111111 should pay some ram, but has insufficient ram.
+   BOOST_REQUIRE_EXCEPTION(
+      t.create_account_with_resources( N(bob111111111), N(alice1111111), insufficient_ram_in, false,
+                                       core_sym::from_string("10.0000"), core_sym::from_string("10.0000"), true ),
+      ram_usage_exceeded,
+      fc_exception_message_starts_with("account alice1111111 has insufficient ram"));
+
+} FC_LOG_AND_RETHROW()
 
 BOOST_FIXTURE_TEST_CASE( buysell, eosio_system_tester ) try {
 
@@ -168,7 +226,7 @@ BOOST_FIXTURE_TEST_CASE( buysell, eosio_system_tester ) try {
    quote_reserve = ram_market["quote"].as<connector>().balance;
    out_amount = bancor_convert( base_reserve.get_amount(), quote_reserve.get_amount(), bought_bytes );
    out_amount -= (out_amount + 199) / 200; // sub 5% fee
-   alice_balance += asset(out_amount, CORE_SYMBOL);   
+   alice_balance += asset(out_amount, CORE_SYMBOL);
 
    BOOST_REQUIRE_EQUAL( success(), sellram( "alice1111111", bought_bytes ) );
    BOOST_REQUIRE_EQUAL( alice_balance, get_balance( "alice1111111" ) );
@@ -1666,7 +1724,7 @@ BOOST_FIXTURE_TEST_CASE(votepay_share_invariant, eosio_system_tester, * boost::u
 
 } FC_LOG_AND_RETHROW()
 
-#endif // 
+#endif //
 
 #if 0
 BOOST_FIXTURE_TEST_CASE(votepay_share_proxy, eosio_system_tester, * boost::unit_test::tolerance(1e-5)) try {
@@ -1720,7 +1778,7 @@ BOOST_FIXTURE_TEST_CASE(votepay_share_proxy, eosio_system_tester, * boost::unit_
 
    produce_block( fc::hours(40) - block_interval_us );
 
-   // bob unstakes 
+   // bob unstakes
    BOOST_REQUIRE_EQUAL( success(), unstake( bob, core_sym::from_string("10.0002"), core_sym::from_string("10.0001") ) );
    BOOST_TEST_REQUIRE( stake2votes(core_sym::from_string("430.0000")), get_producer_info(carol)["total_votes"].as_double() );
 

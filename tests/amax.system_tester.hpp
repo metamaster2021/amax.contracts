@@ -162,7 +162,7 @@ public:
    }
 
    transaction_trace_ptr create_account_with_resources( account_name a, account_name creator, asset ramfunds, bool multisig,
-                                                        asset net = core_sym::from_string("10.0000"), asset cpu = core_sym::from_string("10.0000") ) {
+                                                        asset net = core_sym::from_string("10.0000"), asset cpu = core_sym::from_string("10.0000"), bool transfer = false ) {
       signed_transaction trx;
       set_transaction_headers(trx);
 
@@ -195,7 +195,7 @@ public:
                                             ("receiver", a)
                                             ("stake_net_quantity", net )
                                             ("stake_cpu_quantity", cpu )
-                                            ("transfer", 0 )
+                                            ("transfer", transfer )
                                           )
                                 );
 
@@ -339,6 +339,7 @@ public:
    }
 
    int64_t bancor_convert( int64_t S, int64_t R, int64_t T ) { return double(R) * T  / ( double(S) + T ); };
+   int64_t get_bancor_input( int64_t S, int64_t R, int64_t T ) { return double(R) * T  / ( double(S) - T ); };
 
    int64_t get_net_limit( account_name a ) {
       int64_t ram_bytes = 0, net = 0, cpu = 0;
@@ -710,7 +711,7 @@ public:
    }
 
 // TODO: FIXME: to upgrade it in the future!!!
-#ifdef ENABLED_REX  
+#ifdef ENABLED_REX
    void setup_rex_accounts( const std::vector<account_name>& accounts,
                             const asset& init_balance,
                             const asset& net = core_sym::from_string("80.0000"),
@@ -726,16 +727,16 @@ public:
          BOOST_REQUIRE_EQUAL( success(),                        stake( a, a, nstake, cstake) );
          BOOST_REQUIRE_EQUAL( success(),                        vote( a, { }, N(proxyaccount) ) );
          BOOST_REQUIRE_EQUAL( init_balance,                     get_balance(a) );
-       
+
          BOOST_REQUIRE_EQUAL( asset::from_string("0.0000 REX"), get_rex_balance(a) );
          if (deposit_into_rex_fund) {
             BOOST_REQUIRE_EQUAL( success(),    deposit( a, init_balance ) );
             BOOST_REQUIRE_EQUAL( init_balance, get_rex_fund( a ) );
             BOOST_REQUIRE_EQUAL( 0,            get_balance( a ).get_amount() );
-         }       
+         }
       }
    }
-#endif// ENABLED_REX  
+#endif// ENABLED_REX
 
    action_result bidname( const account_name& bidder, const account_name& newname, const asset& bid ) {
       return push_action( name(bidder), N(bidname), mvo()
@@ -951,7 +952,7 @@ public:
    }
 
    using resource_limits_state_object = eosio::chain::resource_limits::resource_limits_state_object;
-   
+
    resource_limits_state_object get_resource_limits_state() {
       return control->db().get<resource_limits_state_object>();
    }
@@ -1024,7 +1025,7 @@ public:
                                                     ("producers", vector<account_name>(producer_names.begin(), producer_names.begin()+21))
                              )
          );
-         BOOST_REQUIRE_EQUAL(success(), unstake( N(alice1111111), N(alice1111111), 
+         BOOST_REQUIRE_EQUAL(success(), unstake( N(alice1111111), N(alice1111111),
                core_sym::min_activated_stake, core_sym::from_string("0.0000") ) );
       }
       produce_blocks( 250 );
@@ -1086,6 +1087,30 @@ public:
                ("votepay_factor", votepay_factor)
       );
    }
+
+   fc::variant get_account_limits( const account_name &acct ) {
+      int64_t ram_bytes = 0, net = 0, cpu = 0;
+      auto rlm = control->get_resource_limits_manager();
+      rlm.get_account_limits( acct, ram_bytes, net, cpu );
+      return mvo()
+            ("ram_bytes", ram_bytes)
+            ("net", net)
+            ("cpu", cpu);
+   };
+
+   int64_t get_account_ram_amount( const account_name &acct ) {
+      int64_t ram_bytes = 0, net = 0, cpu = 0;
+      auto rlm = control->get_resource_limits_manager();
+      rlm.get_account_limits( acct, ram_bytes, net, cpu );
+      return ram_bytes;
+   };
+
+   int64_t get_account_ram_available( const account_name &acct ) {
+      auto rlm = control->get_resource_limits_manager();
+      int64_t ram_bytes = get_account_ram_amount(acct);
+      int64_t ram_usage = rlm.get_account_ram_usage(acct);
+      return ram_bytes - ram_usage;
+   };
 
    abi_serializer abi_ser;
    abi_serializer token_abi_ser;
