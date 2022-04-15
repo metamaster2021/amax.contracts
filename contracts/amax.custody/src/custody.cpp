@@ -25,15 +25,31 @@ void custody::init(const name& issuer) {
 
 //add a lock plan
 [[eosio::action]] 
-void custody::addplan(name issuer, string plan_name, name asset_contract, symbol asset_symbol, int64_t unlock_interval_days, int64_t unlock_times) {
-    require_auth(get_self());
+void custody::addplan(const name& issuer, 
+    const string& title, const name& asset_contract, const symbol& asset_symbol, 
+    const uint64_t& unlock_interval_days, const int64_t& unlock_times) {
 
-    check( unlock_interval_days <= MAX_LOCK_DAYS, "unlock_days must be <= 365*10, i.e. 10 years" );
+    require_auth(issuer);
+    CHECK( unlock_interval_days <= MAX_LOCK_DAYS, "unlock_days must be <= 365*10, i.e. 10 years" )
 
     plan_t::tbl_t plans(_self, _self.value);
 	auto plan_id = plans.available_primary_key();
-    plan_t plan(plan_id, plan_name, asset_contract, asset_symbol, unlock_interval_days, unlock_times);
+    plan_t plan(plan_id, issuer, title, asset_contract, asset_symbol, unlock_interval_days, unlock_times);
     _db.set(plan);
+}
+
+[[eosio::action]] 
+void custody::setplanowner(const name& issuer, const uint64_t& plan_id, const name& new_owner){
+    require_auth( issuer );
+
+    plan_t plan(plan_id);
+    CHECK( _db.get(plan), "plan not exist: " + to_string(plan_id) )
+    CHECK( plan.owner == issuer || plan.owner != _self, "Non-plan owner nor maintainer not allowed to change owner" )
+
+    plan.owner = new_owner;
+    plan.updated_at = current_time_point();
+
+    _db.set( plan );
 }
 
 [[eosio::action]] 
@@ -46,26 +62,37 @@ void custody::delplan(name issuer, uint16_t plan_id) {
 
 }
 
+[[eosio::action]] 
+void custody::enableplan(name issuer, uint16_t plan_id, bool enabled) {
+    require_auth(issuer);
+
+    plan_t plan(plan_id);
+    CHECK( _db.get(plan), "plan not found: " + to_string(plan_id) )
+    CHECK( issuer == plan.owner, "issuer not plan owner to enable/disable plan!" )
+    CHECK( plan.enabled != enabled, "plan status no changed" )
+
+    plan.enabled = enabled;
+    plan.updated_at = current_time_point();
+    _db.set(plan);
+}
+
 //stake-in op: transfer tokens to the contract and lock them according to the given plan
 [[eosio::action]] 
 void custody::ontransfer(name from, name to, asset quantity, string memo) {
     if (to != _self) return;
 
-	check( quantity.symbol.is_valid(), "Invalid quantity symbol name" );
-	check( quantity.is_valid(), "Invalid quantity");
-	check( quantity.amount > 0, "ontransfer quanity must be positive" );
+	CHECK( quantity.symbol.is_valid(), "Invalid quantity symbol name" )
+	CHECK( quantity.is_valid(), "Invalid quantity")
+	CHECK( quantity.amount > 0, "Quantity must be positive" )
 
-    //memo: {$plan_id}:{$recipient}, Eg: "1:armonia12345"
+    //memo: {$plan_id}:{$owner}, Eg: "1:armonia12345"
     vector<string_view> transfer_memo = split(memo, ":");
     check( transfer_memo.size() == 2, "params error" );
 
-    auto plan_id            = (uint16_t) atoi(transfer_memo[0].data());   
-    auto recipient          = name(transfer_memo[1]);
-    check( is_account(recipient), "recipient not exist" );
-
-    //check if plan id exists or not
+    auto plan_id            = (uint16_t) atoi(transfer_memo[0].data());
     plan_t plan(plan_id);
-    check( _db.get(plan), "plan not exist" );
+    CHECK( _db.get(plan), "plan not found: " + to_string(plan_id) )
+    CHECK( plan.enabled, "plan not enabled" )
 
     auto asset_contract = get_first_receiver();
     check( plan.asset_contract == asset_contract, "stake asset contract mismatch" );
@@ -74,9 +101,13 @@ void custody::ontransfer(name from, name to, asset quantity, string memo) {
     plan.total_staked_amount += quantity.amount;
     _db.set(plan);
 
-    stake_t::tbl_t stakes(_self, recipient.value);
+    auto owner          = name(transfer_memo[1]);
+    check( is_account(owner), "owner not exist" );
+    
+    stake_t::tbl_t stakes(_self, plan.id);
     auto stake_id = stakes.available_primary_key();
-    stake_t stake(plan_id, recipient, stake_id, quantity.amount, current_time_point());
+    stake_t stake(plan.id, stake_id, owner, quantity.amount);
+    
     _db.set(stake);
 }
 
@@ -84,7 +115,7 @@ void custody::ontransfer(name from, name to, asset quantity, string memo) {
  * withraw all available/unlocked assets belonging to the issuer
  */
 [[eosio::action]] 
-void custody::redeem(name issuer, name to) {
+void custody::redeem(name issuer, name to, uint64_t plan_id) {
     require_auth(issuer);
 
     // stake_index_t stake_index(to);

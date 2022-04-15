@@ -49,53 +49,66 @@ typedef eosio::singleton< "global"_n, global_t > global_singleton;
 typedef std::map<uint16_t, pair<uint16_t, checksum256>> unlock_plan_map;
 
 struct CUSTODY_TBL plan_t {
-    uint64_t        plan_id;
-
-    string          plan_name;                  //E.g. WGRT_4yearlock | WGRT_5yearlock
+    uint64_t        id;
+    name            owner;                      //plan owner
+    string          title;                      //plan title: <=64 chars
     name            asset_contract;             //asset issuing contract (ARC20)
     symbol          asset_symbol;               //E.g. AMAX | CNYD
     uint64_t        unlock_interval_days;       //interval between two consecutive unlock timepoints
     uint64_t        unlock_times;
+    uint64_t        total_staked_amount = 0;    //stats: updated upon stake
+    uint64_t        total_redeemed_amount = 0;  //stats: updated upon redeem
+    bool            enabled = true;             //can be disabled
+    time_point      created_at;                 //creation time (UTC time)
+    time_point      updated_at;                 //update time: last updated at
 
-    uint64_t        total_staked_amount = 0;     //sats: updated upon stake
-    uint64_t        total_redeemed_amount = 0;   //sats: updated upon redeem
-
-    uint64_t primary_key() const { return plan_id; }
+    uint64_t primary_key() const { return id; }
     uint64_t scope() const { return 0; }
 
+    uint64_t by_owner()const { return owner.value; }
+
     plan_t() {}
-    plan_t(uint64_t pid): plan_id(pid) {}
-    plan_t(uint64_t pid, string pn, name ac, symbol as, uint64_t uid, uint64_t ut):
-        plan_id(pid), plan_name(pn), asset_contract(ac), asset_symbol(as), unlock_interval_days(uid), unlock_times(ut) {}
+    plan_t(uint64_t pid): id(pid) {}
+    plan_t(uint64_t pid, name o, string t, name ac, symbol as, uint64_t uid, uint64_t ut): id(pid), title(t), asset_contract(ac), asset_symbol(as), unlock_interval_days(uid), unlock_times(ut) {
+        created_at = current_time_point();
+    }
 
-    typedef eosio::multi_index<"plans"_n, plan_t> tbl_t;
+    typedef eosio::multi_index<"plans"_n, plan_t,
+        indexed_by<"owneridx"_n,  const_mem_fun<plan_t, uint64_t, &plan_t::by_owner> >
+    > tbl_t;
 
-    EOSLIB_SERIALIZE( plan_t, (plan_id)(plan_name)(asset_contract)(asset_symbol)(unlock_interval_days)(unlock_times)
-                              (total_staked_amount)(total_redeemed_amount) )
+    EOSLIB_SERIALIZE( plan_t, (id)(owner)(title)(asset_contract)(asset_symbol)(unlock_interval_days)(unlock_times)
+                              (total_staked_amount)(total_redeemed_amount)(enabled)(created_at)(updated_at) )
 
 };
 struct CUSTODY_TBL stake_t {
-    name                recipient;         // scope
-    uint64_t            stake_id;          // PK, unique within the contract
-
-    uint64_t            plan_id;
-    uint64_t            staked_amount;
-    uint64_t            redeemed_amount = 0;//updated upon redeem
+    uint64_t            plan_id;            // scope
+    uint64_t            stake_id;           // PK, unique within the contract
+    name                owner;        
+    uint64_t            staked;
+    uint64_t            redeemed;           //updated upon redeem
     time_point          created_at;         //stake time (UTC time)
-    time_point          updated_at;         //update time
+    time_point          updated_at;         //update time: last redeemed at
 
+    uint64_t       scope() const { return plan_id; }
     uint64_t primary_key() const { return stake_id; }
-    uint64_t       scope() const { return recipient.value; }
 
     stake_t() {}
-    stake_t(name r, uint64_t s): recipient(r), stake_id(s) {}
-    stake_t(uint64_t p, name r, uint64_t s, uint64_t sa, time_point c): 
-             plan_id(p), recipient(r), stake_id(s), staked_amount(sa), created_at(c) {}
+    stake_t(uint64_t p, uint64_t s): plan_id(p), stake_id(s) {}
+    stake_t(uint64_t p, uint64_t s, name o, uint64_t sa): plan_id(p), stake_id(s), owner(o), staked(sa) {
+        redeemed = 0;
+        created_at = current_time_point();
+    }
 
-    typedef eosio::multi_index<"stakes"_n, stake_t> tbl_t;
+    uint64_t by_owner() const { return owner.value; }
+    uint128_t by_owner_update() const { return uint128_t(owner.value) << 64 | uint128_t(updated_at.sec_since_epoch()); }
 
-    EOSLIB_SERIALIZE( stake_t,  (recipient)(stake_id)(plan_id)(staked_amount)
-                                (redeemed_amount)(created_at)(updated_at) )
+    typedef eosio::multi_index<"stakes"_n, stake_t,
+        indexed_by<"ownerstakes"_n, const_mem_fun<stake_t, uint64_t, &stake_t::by_owner>>,
+        indexed_by<"ownerupdate"_n,   const_mem_fun<stake_t, uint128_t, &stake_t::by_owner_update>>
+    > tbl_t;
+
+    EOSLIB_SERIALIZE( stake_t,  (plan_id)(stake_id)(owner)(staked)(redeemed)(created_at)(updated_at) )
 };
 
 
