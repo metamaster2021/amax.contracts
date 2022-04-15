@@ -3,6 +3,8 @@
 #include <eosio/chain/global_property_object.hpp>
 #include <eosio/chain/resource_limits.hpp>
 #include <eosio/chain/wast_to_wasm.hpp>
+#include <eosio/chain/permission_object.hpp>
+#include <eosio/chain/authorization_manager.hpp>
 #include <cstdlib>
 #include <iostream>
 #include <sstream>
@@ -14,8 +16,6 @@
 
 static const fc::microseconds block_interval_us = fc::microseconds(eosio::chain::config::block_interval_us);
 
-constexpr uint64_t billable_size_key_value_object = config::billable_size_v<key_value_object>;
-constexpr uint64_t billable_size_table_id_object = config::billable_size_v<table_id_object>;
 static constexpr int64_t  ram_gift_bytes        = 1400;
 
 struct _abi_hash {
@@ -24,12 +24,64 @@ struct _abi_hash {
 };
 FC_REFLECT( _abi_hash, (owner)(hash) );
 
+struct _refund_request {
+   name            owner;
+   time_point_sec  request_time;
+   asset    net_amount;
+   asset    cpu_amount;
+};
+FC_REFLECT( _refund_request, (owner)(request_time)(net_amount)(cpu_amount) )
+
+struct _user_resources {
+   name          owner;
+   asset         net_weight;
+   asset         cpu_weight;
+   int64_t       ram_bytes = 0;
+};
+FC_REFLECT( _user_resources, (owner)(net_weight)(cpu_weight)(ram_bytes) )
+
+struct _delegated_bandwidth {
+   name          from;
+   name          to;
+   asset         net_weight;
+   asset         cpu_weight;
+};
+FC_REFLECT( _delegated_bandwidth, (from)(to)(net_weight)(cpu_weight) )
+
+struct _voter_info {
+   name                owner;
+   name                proxy;
+   std::vector<name>   producers;
+   int64_t             staked = 0;
+   double              last_vote_weight = 0;
+   double              proxied_vote_weight= 0;
+   bool                is_proxy = 0;
+   uint32_t            flags1 = 0;
+   uint32_t            reserved2 = 0;
+   asset        reserved3;
+};
+FC_REFLECT( _voter_info, (owner)(proxy)(producers)(staked)(last_vote_weight)(proxied_vote_weight)(is_proxy)(flags1)(reserved2)(reserved3) )
+
+struct _token_account {
+   asset    balance;
+};
+FC_REFLECT( _token_account, (balance) )
+
 struct connector {
    asset balance;
    double weight = .5;
 };
 FC_REFLECT( connector, (balance)(weight) );
 
+struct exception_message_starts_with: fc_exception_message_starts_with {
+   using fc_exception_message_starts_with::fc_exception_message_starts_with;
+
+   bool operator()( const fc::exception& ex ) {
+      const auto &message = ex.get_log().at( 0 ).get_message();
+      wlog("exception: " + message);
+      return fc_exception_message_starts_with::operator()(ex);
+   }
+};
 
 using namespace eosio_system;
 
@@ -74,25 +126,84 @@ BOOST_AUTO_TEST_SUITE(eosio_system_tests)
 bool within_error(int64_t a, int64_t b, int64_t err) { return std::abs(a - b) <= err; };
 bool within_one(int64_t a, int64_t b) { return within_error(a, b, 1); }
 
+#define dump_ram(exp) idump( ("ram_size:") exp )
+
+size_t get_billable_size(const eosio::chain::authority& v) {
+   size_t accounts_size = v.accounts.size() * config::billable_size_v<permission_level_weight>;
+   size_t waits_size = v.waits.size() * config::billable_size_v<wait_weight>;
+   size_t keys_size = 0;
+   for (const auto& k: v.keys) {
+      keys_size += config::billable_size_v<key_weight>;
+      keys_size += fc::raw::pack_size(k.key);  ///< serialized size of the key
+      wdump(("get_billable_size(authority)")
+         (config::billable_size_v<key_weight>)
+         (fc::raw::pack_size(k.key))
+         (keys_size));
+   }
+
+   return accounts_size + waits_size + keys_size;
+}
+
+template<typename T>
+size_t get_billable_size(const T &t, bool new_scope = false) {
+   size_t new_tbl_size = new_scope ? config::billable_size_v<table_id_object> : 0;
+   return  new_tbl_size + config::billable_size_v<key_value_object> + fc::raw::pack_size(t);
+}
+
 BOOST_AUTO_TEST_CASE( newaccount ) try {
    eosio_system_tester t(eosio_system_tester::setup_level::core_token);
    t.deploy_contract();
    auto rlm = t.control->get_resource_limits_manager();
 
    // key-value data header size
-   BOOST_REQUIRE_EQUAL(billable_size_key_value_object, 112);
+   dump_ram((config::billable_size_v<key_value_object>));
+   BOOST_REQUIRE_EQUAL(config::billable_size_v<key_value_object>, 112);
    // ram usage for creating table
-   BOOST_REQUIRE_EQUAL(billable_size_table_id_object, 112);
+   auto created_table_ram_size = config::billable_size_v<table_id_object>;
+   dump_ram((created_table_ram_size));
+   BOOST_REQUIRE_EQUAL(created_table_ram_size, 112);
 
+   dump_ram((config::overhead_per_account_ram_bytes));
+   BOOST_REQUIRE_EQUAL(config::overhead_per_account_ram_bytes, 2 * 1024);
+
+   dump_ram((config::billable_size_v<permission_object>));
+   BOOST_REQUIRE_EQUAL(config::billable_size_v<permission_object>, 288);
+
+   name create_name = N(alice1111111);
+   auto auth = eosio::chain::authority(fc::crypto::public_key());
+   auto auth_size = get_billable_size(auth);
+   dump_ram((auth_size));
+   BOOST_REQUIRE_EQUAL(auth_size, 50);
+
+   int64_t newaccount_native_ram_size = config::overhead_per_account_ram_bytes
+                              + 2*config::billable_size_v<permission_object>
+                              + 2*auth_size;
+   dump_ram((newaccount_native_ram_size));
+   BOOST_REQUIRE_EQUAL(newaccount_native_ram_size, 2724);
+
+   // pay by new account
+   auto newaccount_amax_ram_size = get_billable_size(_user_resources(), true); // user_resources for new account
+   dump_ram((newaccount_amax_ram_size));
+   BOOST_REQUIRE_EQUAL(newaccount_amax_ram_size, 272);
+
+   auto delegatebw_from_ram_size = get_billable_size(_token_account()); // token_account for receiver of buyram in token.transfer(), no new scope
+   dump_ram((delegatebw_from_ram_size));
+   BOOST_REQUIRE_EQUAL(delegatebw_from_ram_size, 128);
+
+   auto created_acct_payed_ram = newaccount_native_ram_size + newaccount_amax_ram_size;
+   dump_ram((created_acct_payed_ram));
+   BOOST_REQUIRE_EQUAL(created_acct_payed_ram, 2996);
    int64_t min_newaccount_ram = 2996;
    int64_t init_ram = min_newaccount_ram - ram_gift_bytes;
    auto init_ram_in = calc_buyram_in(t, init_ram);
+   wdump( (rlm.get_account_ram_usage(config::system_account_name)) );
 
    t.create_account_with_resources( N(alice1111111), config::system_account_name,
-      init_ram_in, false, core_sym::from_string("10.0000"), core_sym::from_string("10.0000") );
+      init_ram_in, false, core_sym::from_string("10.0000"), core_sym::from_string("10.0000") ); // no transfer
+   t.produce_blocks(1);
    auto userres = t.get_total_stake( N(alice1111111) );
    auto bought_ram = userres["ram_bytes"];
-   // BOOST_REQUIRE_EQUAL( userres["ram_bytes"].as_uint64() + ram_gift, ram_bytes );
+   wdump( (rlm.get_account_ram_usage(config::system_account_name)) );
    wdump( (t.get_account_limits( N(alice1111111) )) (t.get_account_ram_available( N(alice1111111) ))
       (rlm.get_account_ram_usage(N(alice1111111))) (userres["ram_bytes"]) );
    BOOST_REQUIRE_EQUAL( init_ram, bought_ram );
@@ -100,8 +211,22 @@ BOOST_AUTO_TEST_CASE( newaccount ) try {
    BOOST_REQUIRE_EQUAL( t.get_account_ram_available( N(alice1111111)), 0 );
 
    t.transfer(config::system_account_name, N(alice1111111), core_sym::from_string("1000000.0000") );
+   t.produce_blocks(10);
 
-   int64_t insufficient_ram = 2000;
+   auto creator_payed_ram = delegatebw_from_ram_size;
+   auto creator_payed_ram_in = calc_buyram_in(t, init_ram);
+   dump_ram((creator_payed_ram));
+
+   dump_ram( (get_billable_size(_voter_info())) );
+   auto delegatebw_receiver_ram_size = get_billable_size(_delegated_bandwidth(), true) // delegated_bandwidth for receiver of delegatebw
+                                     + get_billable_size(_voter_info()); // voter_info for receiver of delegatebw, transfer=1
+   dump_ram((delegatebw_receiver_ram_size));
+   BOOST_REQUIRE_EQUAL(delegatebw_receiver_ram_size, 450);
+
+   created_acct_payed_ram = newaccount_native_ram_size + newaccount_amax_ram_size + delegatebw_receiver_ram_size;
+   dump_ram((created_acct_payed_ram));
+
+   int64_t insufficient_ram = 1000;
    auto insufficient_ram_in = calc_buyram_in(t, insufficient_ram);
 
    // alice1111111 should pay some ram, but has insufficient ram.
@@ -109,8 +234,40 @@ BOOST_AUTO_TEST_CASE( newaccount ) try {
       t.create_account_with_resources( N(bob111111111), N(alice1111111), insufficient_ram_in, false,
                                        core_sym::from_string("10.0000"), core_sym::from_string("10.0000"), true ),
       ram_usage_exceeded,
-      fc_exception_message_starts_with("account alice1111111 has insufficient ram"));
+      exception_message_starts_with("account alice1111111 has insufficient ram"));
 
+   BOOST_REQUIRE_EQUAL( t.success(), t.buyram( "alice1111111", "alice1111111", creator_payed_ram_in ) );
+   wdump( (t.get_account_limits( N(alice1111111) )) (t.get_account_ram_available( N(alice1111111) ))
+      (rlm.get_account_ram_usage(N(alice1111111))) (userres["ram_bytes"]) );
+   t.produce_blocks(10);
+
+   using create_account_step = eosio_system_tester::create_account_step;
+
+   BOOST_REQUIRE_EXCEPTION(
+      t.create_account_with_resources( N(bob111111111), N(alice1111111), insufficient_ram_in, false,
+                                       core_sym::from_string("10.0000"), core_sym::from_string("10.0000"),
+                                       true, create_account_step::newaccount ),
+      ram_usage_exceeded,
+      exception_message_starts_with("account bob111111111 has insufficient ram"));
+
+   BOOST_REQUIRE_EXCEPTION(
+      t.create_account_with_resources( N(bob111111111), N(alice1111111), insufficient_ram_in, false,
+                                       core_sym::from_string("10.0000"), core_sym::from_string("10.0000"),
+                                       true, create_account_step::buyram ),
+      ram_usage_exceeded,
+      exception_message_starts_with("account bob111111111 has insufficient ram"));
+
+   BOOST_REQUIRE_EXCEPTION(
+      t.create_account_with_resources( N(bob111111111), N(alice1111111), insufficient_ram_in, false,
+                                       core_sym::from_string("10.0000"), core_sym::from_string("10.0000"),
+                                       true, create_account_step::all ),
+      ram_usage_exceeded,
+      exception_message_starts_with("account bob111111111 has insufficient ram"));
+
+   init_ram_in = calc_buyram_in(t, created_acct_payed_ram - ram_gift_bytes);
+   dump_ram( (init_ram_in) );
+   t.create_account_with_resources( N(bob111111111), N(alice1111111), init_ram_in, false,
+         core_sym::from_string("10.0000"), core_sym::from_string("10.0000"), true);
 } FC_LOG_AND_RETHROW()
 
 BOOST_FIXTURE_TEST_CASE( buysell, eosio_system_tester ) try {

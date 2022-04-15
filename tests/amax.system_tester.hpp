@@ -161,8 +161,16 @@ public:
       return push_transaction( trx );
    }
 
+   enum class create_account_step {
+      newaccount = 1,
+      buyram,
+      delegatebw,
+      all,
+   };
+
    transaction_trace_ptr create_account_with_resources( account_name a, account_name creator, asset ramfunds, bool multisig,
-                                                        asset net = core_sym::from_string("10.0000"), asset cpu = core_sym::from_string("10.0000"), bool transfer = false ) {
+                                                        asset net = core_sym::from_string("10.0000"), asset cpu = core_sym::from_string("10.0000"),
+                                                        bool transfer = false, create_account_step step = create_account_step::all ) {
       signed_transaction trx;
       set_transaction_headers(trx);
 
@@ -174,22 +182,25 @@ public:
          owner_auth =  authority( get_public_key( a, "owner" ) );
       }
 
-      trx.actions.emplace_back( vector<permission_level>{{creator,config::active_name}},
-                                newaccount{
-                                   .creator  = creator,
-                                   .name     = a,
-                                   .owner    = owner_auth,
-                                   .active   = authority( get_public_key( a, "active" ) )
-                                });
+      if (step >= create_account_step::newaccount)
+         trx.actions.emplace_back( vector<permission_level>{{creator,config::active_name}},
+                                 newaccount{
+                                    .creator  = creator,
+                                    .name     = a,
+                                    .owner    = owner_auth,
+                                    .active   = authority( get_public_key( a, "active" ) )
+                                 });
 
-      trx.actions.emplace_back( get_action( config::system_account_name, N(buyram), vector<permission_level>{{creator,config::active_name}},
+      if (step >= create_account_step::buyram)
+         trx.actions.emplace_back( get_action( config::system_account_name, N(buyram), vector<permission_level>{{creator,config::active_name}},
                                             mvo()
                                             ("payer", creator)
                                             ("receiver", a)
                                             ("quant", ramfunds) )
                               );
 
-      trx.actions.emplace_back( get_action( config::system_account_name, N(delegatebw), vector<permission_level>{{creator,config::active_name}},
+      if (step >= create_account_step::delegatebw)
+         trx.actions.emplace_back( get_action( config::system_account_name, N(delegatebw), vector<permission_level>{{creator,config::active_name}},
                                             mvo()
                                             ("from", creator)
                                             ("receiver", a)
