@@ -211,7 +211,7 @@ BOOST_AUTO_TEST_CASE( newaccount ) try {
    BOOST_REQUIRE_EQUAL( t.get_account_ram_available( N(alice1111111)), 0 );
 
    t.transfer(config::system_account_name, N(alice1111111), core_sym::from_string("1000000.0000") );
-   t.produce_blocks(1);
+   t.produce_blocks(10);
 
    auto creator_payed_ram = delegatebw_from_ram_size;
    auto creator_payed_ram_in = calc_buyram_in(t, init_ram);
@@ -267,8 +267,7 @@ BOOST_AUTO_TEST_CASE( newaccount ) try {
    init_ram_in = calc_buyram_in(t, created_acct_payed_ram - ram_gift_bytes);
    dump_ram( (init_ram_in) );
    t.create_account_with_resources( N(bob111111111), N(alice1111111), init_ram_in, false,
-         core_sym::from_string("10.0000"), core_sym::from_string("10.0000"), true,
-         create_account_step::buyram);
+         core_sym::from_string("10.0000"), core_sym::from_string("10.0000"), true);
 } FC_LOG_AND_RETHROW()
 
 BOOST_FIXTURE_TEST_CASE( buysell, eosio_system_tester ) try {
