@@ -19,6 +19,12 @@ if ( debug ) {                               \
    eosio::print(str);                                                             \
    eosio::print( __VA_ARGS__ ); }}
 
+#define div(a, b) divide_decimal(a, b, PRECISION_1)
+#define mul(a, b) multiply_decimal(a, b, PRECISION_1)
+
+#define high_div(a, b) divide_decimal(a, b, HIGH_PRECISION_1)
+#define high_mul(a,b ) multiply_decimal(a, b, HIGH_PRECISION_1)
+
 class [[eosio::contract("amax.custody")]] custody: public eosio::contract {
 private:
     dbc                 _db;
@@ -41,17 +47,16 @@ public:
     }
 
     [[eosio::action]] void init(const name& issuer);  //initialize & maintain
-    // [[eosio::action]] void addadmin(name issuer, name admin, bool is_supper_admin);
-    // [[eosio::action]] void deladmin(name issuer, name admin);
     [[eosio::action]] void addplan(const name& issuer, const string& title, const name& asset_contract, const symbol& asset_symbol, const uint64_t& unlock_interval_days, const int64_t& unlock_time);
     [[eosio::action]] void setplanowner(const name& issuer, const uint64_t& plan_id, const name& new_owner);
-    [[eosio::action]] void enableplan(name issuer, uint16_t plan_id, bool enabled);
-    [[eosio::action]] void delplan(name issuer, uint16_t plan_id);
+    [[eosio::action]] void enableplan(const name& issuer, const uint64_t& plan_id, bool enabled);
+    [[eosio::action]] void delplan(const name& issuer, const uint64_t& plan_id); //by maintainer only
+    [[eosio::action]] void endplan(const name& issuer, const uint64_t& plan_id, const name& stake_owner); //by plan owner only
     
     [[eosio::on_notify("*::transfer")]]
     void ontransfer(name from, name to, asset quantity, string memo);
 
-    [[eosio::action]] void redeem(name issuer, name to, uint64_t plan_id);
+    [[eosio::action]] void redeem(const name& issuer, const uint64_t& plan_id, const uint64_t& stake_id);
     // ACTION withdrawx(name issuer, name to, name original_recipient, uint64_t stake_id, asset quantity);
     // ACTION repairstake(name issuer, name recipient, uint64_t stake_id, uint64_t amount);
     // ACTION repairindex(name issuer, name recipient, uint64_t stake_id);

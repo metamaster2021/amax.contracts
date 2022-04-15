@@ -16,6 +16,7 @@ using std::string;
 // using namespace wasm;
 #define SYMBOL(sym_code, precision) symbol(symbol_code(sym_code), precision)
 
+static constexpr eosio::name active_perm        {"active"_n};
 static constexpr symbol SYS_SYMBOL              = SYMBOL("AMAX", 8);
 static constexpr name SYS_BANK                  { "amax.token"_n };
 static constexpr name COUNTER_ADMIN             = "admin"_n;
@@ -38,10 +39,10 @@ namespace wasm { namespace db {
 #define CUSTODY_TBL [[eosio::table, eosio::contract("custody")]]
 
 struct [[eosio::table("global"), eosio::contract("custody")]] global_t {
-    name admin;             // default is contract self
     bool initialized        = false; 
+    uint64_t trx_max_step   = 30;
 
-    EOSLIB_SERIALIZE( global_t, (admin)(initialized) )
+    EOSLIB_SERIALIZE( global_t, (initialized)(trx_max_step) )
 };
 typedef eosio::singleton< "global"_n, global_t > global_singleton;
 
@@ -104,8 +105,8 @@ struct CUSTODY_TBL stake_t {
     uint128_t by_owner_update() const { return uint128_t(owner.value) << 64 | uint128_t(updated_at.sec_since_epoch()); }
 
     typedef eosio::multi_index<"stakes"_n, stake_t,
-        indexed_by<"ownerstakes"_n, const_mem_fun<stake_t, uint64_t, &stake_t::by_owner>>,
-        indexed_by<"ownerupdate"_n,   const_mem_fun<stake_t, uint128_t, &stake_t::by_owner_update>>
+        indexed_by<"ownerstakes"_n,     const_mem_fun<stake_t, uint64_t, &stake_t::by_owner>>,
+        indexed_by<"ownerupdate"_n,     const_mem_fun<stake_t, uint128_t, &stake_t::by_owner_update>>
     > tbl_t;
 
     EOSLIB_SERIALIZE( stake_t,  (plan_id)(stake_id)(owner)(staked)(redeemed)(created_at)(updated_at) )

@@ -1,17 +1,11 @@
+
+#include "amax.token.hpp"
 #include "custody.hpp"
 #include "utils.hpp"
 
 #include <chrono>
 
-
-#define div(a, b) divide_decimal(a, b, PRECISION_1)
-#define mul(a, b) multiply_decimal(a, b, PRECISION_1)
-
-#define high_div(a, b) divide_decimal(a, b, HIGH_PRECISION_1)
-#define high_mul(a,b ) multiply_decimal(a, b, HIGH_PRECISION_1)
-
 using std::chrono::system_clock;
-
 using namespace wasm;
 
 
@@ -53,7 +47,7 @@ void custody::setplanowner(const name& issuer, const uint64_t& plan_id, const na
 }
 
 [[eosio::action]] 
-void custody::delplan(name issuer, uint16_t plan_id) {
+void custody::delplan(const name& issuer, const uint64_t& plan_id) {
     require_auth(get_self());
 
     plan_t plan(plan_id);
@@ -63,7 +57,7 @@ void custody::delplan(name issuer, uint16_t plan_id) {
 }
 
 [[eosio::action]] 
-void custody::enableplan(name issuer, uint16_t plan_id, bool enabled) {
+void custody::enableplan(const name& issuer, const uint64_t& plan_id, bool enabled) {
     require_auth(issuer);
 
     plan_t plan(plan_id);
@@ -111,11 +105,38 @@ void custody::ontransfer(name from, name to, asset quantity, string memo) {
     _db.set(stake);
 }
 
+[[eosio::action]] 
+void custody::endplan(const name& issuer, const uint64_t& plan_id, const name& stake_owner) {
+    require_auth( issuer );
+
+    plan_t plan(plan_id);
+    CHECK( _db.get(plan), "plan not found: " + to_string(plan_id) )
+    CHECK( plan.owner == issuer, "issuer not the plan owner!" )
+
+    stake_t::tbl_t stakes(_self, plan_id);
+    auto stake_idx = stakes.get_index<"ownerstakes"_n>();
+    auto lower_itr = stake_idx.lower_bound( uint128_t(stake_owner.value) << 64 );
+	auto upper_itr = stake_idx.upper_bound( uint128_t(stake_owner.value) << 64 | std::numeric_limits<uint64_t>::max() );
+
+	int step = 0;
+    for (auto itr = lower_itr; itr != upper_itr && itr != stake_idx.end(); itr++) {
+		if (step++ == _gstate.trx_max_step) break;
+
+        redeem(issuer, itr->plan_id, itr->stake_id);
+        stake_t stake(itr->plan_id, itr->stake_id);
+        _db.get(stake);
+        
+        TRANSFER( plan.asset_contract, issuer, itr->staked, "terminated: " + to_string(itr->stake_i) )
+
+        _db.del(stake);
+    }
+
+}
 /**
  * withraw all available/unlocked assets belonging to the issuer
  */
 [[eosio::action]] 
-void custody::redeem(name issuer, name to, uint64_t plan_id) {
+void custody::redeem(const name& issuer, const uint64_t& plan_id, const uint64_t& stake_id) {
     require_auth(issuer);
 
     // stake_index_t stake_index(to);
