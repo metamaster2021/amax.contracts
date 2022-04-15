@@ -25,9 +25,9 @@ public:
     }
 
     [[eosio::action]] void init(const name& issuer);  //initialize & maintain
-    [[eosio::action]] void addadmin(name issuer, name admin, bool is_supper_admin);
-    [[eosio::action]] void deladmin(name issuer, name admin);
-    [[eosio::action]] void addplan(name issuer, string plan_name, name asset_bank, symbol asset_symbol, int16_t unlock_days);
+    // [[eosio::action]] void addadmin(name issuer, name admin, bool is_supper_admin);
+    // [[eosio::action]] void deladmin(name issuer, name admin);
+    [[eosio::action]] void addplan(name issuer, string plan_name, name asset_contract, symbol asset_symbol, int64_t unlock_interval_days, int64_t unlock_times);
     [[eosio::action]] void delplan(name issuer, uint16_t plan_id);
     // ACTION propose(name issuer, uint16_t plan_id, uint16_t advance_unlock_days, uint16_t advance_unlock_ratio);
     // ACTION approve(name issuer, checksum256 proposal_txid);
@@ -43,8 +43,6 @@ public:
 
 private:
     uint64_t _gen_new_id(const name &counter_key);
-    void _check_admin_auth(name issuer, bool need_super_admin = false);
-    void _process_proposal_approve(proposal_t &proposal);
     uint16_t _get_accumulated_ratio(plan_t &t, time_point& staked_at);
     uint64_t _get_admin_counter();
     uint64_t _inc_admin_counter(bool increase_by_one = true);
