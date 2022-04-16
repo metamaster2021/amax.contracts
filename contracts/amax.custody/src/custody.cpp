@@ -1,5 +1,5 @@
 
-#include "amax.token.hpp"
+#include <amax.token/amax.token.hpp>
 #include "custody.hpp"
 #include "utils.hpp"
 
@@ -8,8 +8,14 @@
 using std::chrono::system_clock;
 using namespace wasm;
 
+static constexpr eosio::name active_permission{"active"_n};
 
-[[eosio::action]] 
+// transfer out from contract self
+#define TRANSFER_OUT(token_contract, to, quantity, memo) token::transfer_action( \
+        token_contract, { {_self, active_permission} } ).send( \
+            _self, to, quantity, memo );
+
+[[eosio::action]]
 void custody::init(const name& issuer) {
     require_auth(get_self());
 
@@ -21,8 +27,8 @@ void custody::init(const name& issuer) {
 
 //add a lock plan
 [[eosio::action]]
-void custody::addplan(const name& issuer, 
-    const string& title, const name& asset_contract, const symbol& asset_symbol, 
+void custody::addplan(const name& issuer,
+    const string& title, const name& asset_contract, const symbol& asset_symbol,
     const uint64_t& unlock_interval_days, const int64_t& unlock_times) {
 
     require_auth(issuer);
@@ -34,7 +40,7 @@ void custody::addplan(const name& issuer,
     _db.set(plan);
 }
 
-[[eosio::action]] 
+[[eosio::action]]
 void custody::setplanowner(const name& issuer, const uint64_t& plan_id, const name& new_owner){
     require_auth( issuer );
 
@@ -48,7 +54,7 @@ void custody::setplanowner(const name& issuer, const uint64_t& plan_id, const na
     _db.set( plan );
 }
 
-[[eosio::action]] 
+[[eosio::action]]
 void custody::delplan(const name& issuer, const uint64_t& plan_id) {
     require_auth(get_self());
 
@@ -58,7 +64,7 @@ void custody::delplan(const name& issuer, const uint64_t& plan_id) {
 
 }
 
-[[eosio::action]] 
+[[eosio::action]]
 void custody::enableplan(const name& issuer, const uint64_t& plan_id, bool enabled) {
     require_auth(issuer);
 
@@ -73,7 +79,7 @@ void custody::enableplan(const name& issuer, const uint64_t& plan_id, bool enabl
 }
 
 //issue-in op: transfer tokens to the contract and lock them according to the given plan
-[[eosio::action]] 
+[[eosio::action]]
 void custody::ontransfer(name from, name to, asset quantity, string memo) {
     if (to != _self) return;
 
@@ -99,17 +105,17 @@ void custody::ontransfer(name from, name to, asset quantity, string memo) {
 
     auto owner          = name(transfer_memo[1]);
     check( is_account(owner), "owner not exist" );
-    
+
     auto first_unlock_days = (uint64_t) atoi(transfer_memo[2].data());
 
     issue_t::tbl_t issues(_self, plan.id);
     auto issue_id = issues.available_primary_key();
     issue_t issue(plan.id, issue_id, owner, quantity.amount, first_unlock_days);
-    
+
     _db.set(issue);
 }
 
-[[eosio::action]] 
+[[eosio::action]]
 void custody::endissue(const name& issuer, const uint64_t& plan_id, const uint64_t& issue_id) {
     require_auth( issuer );
 
@@ -123,7 +129,7 @@ void custody::endissue(const name& issuer, const uint64_t& plan_id, const uint64
 
     auto memo = "terminated: " + to_string(issue.issue_id);
     auto quantity = asset(issue.locked, plan.asset_symbol);
-    TRANSFER( plan.asset_contract, issuer, quantity, memo )
+    TRANSFER_OUT( plan.asset_contract, issuer, quantity, memo )
 
     _db.del(issue);
 
@@ -143,7 +149,7 @@ void custody::endissue(const name& issuer, const uint64_t& plan_id, const uint64
 /**
  * withraw all available/unlocked assets belonging to the issuer
  */
-[[eosio::action]] 
+[[eosio::action]]
 void custody::unlock(const name& issuer, const uint64_t& plan_id, const uint64_t& issue_id) {
     require_auth(issuer);
 
@@ -161,7 +167,7 @@ void custody::unlock(const name& issuer, const uint64_t& plan_id, const uint64_t
     CHECK( issue.locked > 0 && issue.unlocked < total_unlock, "already unlocked" )
     auto quantity = asset(total_unlock - issue.unlocked, plan.asset_symbol);
     string memo = "unlock: " + to_string(issue_id) + "@" + to_string(plan_id);
-    TRANSFER( plan.asset_contract, issue.owner, quantity, memo )
+    TRANSFER_OUT( plan.asset_contract, issue.owner, quantity, memo )
     issue.unlocked = total_unlock;
     issue.locked = issue.issued - total_unlock;
 

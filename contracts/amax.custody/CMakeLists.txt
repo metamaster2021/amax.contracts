@@ -2,7 +2,9 @@ add_contract(amax.custody amax.custody ${CMAKE_CURRENT_SOURCE_DIR}/src/custody.c
 
 target_include_directories(amax.custody
    PUBLIC
-   ${CMAKE_CURRENT_SOURCE_DIR}/include)
+   ${CMAKE_CURRENT_SOURCE_DIR}/include
+   ${CMAKE_CURRENT_SOURCE_DIR}/../amax.token/include
+)
 
 set_target_properties(amax.custody
    PROPERTIES
