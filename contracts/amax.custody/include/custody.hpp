@@ -35,8 +35,8 @@ public:
     using contract::contract;
 
     custody(eosio::name receiver, eosio::name code, datastream<const char*> ds):
-        contract(receiver, code, ds), 
-        _global(get_self(), get_self().value), 
+        contract(receiver, code, ds),
+        _global(get_self(), get_self().value),
         _db(get_self())
     {
         _gstate = _global.exists() ? _global.get() : global_t{};
@@ -46,11 +46,11 @@ public:
         _global.set( _gstate, get_self() );
     }
 
-    [[eosio::action]] void init(const name& issuer);  //initialize & maintain
-    [[eosio::action]] void addplan(const name& issuer, const string& title, const name& asset_contract, const symbol& asset_symbol, const uint64_t& unlock_interval_days, const int64_t& unlock_time);
-    [[eosio::action]] void setplanowner(const name& issuer, const uint64_t& plan_id, const name& new_owner);
-    [[eosio::action]] void enableplan(const name& issuer, const uint64_t& plan_id, bool enabled);
-    [[eosio::action]] void delplan(const name& issuer, const uint64_t& plan_id); //by maintainer only
+    [[eosio::action]] void init();  //initialize & maintain
+    [[eosio::action]] void addplan(const name& owner, const string& title, const name& asset_contract, const symbol& asset_symbol, const uint64_t& unlock_interval_days, const int64_t& unlock_time);
+    [[eosio::action]] void setplanowner(const name& owner, const uint64_t& plan_id, const name& new_owner);
+    [[eosio::action]] void enableplan(const name& owner, const uint64_t& plan_id, bool enabled);
+    [[eosio::action]] void delplan(const name& owner, const uint64_t& plan_id); //by maintainer only
     [[eosio::action]] void endissue(const name& issuer, const uint64_t& plan_id, const uint64_t& issue_id); //run by plan owner only
     [[eosio::on_notify("*::transfer")]] void ontransfer(name from, name to, asset quantity, string memo);
     [[eosio::action]] void unlock(const name& issuer, const uint64_t& plan_id, const uint64_t& issue_id);

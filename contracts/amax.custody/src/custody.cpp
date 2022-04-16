@@ -16,21 +16,21 @@ static constexpr eosio::name active_permission{"active"_n};
             _self, to, quantity, memo );
 
 [[eosio::action]]
-void custody::init(const name& issuer) {
+void custody::init() {
     require_auth(get_self());
 
     // check(false, "init already done!");
-    addplan(issuer, "Community Partner Incentive Plan", "amax.token"_n, SYS_SYMBOL, 91, 10);
-    addplan(issuer, "Developer Incentive Plan", "amax.token"_n, SYS_SYMBOL, 91, 16);
+    // addplan(issuer, "Community Partner Incentive Plan", "amax.token"_n, SYS_SYMBOL, 91, 10);
+    // addplan(issuer, "Developer Incentive Plan", "amax.token"_n, SYS_SYMBOL, 91, 16);
 
 }
 
 //add a lock plan
-[[eosio::action]] void custody::addplan(const name& issuer,
+[[eosio::action]] void custody::addplan(const name& owner,
                                         const string& title, const name& asset_contract, const symbol& asset_symbol,
                                         const uint64_t& unlock_interval_days, const int64_t& unlock_times)
 {
-    require_auth(issuer);
+    require_auth(owner);
     CHECK( title.size() <= MAX_TITLE_SIZE, "title size must be <= " + to_string(MAX_TITLE_SIZE) )
     CHECK( is_account(asset_contract), "asset contract account does not exist" )
     CHECK( asset_symbol.is_valid(), "Invalid asset symbol" )
@@ -41,17 +41,17 @@ void custody::init(const name& issuer) {
 
     plan_t::tbl_t plans(_self, _self.value);
 	auto plan_id = plans.available_primary_key();
-    plan_t plan(plan_id, issuer, title, asset_contract, asset_symbol, unlock_interval_days, unlock_times);
+    plan_t plan(plan_id, owner, title, asset_contract, asset_symbol, unlock_interval_days, unlock_times);
     _db.set(plan);
 }
 
 [[eosio::action]]
-void custody::setplanowner(const name& issuer, const uint64_t& plan_id, const name& new_owner){
-    require_auth( issuer );
+void custody::setplanowner(const name& owner, const uint64_t& plan_id, const name& new_owner){
+    require_auth( owner );
 
     plan_t plan(plan_id);
     CHECK( _db.get(plan), "plan not exist: " + to_string(plan_id) )
-    CHECK( plan.owner == issuer || plan.owner != _self, "Non-plan owner nor maintainer not allowed to change owner" )
+    CHECK( plan.owner == owner || plan.owner != _self, "Non-plan owner nor maintainer not allowed to change owner" )
 
     plan.owner = new_owner;
     plan.updated_at = current_time_point();
@@ -60,7 +60,7 @@ void custody::setplanowner(const name& issuer, const uint64_t& plan_id, const na
 }
 
 [[eosio::action]]
-void custody::delplan(const name& issuer, const uint64_t& plan_id) {
+void custody::delplan(const name& owner, const uint64_t& plan_id) {
     require_auth(get_self());
 
     plan_t plan(plan_id);
@@ -70,12 +70,12 @@ void custody::delplan(const name& issuer, const uint64_t& plan_id) {
 }
 
 [[eosio::action]]
-void custody::enableplan(const name& issuer, const uint64_t& plan_id, bool enabled) {
-    require_auth(issuer);
+void custody::enableplan(const name& owner, const uint64_t& plan_id, bool enabled) {
+    require_auth(owner);
 
     plan_t plan(plan_id);
     CHECK( _db.get(plan), "plan not found: " + to_string(plan_id) )
-    CHECK( issuer == plan.owner, "issuer not plan owner to enable/disable plan!" )
+    CHECK( owner == plan.owner, "owner mismatch" )
     CHECK( plan.enabled != enabled, "plan status no changed" )
 
     plan.enabled = enabled;
