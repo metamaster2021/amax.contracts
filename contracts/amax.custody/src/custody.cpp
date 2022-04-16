@@ -126,7 +126,9 @@ void custody::endplan(const name& issuer, const uint64_t& plan_id, const name& s
         stake_t stake(itr->plan_id, itr->stake_id);
         _db.get(stake);
         
-        TRANSFER( plan.asset_contract, issuer, itr->staked, "terminated: " + to_string(itr->stake_i) )
+        auto memo = "terminated: " + to_string(itr->stake_id);
+        auto quantity = asset(itr->staked, plan.asset_symbol);
+        TRANSFER( plan.asset_contract, issuer, quantity, memo )
 
         _db.del(stake);
     }
