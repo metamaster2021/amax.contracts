@@ -19,11 +19,6 @@ using std::string;
 static constexpr eosio::name active_perm        {"active"_n};
 static constexpr symbol SYS_SYMBOL              = SYMBOL("AMAX", 8);
 static constexpr name SYS_BANK                  { "amax.token"_n };
-static constexpr name COUNTER_ADMIN             = "admin"_n;
-static constexpr name COUNTER_PLAN              = "plan"_n;
-static constexpr name COUNTER_issue             = "issue"_n;
-
-static const string COUNTER_IDX                 = "ID";
 
 static constexpr uint16_t PERCENT_BOOST         = 10000;
 static constexpr int128_t HIGH_PRECISION_1      = 100000000000000000;   //10^17
@@ -39,7 +34,7 @@ namespace wasm { namespace db {
 #define CUSTODY_TBL [[eosio::table, eosio::contract("custody")]]
 
 struct [[eosio::table("global"), eosio::contract("custody")]] global_t {
-    bool initialized        = false; 
+    bool initialized        = false;
     uint64_t trx_max_step   = 30;
 
     EOSLIB_SERIALIZE( global_t, (initialized)(trx_max_step) )
