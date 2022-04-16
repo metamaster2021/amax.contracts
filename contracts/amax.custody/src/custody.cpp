@@ -20,7 +20,7 @@ void custody::init(const name& issuer) {
 }
 
 //add a lock plan
-[[eosio::action]] 
+[[eosio::action]]
 void custody::addplan(const name& issuer, 
     const string& title, const name& asset_contract, const symbol& asset_symbol, 
     const uint64_t& unlock_interval_days, const int64_t& unlock_times) {
@@ -110,7 +110,7 @@ void custody::ontransfer(name from, name to, asset quantity, string memo) {
 }
 
 [[eosio::action]] 
-void custody::endplan(const name& issuer, const uint64_t& plan_id, const name& issue_owner) {
+void custody::endplanissue(const name& issuer, const uint64_t& plan_id, const name& issue_owner) {
     require_auth( issuer );
 
     plan_t plan(plan_id);
@@ -131,10 +131,12 @@ void custody::endplan(const name& issuer, const uint64_t& plan_id, const name& i
         _db.get(issue);
         
         auto memo = "terminated: " + to_string(itr->issue_id);
-        auto quantity = asset(itr->issued, plan.asset_symbol);
+        auto quantity = asset(itr->locked, plan.asset_symbol);
         TRANSFER( plan.asset_contract, issuer, quantity, memo )
 
         _db.del(issue);
+
+        //TODO: update plan
     }
 }
 
