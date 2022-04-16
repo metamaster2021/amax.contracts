@@ -26,13 +26,18 @@ void custody::init(const name& issuer) {
 }
 
 //add a lock plan
-[[eosio::action]]
-void custody::addplan(const name& issuer,
-    const string& title, const name& asset_contract, const symbol& asset_symbol,
-    const uint64_t& unlock_interval_days, const int64_t& unlock_times) {
-
+[[eosio::action]] void custody::addplan(const name& issuer,
+                                        const string& title, const name& asset_contract, const symbol& asset_symbol,
+                                        const uint64_t& unlock_interval_days, const int64_t& unlock_times)
+{
     require_auth(issuer);
-    CHECK( unlock_interval_days <= MAX_LOCK_DAYS, "unlock_days must be <= 365*10, i.e. 10 years" )
+    CHECK( title.size() <= MAX_TITLE_SIZE, "title size must be <= " + to_string(MAX_TITLE_SIZE) )
+    CHECK( is_account(asset_contract), "asset contract account does not exist" )
+    CHECK( asset_symbol.is_valid(), "Invalid asset symbol" )
+    CHECK( unlock_interval_days > 0 && unlock_interval_days <= MAX_LOCK_DAYS,
+        "unlock_days must be > 0 and <= 365*10, i.e. 10 years" )
+    CHECK( unlock_times > 0, "unlock times must be > 0" )
+
 
     plan_t::tbl_t plans(_self, _self.value);
 	auto plan_id = plans.available_primary_key();
