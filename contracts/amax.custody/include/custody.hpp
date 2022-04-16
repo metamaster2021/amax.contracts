@@ -51,7 +51,7 @@ public:
     [[eosio::action]] void setplanowner(const name& issuer, const uint64_t& plan_id, const name& new_owner);
     [[eosio::action]] void enableplan(const name& issuer, const uint64_t& plan_id, bool enabled);
     [[eosio::action]] void delplan(const name& issuer, const uint64_t& plan_id); //by maintainer only
-    [[eosio::action]] void endplanissue(const name& issuer, const uint64_t& plan_id, const name& stake_owner); //by plan owner only
+    [[eosio::action]] void endissue(const name& issuer, const uint64_t& plan_id, const uint64_t& issue_id); //run by plan owner only
     [[eosio::on_notify("*::transfer")]] void ontransfer(name from, name to, asset quantity, string memo);
     [[eosio::action]] void unlock(const name& issuer, const uint64_t& plan_id, const uint64_t& issue_id);
 

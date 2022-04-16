@@ -94,7 +94,7 @@ void custody::ontransfer(name from, name to, asset quantity, string memo) {
     check( plan.asset_contract == asset_contract, "issue asset contract mismatch" );
     check( plan.asset_symbol == quantity.symbol, "issue asset symbol mismatch" );
 
-    plan.total_issued_amount += quantity.amount;
+    plan.total_issued += quantity.amount;
     _db.set(plan);
 
     auto owner          = name(transfer_memo[1]);
@@ -110,34 +110,34 @@ void custody::ontransfer(name from, name to, asset quantity, string memo) {
 }
 
 [[eosio::action]] 
-void custody::endplanissue(const name& issuer, const uint64_t& plan_id, const name& issue_owner) {
+void custody::endissue(const name& issuer, const uint64_t& plan_id, const uint64_t& issue_id) {
     require_auth( issuer );
 
     plan_t plan(plan_id);
     CHECK( _db.get(plan), "plan not found: " + to_string(plan_id) )
     CHECK( plan.owner == issuer, "issuer not the plan owner!" )
 
-    issue_t::tbl_t issues(_self, plan_id);
-    auto issue_idx = issues.get_index<"ownerissues"_n>();
-    auto lower_itr = issue_idx.lower_bound( uint128_t(issue_owner.value) << 64 );
-	auto upper_itr = issue_idx.upper_bound( uint128_t(issue_owner.value) << 64 | std::numeric_limits<uint64_t>::max() );
+    issue_t issue(plan_id, issue_id);
+    CHECK( _db.get(issue), "issue not found: " + to_string(issue_id) + "@" + to_string(plan_id) )
+    unlock(issuer, plan_id, issue_id);
 
-	int step = 0;
-    for (auto itr = lower_itr; itr != upper_itr && itr != issue_idx.end(); itr++) {
-		if (step++ == _gstate.trx_max_step) break;
+    auto memo = "terminated: " + to_string(issue.issue_id);
+    auto quantity = asset(issue.locked, plan.asset_symbol);
+    TRANSFER( plan.asset_contract, issuer, quantity, memo )
 
-        unlock(issuer, itr->plan_id, itr->issue_id);
-        issue_t issue(itr->plan_id, itr->issue_id);
-        _db.get(issue);
-        
-        auto memo = "terminated: " + to_string(itr->issue_id);
-        auto quantity = asset(itr->locked, plan.asset_symbol);
-        TRANSFER( plan.asset_contract, issuer, quantity, memo )
+    _db.del(issue);
 
-        _db.del(issue);
+    // auto issue_idx = issues.get_index<"ownerissues"_n>();
+    // auto lower_itr = issue_idx.lower_bound( uint128_t(issue_owner.value) << 64 );
+	// auto upper_itr = issue_idx.upper_bound( uint128_t(issue_owner.value) << 64 | std::numeric_limits<uint64_t>::max() );
 
-        //TODO: update plan
-    }
+	// int step = 0;
+    // for (auto itr = lower_itr; itr != upper_itr && itr != issue_idx.end(); itr++) {
+	// 	if (step++ == _gstate.trx_max_step) break;
+    //     issue_t issue(itr->plan_id, itr->issue_id);
+    //     _db.get(issue);
+    //     //TODO: update plan
+    // }
 }
 
 /**
