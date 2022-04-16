@@ -21,7 +21,7 @@ static constexpr symbol SYS_SYMBOL              = SYMBOL("AMAX", 8);
 static constexpr name SYS_BANK                  { "amax.token"_n };
 static constexpr name COUNTER_ADMIN             = "admin"_n;
 static constexpr name COUNTER_PLAN              = "plan"_n;
-static constexpr name COUNTER_STAKE             = "stake"_n;
+static constexpr name COUNTER_issue             = "issue"_n;
 
 static const string COUNTER_IDX                 = "ID";
 
@@ -57,8 +57,8 @@ struct CUSTODY_TBL plan_t {
     symbol          asset_symbol;               //E.g. AMAX | CNYD
     uint64_t        unlock_interval_days;       //interval between two consecutive unlock timepoints
     uint64_t        unlock_times;
-    uint64_t        total_staked_amount = 0;    //stats: updated upon stake
-    uint64_t        total_redeemed_amount = 0;  //stats: updated upon redeem
+    uint64_t        total_issued_amount = 0;    //stats: updated upon issue
+    uint64_t        total_unlocked_amount = 0;  //stats: updated upon unlock
     bool            enabled = true;             //can be disabled
     time_point      created_at;                 //creation time (UTC time)
     time_point      updated_at;                 //update time: last updated at
@@ -79,37 +79,40 @@ struct CUSTODY_TBL plan_t {
     > tbl_t;
 
     EOSLIB_SERIALIZE( plan_t, (id)(owner)(title)(asset_contract)(asset_symbol)(unlock_interval_days)(unlock_times)
-                              (total_staked_amount)(total_redeemed_amount)(enabled)(created_at)(updated_at) )
+                              (total_issued_amount)(total_unlocked_amount)(enabled)(created_at)(updated_at) )
 
 };
-struct CUSTODY_TBL stake_t {
+struct CUSTODY_TBL issue_t {
     uint64_t            plan_id;            // scope
-    uint64_t            stake_id;           // PK, unique within the contract
-    name                owner;        
-    uint64_t            staked;
-    uint64_t            redeemed;           //updated upon redeem
-    time_point          created_at;         //stake time (UTC time)
-    time_point          updated_at;         //update time: last redeemed at
+    uint64_t            issue_id;           // PK, unique within the contract
+    name                owner;
+    uint64_t            issued;             //originally issued amount
+    uint64_t            locked;             //currently locked amount
+    uint64_t            unlocked;           //currently unlocked amount
+    uint64_t            first_unlock_days;  //unlock since issued_at
+    time_point          issued_at;          //issue time (UTC time)
+    time_point          updated_at;         //update time: last unlocked at
 
     uint64_t       scope() const { return plan_id; }
-    uint64_t primary_key() const { return stake_id; }
+    uint64_t primary_key() const { return issue_id; }
 
-    stake_t() {}
-    stake_t(uint64_t p, uint64_t s): plan_id(p), stake_id(s) {}
-    stake_t(uint64_t p, uint64_t s, name o, uint64_t sa): plan_id(p), stake_id(s), owner(o), staked(sa) {
-        redeemed = 0;
-        created_at = current_time_point();
+    issue_t() {}
+    issue_t(uint64_t p, uint64_t s): plan_id(p), issue_id(s) {}
+    issue_t(uint64_t p, uint64_t ii, name o, uint64_t is, uint64_t fu): plan_id(p), issue_id(ii), owner(o), issued(is), first_unlock_days(fu) {
+        locked = issued;
+        unlocked = 0;
+        issued_at = current_time_point();
     }
 
     uint64_t by_owner() const { return owner.value; }
     uint128_t by_owner_update() const { return uint128_t(owner.value) << 64 | uint128_t(updated_at.sec_since_epoch()); }
 
-    typedef eosio::multi_index<"stakes"_n, stake_t,
-        indexed_by<"ownerstakes"_n,     const_mem_fun<stake_t, uint64_t, &stake_t::by_owner>>,
-        indexed_by<"ownerupdate"_n,     const_mem_fun<stake_t, uint128_t, &stake_t::by_owner_update>>
+    typedef eosio::multi_index<"issues"_n, issue_t,
+        indexed_by<"ownerissues"_n,     const_mem_fun<issue_t, uint64_t, &issue_t::by_owner>>,
+        indexed_by<"ownerupdate"_n,     const_mem_fun<issue_t, uint128_t, &issue_t::by_owner_update>>
     > tbl_t;
 
-    EOSLIB_SERIALIZE( stake_t,  (plan_id)(stake_id)(owner)(staked)(redeemed)(created_at)(updated_at) )
+    EOSLIB_SERIALIZE( issue_t,  (plan_id)(issue_id)(owner)(issued)(locked)(unlocked)(first_unlock_days)(issued_at)(updated_at) )
 };
 
 

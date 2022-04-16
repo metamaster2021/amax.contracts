@@ -52,20 +52,7 @@ public:
     [[eosio::action]] void enableplan(const name& issuer, const uint64_t& plan_id, bool enabled);
     [[eosio::action]] void delplan(const name& issuer, const uint64_t& plan_id); //by maintainer only
     [[eosio::action]] void endplan(const name& issuer, const uint64_t& plan_id, const name& stake_owner); //by plan owner only
-    
-    [[eosio::on_notify("*::transfer")]]
-    void ontransfer(name from, name to, asset quantity, string memo);
-
-    [[eosio::action]] void redeem(const name& issuer, const uint64_t& plan_id, const uint64_t& stake_id);
-    // ACTION withdrawx(name issuer, name to, name original_recipient, uint64_t stake_id, asset quantity);
-    // ACTION repairstake(name issuer, name recipient, uint64_t stake_id, uint64_t amount);
-    // ACTION repairindex(name issuer, name recipient, uint64_t stake_id);
-    // ACTION repairplan(name issuer, name user, uint64_t stake_id, uint16_t plan_id);
-
-private:
-    uint64_t _gen_new_id(const name &counter_key);
-    uint16_t _get_accumulated_ratio(plan_t &t, time_point& staked_at);
-    uint64_t _get_admin_counter();
-    uint64_t _inc_admin_counter(bool increase_by_one = true);
+    [[eosio::on_notify("*::transfer")]] void ontransfer(name from, name to, asset quantity, string memo);
+    [[eosio::action]] void unlock(const name& issuer, const uint64_t& plan_id, const uint64_t& issue_id);
 
 }; //contract custody
