@@ -13,7 +13,9 @@ using namespace wasm;
 void custody::init(const name& issuer) {
     require_auth(get_self());
 
-    check(false, "init already done!");
+    // check(false, "init already done!");
+    addplan(issuer, "Community Partner Incentive Plan", "amax.token"_n, SYS_SYMBOL, 91, 10);
+    addplan(issuer, "Developer Incentive Plan", "amax.token"_n, SYS_SYMBOL, 91, 16);
 
 }
 
