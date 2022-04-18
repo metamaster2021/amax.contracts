@@ -47,11 +47,10 @@ void custody::init() {
 
 [[eosio::action]]
 void custody::setplanowner(const name& owner, const uint64_t& plan_id, const name& new_owner){
-    require_auth( owner );
-
     plan_t plan(plan_id);
     CHECK( _db.get(plan), "plan not exist: " + to_string(plan_id) )
-    CHECK( plan.owner == owner || plan.owner != _self, "Non-plan owner nor maintainer not allowed to change owner" )
+    CHECK( plan.owner == owner, "owner mismatch" )
+    CHECK( has_auth(plan.owner) || has_auth(get_self()), "Missing required authority of owner or maintainer" )
 
     plan.owner = new_owner;
     plan.updated_at = current_time_point();
@@ -65,6 +64,7 @@ void custody::delplan(const name& owner, const uint64_t& plan_id) {
 
     plan_t plan(plan_id);
     check(_db.get(plan), "plan not exist");
+    CHECK( plan.owner == owner, "owner mismatch" )
     _db.del(plan);
 
 }
