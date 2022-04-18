@@ -34,9 +34,9 @@ static constexpr uint32_t MAX_TITLE_SIZE        = 64;
 
 namespace wasm { namespace db {
 
-#define CUSTODY_TBL [[eosio::table, eosio::contract("custody")]]
+#define CUSTODY_TBL [[eosio::table, eosio::contract("amax.custody")]]
 
-struct [[eosio::table("global"), eosio::contract("custody")]] global_t {
+struct CUSTODY_TBL global_t {
     bool initialized        = false;
     uint64_t trx_max_step   = 30;
 
@@ -108,6 +108,5 @@ struct CUSTODY_TBL issue_t {
     EOSLIB_SERIALIZE( issue_t,  (plan_id)(issue_id)(issuer)(receiver)(issued)(locked)(unlocked)
                                 (first_unlock_days)(issued_at)(updated_at) )
 };
-
 
 } }
