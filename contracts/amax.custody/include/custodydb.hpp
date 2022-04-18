@@ -82,36 +82,31 @@ struct CUSTODY_TBL plan_t {
 
 };
 struct CUSTODY_TBL issue_t {
-    uint64_t            plan_id;            // scope
-    uint64_t            issue_id;           // PK, unique within the contract
-    name                owner;
-    uint64_t            issued;             //originally issued amount
-    uint64_t            locked;             //currently locked amount
-    uint64_t            unlocked;           //currently unlocked amount
-    uint64_t            first_unlock_days;  //unlock since issued_at
-    time_point          issued_at;          //issue time (UTC time)
-    time_point          updated_at;         //update time: last unlocked at
+    uint64_t            plan_id = 0;            //scope, plan id
+    uint64_t            issue_id = 0;           //PK, unique within the contract
+    name                issuer;                 //issuer
+    name                receiver;               //receiver of issue who can unlock
+    uint64_t            issued = 0;             //originally issued amount
+    uint64_t            locked = 0;             //currently locked amount
+    uint64_t            unlocked = 0;           //currently unlocked amount
+    uint64_t            first_unlock_days = 0;  //unlock since issued_at
+    time_point          issued_at;              //issue time (UTC time)
+    time_point          updated_at;             //update time: last unlocked at
 
     uint64_t       scope() const { return plan_id; }
     uint64_t primary_key() const { return issue_id; }
 
     issue_t() {}
     issue_t(uint64_t p, uint64_t s): plan_id(p), issue_id(s) {}
-    issue_t(uint64_t p, uint64_t ii, name o, uint64_t is, uint64_t fu): plan_id(p), issue_id(ii), owner(o), issued(is), first_unlock_days(fu) {
-        locked = issued;
-        unlocked = 0;
-        issued_at = current_time_point();
-    }
 
-    uint64_t by_owner() const { return owner.value; }
-    uint128_t by_owner_update() const { return uint128_t(owner.value) << 64 | uint128_t(updated_at.sec_since_epoch()); }
+    uint64_t by_updateat() const { return updated_at.sec_since_epoch(); }
 
     typedef eosio::multi_index<"issues"_n, issue_t,
-        indexed_by<"ownerissues"_n,     const_mem_fun<issue_t, uint64_t, &issue_t::by_owner>>,
-        indexed_by<"ownerupdate"_n,     const_mem_fun<issue_t, uint128_t, &issue_t::by_owner_update>>
+        indexed_by<"updateat"_n,     const_mem_fun<issue_t, uint64_t, &issue_t::by_updateat>>
     > tbl_t;
 
-    EOSLIB_SERIALIZE( issue_t,  (plan_id)(issue_id)(owner)(issued)(locked)(unlocked)(first_unlock_days)(issued_at)(updated_at) )
+    EOSLIB_SERIALIZE( issue_t,  (plan_id)(issue_id)(issuer)(receiver)(issued)(locked)(unlocked)
+                                (first_unlock_days)(issued_at)(updated_at) )
 };
 
 

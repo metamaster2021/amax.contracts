@@ -96,7 +96,7 @@ void custody::ontransfer(name from, name to, asset quantity, string memo) {
     vector<string_view> transfer_memo = split(memo, ":");
     check( transfer_memo.size() == 3, "params error" );
 
-    auto plan_id            = (uint64_t) atoi(transfer_memo[0].data());
+    auto plan_id            = (uint64_t) atoi(transfer_memo[0].data()); // TODO: should check int strict
     plan_t plan(plan_id);
     CHECK( _db.get(plan), "plan not found: " + to_string(plan_id) )
     CHECK( plan.enabled, "plan not enabled" )
@@ -112,12 +112,18 @@ void custody::ontransfer(name from, name to, asset quantity, string memo) {
     check( is_account(owner), "owner not exist" );
 
     auto first_unlock_days = (uint64_t) atoi(transfer_memo[2].data());
-
+    auto now = current_time_point();
     issue_t::tbl_t issues(_self, plan.id);
     auto issue_id = issues.available_primary_key();
-    issue_t issue(plan.id, issue_id, owner, quantity.amount, first_unlock_days);
-
-    _db.set(issue);
+    issue_t issue;
+    issue.plan_id = plan.id;
+    issue.issue_id = issue_id;
+    issue.issuer = from;
+    issue.receiver = owner;
+    issue.first_unlock_days = first_unlock_days;
+    issue.issued_at = now;
+    issue.updated_at = now;
+    _db.set(issue); // TODO: payer??
 }
 
 [[eosio::action]]
@@ -126,11 +132,11 @@ void custody::endissue(const name& issuer, const uint64_t& plan_id, const uint64
 
     plan_t plan(plan_id);
     CHECK( _db.get(plan), "plan not found: " + to_string(plan_id) )
-    CHECK( plan.owner == issuer, "issuer not the plan owner!" )
 
     issue_t issue(plan_id, issue_id);
     CHECK( _db.get(issue), "issue not found: " + to_string(issue_id) + "@" + to_string(plan_id) )
-    unlock(issuer, plan_id, issue_id);
+    CHECK( issue.issuer == issuer, "issuer mismatch" )
+    unlock(issue.receiver, plan_id, issue_id);
 
     auto memo = "terminated: " + to_string(issue.issue_id);
     auto quantity = asset(issue.locked, plan.asset_symbol);
@@ -155,8 +161,8 @@ void custody::endissue(const name& issuer, const uint64_t& plan_id, const uint64
  * withraw all available/unlocked assets belonging to the issuer
  */
 [[eosio::action]]
-void custody::unlock(const name& issuer, const uint64_t& plan_id, const uint64_t& issue_id) {
-    require_auth(issuer);
+void custody::unlock(const name& receiver, const uint64_t& plan_id, const uint64_t& issue_id) {
+    require_auth(receiver);
 
     auto now = current_time_point();
 
@@ -165,6 +171,7 @@ void custody::unlock(const name& issuer, const uint64_t& plan_id, const uint64_t
 
     issue_t issue(plan_id, issue_id);
     CHECK( _db.get(issue), "issue not found: " + to_string(issue_id) + "@" + to_string(plan_id) )
+    CHECK( issue.receiver == receiver, "receiver mismatch" )
     auto unlock_times = ((now - days(issue.first_unlock_days)).sec_since_epoch() / DAY_SECONDS) / plan.unlock_interval_days;
     auto single_unlock = issue.issued / plan.unlock_times;
     auto total_unlock = single_unlock * unlock_times;
@@ -172,7 +179,7 @@ void custody::unlock(const name& issuer, const uint64_t& plan_id, const uint64_t
     CHECK( issue.locked > 0 && issue.unlocked < total_unlock, "already unlocked" )
     auto quantity = asset(total_unlock - issue.unlocked, plan.asset_symbol);
     string memo = "unlock: " + to_string(issue_id) + "@" + to_string(plan_id);
-    TRANSFER_OUT( plan.asset_contract, issue.owner, quantity, memo )
+    TRANSFER_OUT( plan.asset_contract, issue.receiver, quantity, memo )
     issue.unlocked = total_unlock;
     issue.locked = issue.issued - total_unlock;
 

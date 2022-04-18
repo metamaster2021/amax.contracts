@@ -47,12 +47,15 @@ public:
     }
 
     [[eosio::action]] void init();  //initialize & maintain
-    [[eosio::action]] void addplan(const name& owner, const string& title, const name& asset_contract, const symbol& asset_symbol, const uint64_t& unlock_interval_days, const int64_t& unlock_time);
+    [[eosio::action]] void addplan(const name& owner, const string& title, const name& asset_contract, const symbol& asset_symbol, const uint64_t& unlock_interval_days, const int64_t& unlock_times);
     [[eosio::action]] void setplanowner(const name& owner, const uint64_t& plan_id, const name& new_owner);
     [[eosio::action]] void enableplan(const name& owner, const uint64_t& plan_id, bool enabled);
     [[eosio::action]] void delplan(const name& owner, const uint64_t& plan_id); //by maintainer only
-    [[eosio::action]] void endissue(const name& issuer, const uint64_t& plan_id, const uint64_t& issue_id); //run by plan owner only
+    /**
+     * @param memo memo format:${plan_id}:${owner}:${first_unlock_days}, Eg: "1:armonia12345:91"
+     */
     [[eosio::on_notify("*::transfer")]] void ontransfer(name from, name to, asset quantity, string memo);
-    [[eosio::action]] void unlock(const name& issuer, const uint64_t& plan_id, const uint64_t& issue_id);
+    [[eosio::action]] void unlock(const name& unlocker, const uint64_t& plan_id, const uint64_t& issue_id);
+    [[eosio::action]] void endissue(const name& issuer, const uint64_t& plan_id, const uint64_t& issue_id); //run by plan owner only
 
 }; //contract custody
