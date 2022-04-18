@@ -45,7 +45,7 @@ struct CUSTODY_TBL global_t {
 typedef eosio::singleton< "global"_n, global_t > global_singleton;
 
 /* (unlock_days ->  Pair(accmulated_unlock_ratio% * 10000, proposal_txid) */
-typedef std::map<uint16_t, pair<uint16_t, checksum256>> unlock_plan_map;
+// typedef std::map<uint16_t, pair<uint16_t, checksum256>> unlock_plan_map;
 
 struct CUSTODY_TBL plan_t {
     uint64_t        id;
