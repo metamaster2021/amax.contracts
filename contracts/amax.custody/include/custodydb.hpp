@@ -20,11 +20,6 @@ static constexpr eosio::name active_perm        {"active"_n};
 static constexpr symbol SYS_SYMBOL              = SYMBOL("AMAX", 8);
 static constexpr name SYS_BANK                  { "amax.token"_n };
 
-static constexpr uint16_t PERCENT_BOOST         = 10000;
-static constexpr int128_t HIGH_PRECISION_1      = 100000000000000000;   //10^17
-static constexpr int128_t PRECISION_1           = 100000000;            //10^8
-static constexpr int128_t PRECISION             = 8;
-
 static constexpr uint64_t MAX_LOCK_DAYS         = 365 * 10;
 static constexpr uint64_t DAY_SECONDS           = 24 * 60 * 60;
 // static constexpr int64_t DAY_SECONDS        =  60; //for testing only
