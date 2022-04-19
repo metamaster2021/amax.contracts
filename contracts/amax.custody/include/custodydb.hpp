@@ -30,8 +30,9 @@ static constexpr uint32_t MAX_TITLE_SIZE        = 64;
 namespace wasm { namespace db {
 
 #define CUSTODY_TBL [[eosio::table, eosio::contract("amax.custody")]]
+#define CUSTODY_TBL_NAME(name) [[eosio::table(name), eosio::contract("amax.custody")]]
 
-struct CUSTODY_TBL global_t {
+struct CUSTODY_TBL_NAME("global") global_t {
     bool initialized        = false;
     uint64_t trx_max_step   = 30;
 
