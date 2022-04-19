@@ -5197,4 +5197,21 @@ BOOST_FIXTURE_TEST_CASE( buy_pin_sell_ram, eosio_system_tester ) try {
 
 } FC_LOG_AND_RETHROW()
 
+BOOST_FIXTURE_TEST_CASE( ontransfer_ram_payer_test, eosio_system_tester ) try {
+   issue_and_transfer( "alice1111111", core_sym::from_string("100000.0000"),  config::system_account_name );
+
+   create_account_with_resources( N(tokentest111), config::system_account_name, core_sym::from_string("10000.0000"), false );
+   set_code( N(tokentest111), contracts::util::token_test_wasm() );
+   set_abi( N(tokentest111), contracts::util::token_test_abi().data() );
+   produce_blocks();
+
+   auto actor = N(alice1111111);
+   BOOST_REQUIRE_EXCEPTION(
+      transfer( N(alice1111111), N(tokentest111), core_sym::from_string("10000.0000"),
+                actor, "test_ram_payer" ),
+      unauthorized_ram_usage_increase,
+      fc_exception_message_starts_with("unprivileged contract cannot increase RAM usage of another account within a notify context: alice1111111")
+   );
+} FC_LOG_AND_RETHROW()
+
 BOOST_AUTO_TEST_SUITE_END()

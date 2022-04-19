@@ -863,25 +863,25 @@ public:
                                 );
    }
 
-   void transfer( const name& from, const name& to, const asset& amount, const name& manager = config::system_account_name ) {
-      base_tester::push_action( N(amax.token), N(transfer), manager, mutable_variant_object()
+   auto transfer( const name& from, const name& to, const asset& amount, const name& manager = config::system_account_name, const string& memo = "" ) {
+      return base_tester::push_action( N(amax.token), N(transfer), manager, mutable_variant_object()
                                 ("from",    from)
                                 ("to",      to )
                                 ("quantity", amount)
-                                ("memo", "")
+                                ("memo", memo)
                                 );
    }
 
-   void transfer( const name& from, std::string_view to, const asset& amount, const name& manager = config::system_account_name ) {
-      transfer( from, name(to), amount, manager );
+   auto transfer( const name& from, std::string_view to, const asset& amount, const name& manager = config::system_account_name ) {
+      return transfer( from, name(to), amount, manager );
    }
 
-   void transfer( std::string_view from, std::string_view to, const asset& amount, std::string_view manager ) {
-      transfer( name(from), name(to), amount, name(manager) );
+   auto transfer( std::string_view from, std::string_view to, const asset& amount, std::string_view manager ) {
+      return transfer( name(from), name(to), amount, name(manager) );
    }
 
-   void transfer( std::string_view from, std::string_view to, const asset& amount ) {
-      transfer( name(from), name(to), amount );
+   auto transfer( std::string_view from, std::string_view to, const asset& amount ) {
+      return transfer( name(from), name(to), amount );
    }
 
    void issue_and_transfer( const name& to, const asset& amount, const name& manager = config::system_account_name ) {

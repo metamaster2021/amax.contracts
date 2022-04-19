@@ -24,6 +24,26 @@ endif(VERSION_OUTPUT STREQUAL "MATCH")
 configure_file(${CMAKE_SOURCE_DIR}/contracts.hpp.in ${CMAKE_BINARY_DIR}/contracts.hpp)
 
 include_directories(${CMAKE_BINARY_DIR})
+
+include(ExternalProject)
+
+set(AMAX_WASM_OLD_BEHAVIOR "Off")
+find_package(amax.cdt REQUIRED)
+
+### test contracts
+message( STATUS "Building contracts in directory `tests/test-contracts/`" )
+ExternalProject_Add(
+   test_contracts_project
+   SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/test_contracts
+   BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/test_contracts
+   CMAKE_ARGS -DCMAKE_TOOLCHAIN_FILE=${AMAX_CDT_ROOT}/lib/cmake/amax.cdt/AmaxWasmToolchain.cmake -DAMAX_COMPILE_TEST_CONTRACTS=${AMAX_COMPILE_TEST_CONTRACTS}
+   UPDATE_COMMAND ""
+   PATCH_COMMAND ""
+   TEST_COMMAND ""
+   INSTALL_COMMAND ""
+   BUILD_ALWAYS 1
+)
+
 ### UNIT TESTING ###
 include(CTest) # eliminates DartConfiguration.tcl errors at test runtime
 enable_testing()
