@@ -22,7 +22,6 @@ static constexpr name SYS_BANK                  { "amax.token"_n };
 
 static constexpr uint64_t MAX_LOCK_DAYS         = 365 * 10;
 static constexpr uint64_t DAY_SECONDS           = 24 * 60 * 60;
-// static constexpr int64_t DAY_SECONDS        =  60; //for testing only
 
 static constexpr uint32_t MAX_TITLE_SIZE        = 64;
 

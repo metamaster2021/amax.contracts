@@ -214,13 +214,20 @@ void custody::unlock(const name& receiver, const uint64_t& plan_id, const uint64
     CHECK( plan_itr != plan_tbl.end(), "plan not found: " + to_string(plan_id) )
     CHECK( plan_itr->enabled, "plan not enabled" )
 
-    auto unlock_times = std::min( plan_itr->unlock_times,
-        ((now - days(issue_itr->first_unlock_days)).sec_since_epoch() / DAY_SECONDS) / plan_itr->unlock_interval_days );
-    auto single_unlock = issue_itr->issued / plan_itr->unlock_times;
-    auto total_unlocked = single_unlock * unlock_times;
-    auto cur_unlocked = total_unlocked > issue_itr->unlocked ? total_unlocked - issue_itr->unlocked : 0;
-    CHECK( cur_unlocked > 0 && issue_itr->issued > total_unlocked, "already unlocked" )
+    ASSERT(now >= issue_itr->issued_at)
+    auto issued_days = (now.sec_since_epoch() - issue_itr->issued_at.sec_since_epoch()) / DAY_SECONDS;
+    auto unlocked_days = issued_days > issue_itr->first_unlock_days ? issued_days - issue_itr->first_unlock_days : 0;
+    ASSERT(plan_itr->unlock_interval_days > 0);
+    auto unlocked_times = std::min(unlocked_days / plan_itr->unlock_interval_days, plan_itr->unlock_times);
+    auto unlocked_per_times = issue_itr->issued / plan_itr->unlock_times;
+
+    ASSERT(plan_itr->unlock_times > 0)
+    auto total_unlocked = multiply_decimal64(issue_itr->issued, unlocked_times, plan_itr->unlock_times);
+    ASSERT(total_unlocked >= issue_itr->unlocked && issue_itr->issued > total_unlocked)
+    auto cur_unlocked = total_unlocked - issue_itr->unlocked;
     auto remaining_locked = issue_itr->issued - total_unlocked;
+
+    CHECK( cur_unlocked > 0, "already unlocked" )
     auto quantity = asset(cur_unlocked, plan_itr->asset_symbol);
     string memo = "unlock: " + to_string(issue_id) + "@" + to_string(plan_id);
     TRANSFER_OUT( plan_itr->asset_contract, issue_itr->receiver, quantity, memo )

@@ -16,8 +16,10 @@ using namespace std;
 #define PP0(prop) #prop ":", prop
 #define PRINT_PROPERTIES(...) eosio::print("{", __VA_ARGS__, "}")
 
+#define CHECK(exp, msg) { if (!(exp)) eosio::check(false, msg); }
+
 #ifndef ASSERT
-    #define ASSERT(exp) eosio::check(exp, #exp)
+    #define ASSERT(exp) CHECK(exp, #exp)
 #endif
 
 #ifndef TRACE
@@ -25,8 +27,6 @@ using namespace std;
 #endif
 
 #define TRACE_L(...) TRACE(__VA_ARGS__, "\n")
-
-#define CHECK(exp, msg) { if (!(exp)) eosio::check(false, msg); }
 
 
 template<typename T>
@@ -39,6 +39,7 @@ int128_t multiply(int128_t a, int128_t b) {
 
 template<typename T>
 int128_t divide_decimal(int128_t a, int128_t b, int128_t precision) {
+    // with rounding-off method
     int128_t tmp = 10 * a * precision  / b;
     CHECK(tmp >= std::numeric_limits<T>::min() && tmp <= std::numeric_limits<T>::max(),
           "overflow exception of divide_decimal");
@@ -47,6 +48,7 @@ int128_t divide_decimal(int128_t a, int128_t b, int128_t precision) {
 
 template<typename T>
 int128_t multiply_decimal(int128_t a, int128_t b, int128_t precision) {
+    // with rounding-off method
     int128_t tmp = 10 * a * b / precision;
     CHECK(tmp >= std::numeric_limits<T>::min() && tmp <= std::numeric_limits<T>::max(),
           "overflow exception of multiply_decimal");
