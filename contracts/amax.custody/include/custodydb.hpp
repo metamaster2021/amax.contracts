@@ -77,17 +77,27 @@ struct CUSTODY_TBL plan_t {
                               (total_issued)(total_unlocked)(enabled)(created_at)(updated_at) )
 
 };
+
+enum issue_status_t {
+    ISSUE_NONE          = 0,
+    ISSUE_UNACTIVATED   = 1,
+    ISSUE_ACTIVATED     = 2,
+    ISSUE_ENDED         = 3
+};
+
 struct CUSTODY_TBL issue_t {
-    uint64_t            plan_id = 0;            //scope, plan id
-    uint64_t            issue_id = 0;           //PK, unique within the contract
-    name                issuer;                 //issuer
-    name                receiver;               //receiver of issue who can unlock
-    uint64_t            issued = 0;             //originally issued amount
-    uint64_t            locked = 0;             //currently locked amount
-    uint64_t            unlocked = 0;           //currently unlocked amount
-    uint64_t            first_unlock_days = 0;  //unlock since issued_at
-    time_point          issued_at;              //issue time (UTC time)
-    time_point          updated_at;             //update time: last unlocked at
+    // scope = contract self
+    uint64_t      issue_id = 0;                 //PK, unique within the contract
+    uint64_t      plan_id = 0;                  //plan id
+    name          issuer;                       //issuer
+    name          receiver;                     //receiver of issue who can unlock
+    uint64_t      issued = 0;                   //originally issued amount
+    uint64_t      locked = 0;                   //currently locked amount
+    uint64_t      unlocked = 0;                 //currently unlocked amount
+    uint64_t      first_unlock_days = 0;        //unlock since issued_at
+    uint8_t       status = ISSUE_UNACTIVATED;   //status of issue, see issue_status_t
+    time_point    issued_at;                    //issue time (UTC time)
+    time_point    updated_at;                   //update time: last unlocked at
 
     uint64_t       scope() const { return plan_id; }
     uint64_t primary_key() const { return issue_id; }
@@ -102,7 +112,7 @@ struct CUSTODY_TBL issue_t {
     > tbl_t;
 
     EOSLIB_SERIALIZE( issue_t,  (plan_id)(issue_id)(issuer)(receiver)(issued)(locked)(unlocked)
-                                (first_unlock_days)(issued_at)(updated_at) )
+                                (first_unlock_days)(status)(issued_at)(updated_at) )
 };
 
 } }

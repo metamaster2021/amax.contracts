@@ -51,6 +51,8 @@ public:
     [[eosio::action]] void setplanowner(const name& owner, const uint64_t& plan_id, const name& new_owner);
     [[eosio::action]] void enableplan(const name& owner, const uint64_t& plan_id, bool enabled);
     [[eosio::action]] void delplan(const name& owner, const uint64_t& plan_id); //by maintainer only
+
+    [[eosio::action]] void addissue(const name& issuer, const name& receiver, uint64_t plan_id, uint64_t first_unlock_days);
     /**
      * @param memo memo format:${plan_id}:${owner}:${first_unlock_days}, Eg: "1:armonia12345:91"
      */
