@@ -74,7 +74,10 @@ struct CUSTODY_TBL plan_t {
         created_at = current_time_point();
     }
 
+    uint64_t by_updateat() const { return updated_at.sec_since_epoch(); }
+
     typedef eosio::multi_index<"plans"_n, plan_t,
+        indexed_by<"updateat"_n,     const_mem_fun<plan_t, uint64_t, &plan_t::by_updateat>>,
         indexed_by<"owneridx"_n,  const_mem_fun<plan_t, uint64_t, &plan_t::by_owner> >
     > tbl_t;
 
