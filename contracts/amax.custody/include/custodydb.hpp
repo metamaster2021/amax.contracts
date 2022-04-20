@@ -21,7 +21,13 @@ static constexpr symbol SYS_SYMBOL              = SYMBOL("AMAX", 8);
 static constexpr name SYS_BANK                  { "amax.token"_n };
 
 static constexpr uint64_t MAX_LOCK_DAYS         = 365 * 10;
+
+#ifndef DAY_SECONDS_FOR_TEST
 static constexpr uint64_t DAY_SECONDS           = 24 * 60 * 60;
+#else
+#warning "DAY_SECONDS_FOR_TEST should use only for test!!!"
+static constexpr uint64_t DAY_SECONDS           = DAY_SECONDS_FOR_TEST;
+#endif//DAY_SECONDS_FOR_TEST
 
 static constexpr uint32_t MAX_TITLE_SIZE        = 64;
 
