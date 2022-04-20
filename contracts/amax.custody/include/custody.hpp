@@ -59,5 +59,7 @@ public:
     [[eosio::on_notify("*::transfer")]] void ontransfer(name from, name to, asset quantity, string memo);
     [[eosio::action]] void unlock(const name& unlocker, const uint64_t& plan_id, const uint64_t& issue_id);
     [[eosio::action]] void endissue(const name& issuer, const uint64_t& plan_id, const uint64_t& issue_id); //run by plan owner only
-
+private:
+    void internal_unlock(const name& actor, const uint64_t& plan_id,
+                         const uint64_t& issue_id, bool is_end_action);
 }; //contract custody
