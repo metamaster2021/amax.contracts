@@ -183,11 +183,13 @@ void custody::endissue(const name& issuer, const uint64_t& plan_id, const uint64
         auto memo = "refund: " + to_string(issue_id);
         auto refund = asset(issue_itr->locked, plan_itr->asset_symbol);
         TRANSFER_OUT( plan_itr->asset_contract, issuer, refund, memo )
+        plan_tbl.modify( plan_itr, same_payer, [&]( auto& plan ) {
+            plan.total_refund += refund.amount;
+        });
     }
 
-    // TODO: update plan.total_refund
-
-    issue_tbl.erase(issue_itr); // TODO: can not erase, because app should scan issue table's all updates
+    // can not erase, because app should scan all updates of issue table
+    issue_tbl.erase(issue_itr);
     issue_tbl.modify( issue_itr, same_payer, [&]( auto& issue ) {
         issue.status = ISSUE_ENDED;
     });
@@ -231,6 +233,10 @@ void custody::unlock(const name& receiver, const uint64_t& plan_id, const uint64
     auto quantity = asset(cur_unlocked, plan_itr->asset_symbol);
     string memo = "unlock: " + to_string(issue_id) + "@" + to_string(plan_id);
     TRANSFER_OUT( plan_itr->asset_contract, issue_itr->receiver, quantity, memo )
+
+    plan_tbl.modify( plan_itr, same_payer, [&]( auto& plan ) {
+        plan.total_unlocked += cur_unlocked;
+    });
 
     // TODO: update plan.total_unlock
     issue_tbl.modify( issue_itr, same_payer, [&]( auto& issue ) {
