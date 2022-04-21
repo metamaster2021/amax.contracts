@@ -100,25 +100,42 @@ bool starts_with(string_view sv, string_view s) {
     return sv.size() >= s.size() && sv.compare(0, s.size(), s) == 0;
 }
 
-template <class T>
-void to_int(string_view sv, T& res) {
-    res = 0;
-    T p = 1;
-    for( auto itr = sv.rbegin(); itr != sv.rend(); ++itr ) {
-        CHECK( *itr <= '9' && *itr >= '0', "invalid numeric character of int");
-        res += p * T(*itr-'0');
-        p   *= T(10);
-    }
+int64_t to_int64(string_view s, const char* err_title) {
+    errno = 0;
+    uint64_t ret = std::strtoll(s.data(), nullptr, 10);
+    CHECK(errno = 0, string(err_title) + ": convert str to int64 error: " + std::strerror(errno));
+    return ret;
 }
+
+uint64_t to_uint64(string_view s, const char* err_title) {
+    errno = 0;
+    uint64_t ret = std::strtoul(s.data(), nullptr, 10);
+    CHECK(errno = 0, string(err_title) + ": convert str to uint64 error: " + std::strerror(errno));
+    return ret;
+}
+
 template <class T>
 void precision_from_decimals(int8_t decimals, T& p10)
 {
-    CHECK(decimals <= 18, "precision should be <= 18");
+    CHECK(decimals <= 18, "symbol precision should be <= 18");
     p10 = 1;
     T p = decimals;
     while( p > 0  ) {
         p10 *= 10; --p;
     }
+}
+
+static symbol symbol_from_string(string_view from)
+{
+    string_view s = trim(from);
+    CHECK(!s.empty(), "creating symbol from empty string");
+    auto comma_pos = s.find(',');
+    CHECK(comma_pos != string::npos, "missing comma in symbol");
+    auto prec_part = s.substr(0, comma_pos);
+    uint64_t p = to_uint64(prec_part, "symbol");
+    string_view name_part = s.substr(comma_pos + 1);
+    CHECK( p <= 18, "symbol precision should be <= 18");
+    return symbol(name_part, p);
 }
 
 asset asset_from_string(string_view from)
@@ -148,11 +165,11 @@ asset asset_from_string(string_view from)
     // Parse amount
     safe<int64_t> int_part, fract_part;
     if (dot_pos != string::npos) {
-        to_int(amount_str.substr(0, dot_pos), int_part);
-        to_int(amount_str.substr(dot_pos + 1), fract_part);
+        int_part = to_int64(amount_str.substr(0, dot_pos), "asset");
+        fract_part = to_uint64(amount_str.substr(dot_pos + 1), "asset");
         if (amount_str[0] == '-') fract_part *= -1;
     } else {
-        to_int(amount_str, int_part);
+        int_part = to_int64(amount_str, "asset");
     }
 
     safe<int64_t> amount = int_part;
