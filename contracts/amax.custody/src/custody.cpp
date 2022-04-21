@@ -38,7 +38,6 @@ void custody::init() {
         "unlock_days must be > 0 and <= 365*10, i.e. 10 years" )
     CHECK( unlock_times > 0, "unlock times must be > 0" )
 
-
     plan_t::tbl_t plans(_self, _self.value);
 	auto plan_id = plans.available_primary_key();
     plan_t plan(plan_id, owner, title, asset_contract, asset_symbol, unlock_interval_days, unlock_times);
@@ -110,6 +109,12 @@ void custody::addissue(const name& issuer, const name& receiver, uint64_t plan_i
         issue.issued_at = now;
         issue.updated_at = now;
     });
+
+    account::tbl_t account_tbl(get_self(), get_self().value);
+    account_tbl.set(issuer.value, issuer, [&]( auto& acct ) {
+            acct.owner = issuer;
+            acct.last_issue_id = issue_id;
+    });
 }
 
 //issue-in op: transfer tokens to the contract and lock them according to the given plan
@@ -127,8 +132,11 @@ void custody::ontransfer(name from, name to, asset quantity, string memo) {
         uint64_t issue_id = 0;
         if (!memo_params[0].empty()) {
             issue_id = std::strtoul(memo_params[0].data(), nullptr, 10);
+        } else {
+            account::tbl_t account_tbl(get_self(), get_self().value);
+            auto acct = account_tbl.get(from.value, "custody account of issuer not found");
+            issue_id = acct.last_issue_id;
         }
-
         CHECK( issue_id != 0, "issue id can not be 0" );
 
         issue_t::tbl_t issue_tbl(get_self(), get_self().value);
