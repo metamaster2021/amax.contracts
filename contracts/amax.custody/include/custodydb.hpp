@@ -39,14 +39,19 @@ namespace wasm { namespace db {
 
 struct CUSTODY_TBL_NAME("global") global_t {
     bool initialized        = false;
-    uint64_t trx_max_step   = 30;
+    asset plan_fee          = asset(0, SYS_SYMBOL);
 
-    EOSLIB_SERIALIZE( global_t, (initialized)(trx_max_step) )
+    EOSLIB_SERIALIZE( global_t, (initialized)(plan_fee) )
 };
 typedef eosio::singleton< "global"_n, global_t > global_singleton;
 
-/* (unlock_days ->  Pair(accmulated_unlock_ratio% * 10000, proposal_txid) */
-// typedef std::map<uint16_t, pair<uint16_t, checksum256>> unlock_plan_map;
+
+enum plan_status_t {
+    PLAN_NONE          = 0,
+    PLAN_UNACTIVATED   = 1,
+    PLAN_ENABLED       = 2,
+    PLAN_DISABLED      = 3
+};
 
 struct CUSTODY_TBL plan_t {
     uint64_t        id;
@@ -59,7 +64,7 @@ struct CUSTODY_TBL plan_t {
     uint64_t        total_issued = 0;           //stats: updated upon issue deposit
     uint64_t        total_unlocked = 0;         //stats: updated upon unlock and endissue
     uint64_t        total_refunded = 0;         //stats: updated upon and endissue
-    bool            enabled = true;             //can be disabled
+    uint8_t         status = PLAN_UNACTIVATED;  //status, see plan_status_t
     time_point      created_at;                 //creation time (UTC time)
     time_point      updated_at;                 //update time: last updated at
 
@@ -82,7 +87,7 @@ struct CUSTODY_TBL plan_t {
     > tbl_t;
 
     EOSLIB_SERIALIZE( plan_t, (id)(owner)(title)(asset_contract)(asset_symbol)(unlock_interval_days)(unlock_times)
-                              (total_issued)(total_unlocked)(total_refunded)(enabled)(created_at)(updated_at) )
+                              (total_issued)(total_unlocked)(total_refunded)(status)(created_at)(updated_at) )
 
 };
 

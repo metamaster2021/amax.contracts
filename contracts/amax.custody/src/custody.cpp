@@ -38,10 +38,21 @@ void custody::init() {
         "unlock_days must be > 0 and <= 365*10, i.e. 10 years" )
     CHECK( unlock_times > 0, "unlock times must be > 0" )
 
-    plan_t::tbl_t plans(_self, _self.value);
-	auto plan_id = plans.available_primary_key();
-    plan_t plan(plan_id, owner, title, asset_contract, asset_symbol, unlock_interval_days, unlock_times);
-    _db.set(plan);
+    plan_t::tbl_t plan_tbl(get_self(), get_self().value);
+	auto plan_id = plan_tbl.available_primary_key();
+    if (plan_id == 0) plan_id = 1;
+    plan_tbl.emplace( owner, [&]( auto& plan ) {
+        plan.id = plan_id;
+        plan.owner = owner;
+        plan.title = title;
+        plan.asset_contract = asset_contract;
+        plan.asset_symbol = asset_symbol;
+        plan.unlock_interval_days = unlock_interval_days;
+        plan.unlock_times = unlock_times;
+        plan.status = PLAN_UNACTIVATED;
+        plan.created_at = current_time_point();
+        plan.updated_at = plan.created_at;
+    });
 }
 
 [[eosio::action]]
@@ -72,24 +83,27 @@ void custody::delplan(const name& owner, const uint64_t& plan_id) {
 void custody::enableplan(const name& owner, const uint64_t& plan_id, bool enabled) {
     require_auth(owner);
 
-    plan_t plan(plan_id);
-    CHECK( _db.get(plan), "plan not found: " + to_string(plan_id) )
-    CHECK( owner == plan.owner, "owner mismatch" )
-    CHECK( plan.enabled != enabled, "plan status no changed" )
+    plan_t::tbl_t plan_tbl(get_self(), get_self().value);
+    auto plan_itr = plan_tbl.find(plan_id);
+    CHECK( plan_itr != plan_tbl.end(), "plan not found: " + to_string(plan_id) )
+    CHECK( owner == plan_itr->owner, "owner mismatch" )
+    CHECK( plan_itr->status != PLAN_UNACTIVATED, "plan is unactivated" )
+    plan_status_t new_status = enabled ? PLAN_ENABLED : PLAN_DISABLED;
+    CHECK( plan_itr->status != new_status, "plan status is no changed" )
 
-    plan.enabled = enabled;
-    plan.updated_at = current_time_point();
-    _db.set(plan);
+    plan_tbl.modify( plan_itr, same_payer, [&]( auto& plan ) {
+        plan.status = PLAN_UNACTIVATED;
+        plan.updated_at = current_time_point();
+    });
 }
 
 void custody::addissue(const name& issuer, const name& receiver, uint64_t plan_id, uint64_t first_unlock_days) {
     require_auth( issuer );
 
-    plan_t plan(plan_id);
-    CHECK( _db.get(plan), "plan not found: " + to_string(plan_id) )
-    CHECK( plan.enabled, "plan not enabled" )
-
-    _db.set(plan);
+    plan_t::tbl_t plan_tbl(get_self(), get_self().value);
+    auto plan_itr = plan_tbl.find(plan_id);
+    CHECK( plan_itr != plan_tbl.end(), "plan not found: " + to_string(plan_id) )
+    CHECK( plan_itr->status == PLAN_ENABLED, "plan not enabled, status:" + to_string(plan_itr->status) )
 
     CHECK( is_account(receiver), "receiver account not exist" );
 
@@ -97,11 +111,11 @@ void custody::addissue(const name& issuer, const name& receiver, uint64_t plan_i
 
     issue_t::tbl_t issue_tbl(get_self(), get_self().value);
     auto issue_id = issue_tbl.available_primary_key();
-    if (issue_id == 0)
-        issue_id = 1;
+    if (issue_id == 0) issue_id = 1;
+
     issue_tbl.emplace( issuer, [&]( auto& issue ) {
-        issue.plan_id = plan.id;
         issue.issue_id = issue_id;
+        issue.plan_id = plan_id;
         issue.issuer = issuer;
         issue.receiver = receiver;
         issue.first_unlock_days = first_unlock_days;
@@ -146,7 +160,7 @@ void custody::ontransfer(name from, name to, asset quantity, string memo) {
         plan_t::tbl_t plan_tbl(get_self(), get_self().value);
         auto plan_itr = plan_tbl.find(issue_itr->plan_id);
         CHECK( plan_itr != plan_tbl.end(), "plan not found: " + to_string(issue_itr->plan_id) )
-        CHECK( plan_itr->enabled, "plan not enabled" )
+        CHECK( plan_itr->status == PLAN_ENABLED, "plan not enabled, status:" + to_string(plan_itr->status) )
 
         auto asset_contract = get_first_receiver();
         CHECK( plan_itr->asset_contract == asset_contract, "issue asset contract mismatch" );
@@ -202,7 +216,7 @@ void custody::internal_unlock(const name& actor, const uint64_t& plan_id,
     plan_t::tbl_t plan_tbl(get_self(), get_self().value);
     auto plan_itr = plan_tbl.find(plan_id);
     CHECK( plan_itr != plan_tbl.end(), "plan not found: " + to_string(plan_id) )
-    CHECK( plan_itr->enabled, "plan not enabled" )
+    CHECK( plan_itr->status == PLAN_ENABLED, "plan not enabled, status:" + to_string(plan_itr->status) )
 
     if (is_end_action) {
         CHECK( issue_itr->status == ISSUE_UNACTIVATED || issue_itr->status == ISSUE_ACTIVATED,
