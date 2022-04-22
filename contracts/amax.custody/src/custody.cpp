@@ -50,7 +50,7 @@ void custody::setconfig(const asset &plan_fee, const name &fee_receiver) {
         plan.asset_symbol = asset_symbol;
         plan.unlock_interval_days = unlock_interval_days;
         plan.unlock_times = unlock_times;
-        plan.status = PLAN_UNACTIVATED;
+        plan.status =  _gstate.plan_fee.amount != 0 ? PLAN_UNACTIVATED : PLAN_ENABLED;
         plan.created_at = current_time_point();
         plan.updated_at = plan.created_at;
     });
@@ -68,6 +68,7 @@ void custody::setplanowner(const name& owner, const uint64_t& plan_id, const nam
     CHECK( plan_itr != plan_tbl.end(), "plan not found: " + to_string(plan_id) )
     CHECK( owner == plan_itr->owner, "owner mismatch" )
     CHECK( has_auth(plan_itr->owner) || has_auth(get_self()), "Missing required authority of owner or maintainer" )
+    // TODO:... new_owner
 
     plan_tbl.modify( plan_itr, same_payer, [&]( auto& plan ) {
         plan.owner = new_owner;
@@ -127,7 +128,7 @@ void custody::addissue(const name& issuer, const name& receiver, uint64_t plan_i
         issue.issuer = issuer;
         issue.receiver = receiver;
         issue.first_unlock_days = first_unlock_days;
-        issue.status = _gstate.plan_fee.amount != 0 ? ISSUE_UNACTIVATED : ISSUE_UNLOCKABLE;
+        issue.status = ISSUE_UNACTIVATED;
         issue.issued_at = now;
         issue.updated_at = now;
     });
