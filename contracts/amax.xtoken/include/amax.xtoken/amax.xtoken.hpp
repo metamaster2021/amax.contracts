@@ -96,8 +96,6 @@ namespace amax_xtoken
          * @param symbol - the token to be payed with by `ram_payer`,
          * @param ram_payer - the account that supports the cost of this action.
          *
-         * More information can be read [here](https://github.com/armoniax/amax.contracts/issues/62)
-         * and [here](https://github.com/armoniax/amax.contracts/issues/61).
          */
         [[eosio::action]] void open(const name &owner, const symbol &symbol, const name &ram_payer);
 
@@ -139,11 +137,10 @@ namespace amax_xtoken
         [[eosio::action]] void minfee(const symbol &symbol, const asset &min_fee_quantity);
 
         /**
-         * set account in fee whitelist
-         * If account in fee whitelist, it doesn't have to pay fee,
+         * set account `is fee exempt`
          * @param symbol - the symbol of the token.
          * @param account - account name.
-         * @param is_fee_exempt - is account in fee whitelist.
+         * @param is_fee_exempt - is account fee exempt. if true, there is no fee for the account
          */
         [[eosio::action]] void feeexempt(const symbol &symbol, const name &account, bool is_fee_exempt);
 
@@ -154,7 +151,6 @@ namespace amax_xtoken
          * @param is_paused - is paused.
          */
         [[eosio::action]] void pause(const symbol &symbol, bool is_paused);
-
 
         /**
          * freeze account
