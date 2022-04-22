@@ -63,25 +63,28 @@ void custody::setconfig(const asset &plan_fee, const name &fee_receiver) {
 
 [[eosio::action]]
 void custody::setplanowner(const name& owner, const uint64_t& plan_id, const name& new_owner){
-    plan_t plan(plan_id);
-    CHECK( _db.get(plan), "plan not exist: " + to_string(plan_id) )
-    CHECK( plan.owner == owner, "owner mismatch" )
-    CHECK( has_auth(plan.owner) || has_auth(get_self()), "Missing required authority of owner or maintainer" )
+    plan_t::tbl_t plan_tbl(get_self(), get_self().value);
+    auto plan_itr = plan_tbl.find(plan_id);
+    CHECK( plan_itr != plan_tbl.end(), "plan not found: " + to_string(plan_id) )
+    CHECK( owner == plan_itr->owner, "owner mismatch" )
+    CHECK( has_auth(plan_itr->owner) || has_auth(get_self()), "Missing required authority of owner or maintainer" )
 
-    plan.owner = new_owner;
-    plan.updated_at = current_time_point();
-
-    _db.set( plan );
+    plan_tbl.modify( plan_itr, same_payer, [&]( auto& plan ) {
+        plan.owner = new_owner;
+        plan.updated_at = current_time_point();
+    });
 }
 
 [[eosio::action]]
 void custody::delplan(const name& owner, const uint64_t& plan_id) {
     require_auth(get_self());
 
-    plan_t plan(plan_id);
-    CHECK(_db.get(plan), "plan not exist");
-    CHECK( plan.owner == owner, "owner mismatch" )
-    _db.del(plan);
+    plan_t::tbl_t plan_tbl(get_self(), get_self().value);
+    auto plan_itr = plan_tbl.find(plan_id);
+    CHECK( plan_itr != plan_tbl.end(), "plan not found: " + to_string(plan_id) )
+    CHECK( owner == plan_itr->owner, "owner mismatch" )
+
+    plan_tbl.erase(plan_itr);
 }
 
 [[eosio::action]]
