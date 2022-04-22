@@ -106,7 +106,9 @@ void custody::enableplan(const name& owner, const uint64_t& plan_id, bool enable
     });
 }
 
-void custody::addissue(const name& issuer, const name& receiver, uint64_t plan_id, uint64_t first_unlock_days) {
+void custody::addissue( const name& issuer, const name& receiver, uint64_t plan_id,
+                        uint64_t first_unlock_days, const asset& quantity)
+{
     require_auth( issuer );
 
     plan_t::tbl_t plan_tbl(get_self(), get_self().value);
@@ -115,6 +117,7 @@ void custody::addissue(const name& issuer, const name& receiver, uint64_t plan_i
     CHECK( plan_itr->status == PLAN_ENABLED, "plan not enabled, status:" + to_string(plan_itr->status) )
 
     CHECK( is_account(receiver), "receiver account not exist" );
+    CHECK( quantity.symbol, "symbol of quantity mismatch with symbol of plan" );
 
     auto now = current_time_point();
 
@@ -128,6 +131,7 @@ void custody::addissue(const name& issuer, const name& receiver, uint64_t plan_i
         issue.issuer = issuer;
         issue.receiver = receiver;
         issue.first_unlock_days = first_unlock_days;
+        issue.issued = quantity.amount;
         issue.status = ISSUE_UNDEPOSITED;
         issue.issued_at = now;
         issue.updated_at = now;

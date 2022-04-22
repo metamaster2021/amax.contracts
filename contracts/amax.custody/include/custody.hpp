@@ -50,7 +50,7 @@ public:
      */
     [[eosio::action]] void delplan(const name& owner, const uint64_t& plan_id);
 
-    [[eosio::action]] void addissue(const name& issuer, const name& receiver, uint64_t plan_id, uint64_t first_unlock_days);
+    [[eosio::action]] void addissue(const name& issuer, const name& receiver, uint64_t plan_id, uint64_t first_unlock_days, const asset& quantity);
     /**
      * ontransfer, trigger by recipient of transfer()
      * @param memo - memo format:
