@@ -68,7 +68,7 @@ void custody::setplanowner(const name& owner, const uint64_t& plan_id, const nam
     CHECK( plan_itr != plan_tbl.end(), "plan not found: " + to_string(plan_id) )
     CHECK( owner == plan_itr->owner, "owner mismatch" )
     CHECK( has_auth(plan_itr->owner) || has_auth(get_self()), "Missing required authority of owner or maintainer" )
-    // TODO:... new_owner
+    CHECK( is_account(new_owner), "new_owner account does not exist");
 
     plan_tbl.modify( plan_itr, same_payer, [&]( auto& plan ) {
         plan.owner = new_owner;
