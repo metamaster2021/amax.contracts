@@ -50,7 +50,7 @@ void custody::setconfig(const asset &plan_fee, const name &fee_receiver) {
         plan.asset_symbol = asset_symbol;
         plan.unlock_interval_days = unlock_interval_days;
         plan.unlock_times = unlock_times;
-        plan.status =  _gstate.plan_fee.amount != 0 ? PLAN_UNACTIVATED : PLAN_ENABLED;
+        plan.status =  _gstate.plan_fee.amount != 0 ? PLAN_UNPAID_FEE : PLAN_ENABLED;
         plan.created_at = current_time_point();
         plan.updated_at = plan.created_at;
     });
@@ -96,12 +96,12 @@ void custody::enableplan(const name& owner, const uint64_t& plan_id, bool enable
     auto plan_itr = plan_tbl.find(plan_id);
     CHECK( plan_itr != plan_tbl.end(), "plan not found: " + to_string(plan_id) )
     CHECK( owner == plan_itr->owner, "owner mismatch" )
-    CHECK( plan_itr->status != PLAN_UNACTIVATED, "plan is unactivated" )
+    CHECK( plan_itr->status != PLAN_UNPAID_FEE, "plan is unpaid fee status" )
     plan_status_t new_status = enabled ? PLAN_ENABLED : PLAN_DISABLED;
     CHECK( plan_itr->status != new_status, "plan status is no changed" )
 
     plan_tbl.modify( plan_itr, same_payer, [&]( auto& plan ) {
-        plan.status = PLAN_UNACTIVATED;
+        plan.status = PLAN_UNPAID_FEE;
         plan.updated_at = current_time_point();
     });
 }
@@ -172,7 +172,7 @@ void custody::ontransfer(name from, name to, asset quantity, string memo) {
         plan_t::tbl_t plan_tbl(get_self(), get_self().value);
         auto plan_itr = plan_tbl.find(plan_id);
         CHECK( plan_itr != plan_tbl.end(), "plan not found by plan_id: " + to_string(plan_id) )
-        CHECK( plan_itr->status == PLAN_UNACTIVATED, "plan must be unactivated status:" + to_string(plan_itr->status) )
+        CHECK( plan_itr->status == PLAN_UNPAID_FEE, "plan must be unpaid fee status:" + to_string(plan_itr->status) )
         plan_tbl.modify( plan_itr, same_payer, [&]( auto& plan ) {
             plan.status = PLAN_ENABLED;
             plan.updated_at = current_time_point();

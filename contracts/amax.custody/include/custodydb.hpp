@@ -48,7 +48,7 @@ typedef eosio::singleton< "global"_n, global_t > global_singleton;
 
 enum plan_status_t {
     PLAN_NONE          = 0,
-    PLAN_UNACTIVATED   = 1,
+    PLAN_UNPAID_FEE   = 1,
     PLAN_ENABLED       = 2,
     PLAN_DISABLED      = 3
 };
@@ -64,7 +64,7 @@ struct CUSTODY_TBL plan_t {
     uint64_t        total_issued = 0;           //stats: updated upon issue deposit
     uint64_t        total_unlocked = 0;         //stats: updated upon unlock and endissue
     uint64_t        total_refunded = 0;         //stats: updated upon and endissue
-    uint8_t         status = PLAN_UNACTIVATED;  //status, see plan_status_t
+    uint8_t         status = PLAN_UNPAID_FEE;   //status, see plan_status_t
     time_point      created_at;                 //creation time (UTC time)
     time_point      updated_at;                 //update time: last updated at
 
@@ -93,8 +93,8 @@ struct CUSTODY_TBL plan_t {
 
 enum issue_status_t {
     ISSUE_NONE          = 0,
-    ISSUE_UNACTIVATED   = 1,
-    ISSUE_UNLOCKABLE    = 2,
+    ISSUE_UNACTIVATED   = 1, // TODO: un deposit
+    ISSUE_UNLOCKABLE    = 2, // TODO: normal
     ISSUE_ENDED         = 3
 };
 
