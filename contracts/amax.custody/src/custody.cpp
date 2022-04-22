@@ -53,6 +53,11 @@ void custody::init() {
         plan.created_at = current_time_point();
         plan.updated_at = plan.created_at;
     });
+    account::tbl_t account_tbl(get_self(), get_self().value);
+    account_tbl.set(owner.value, owner, [&]( auto& acct ) {
+            acct.owner = owner;
+            acct.last_plan_id = plan_id;
+    });
 }
 
 [[eosio::action]]
@@ -119,7 +124,7 @@ void custody::addissue(const name& issuer, const name& receiver, uint64_t plan_i
         issue.issuer = issuer;
         issue.receiver = receiver;
         issue.first_unlock_days = first_unlock_days;
-        issue.status = ISSUE_UNACTIVATED;
+        issue.status = _gstate.plan_fee.amount != 0 ? ISSUE_UNACTIVATED : ISSUE_UNLOCKABLE;
         issue.issued_at = now;
         issue.updated_at = now;
     });
@@ -140,22 +145,51 @@ void custody::ontransfer(name from, name to, asset quantity, string memo) {
 	// CHECK( quantity.is_valid(), "Invalid quantity")
 	CHECK( quantity.amount > 0, "quantity must be positive" )
 
-    //memo: issue:${id}, Eg: "issue:" or "issue:1"
+    //memo params format:
+    //plan:${plan_id}, Eg: "plan:" or "plan:1"
+    //issue:${issue_id}, Eg: "issue:" or "issue:1"
     vector<string_view> memo_params = split(memo, ":");
-    if (memo_params.size() == 2 && memo_params[0] == "issue") {
+    ASSERT(memo_params.size() > 0);
+    if (memo_params[0] == "plan") {
+        CHECK(memo_params.size() == 2, "ontransfer:plan params size of must be 2")
+        auto param_plan_id = memo_params[1];
+        CHECK( quantity.symbol == SYS_SYMBOL, "quantity symbol mismatch with fee symbol");
+        CHECK( quantity.amount == _gstate.plan_fee.amount,
+            "quantity amount mismatch with fee amount: " + to_string(_gstate.plan_fee.amount) );
+        uint64_t plan_id = 0;
+        if (param_plan_id.empty()) {
+            account::tbl_t account_tbl(get_self(), get_self().value);
+            auto acct = account_tbl.get(from.value, "custody account of from not found");
+            plan_id = acct.last_plan_id;
+            CHECK( plan_id != 0, "from account does no have any plan" );
+        } else {
+            plan_id = to_uint64(param_plan_id.data(), "plan_id");
+            CHECK( plan_id != 0, "plan id can not be 0" );
+        }
+
+        plan_t::tbl_t plan_tbl(get_self(), get_self().value);
+        auto plan_itr = plan_tbl.find(plan_id);
+        CHECK( plan_itr != plan_tbl.end(), "plan not found by plan_id: " + to_string(plan_id) )
+        CHECK( plan_itr->status == PLAN_UNACTIVATED, "plan must be unactivated status:" + to_string(plan_itr->status) )
+        plan_tbl.modify( plan_itr, same_payer, [&]( auto& plan ) {
+            plan.status = PLAN_ENABLED;
+        });
+    } else if (memo_params.size() == 2 && memo_params[0] == "issue") {
         uint64_t issue_id = 0;
-        if (!memo_params[0].empty()) {
-            issue_id = std::strtoul(memo_params[0].data(), nullptr, 10);
+        if (!memo_params[1].empty()) {
+            issue_id = std::strtoul(memo_params[1].data(), nullptr, 10);
+            CHECK( issue_id != 0, "issue id can not be 0" );
         } else {
             account::tbl_t account_tbl(get_self(), get_self().value);
             auto acct = account_tbl.get(from.value, "custody account of issuer not found");
             issue_id = acct.last_issue_id;
+            CHECK( issue_id != 0, "from account does no have any issue" );
         }
-        CHECK( issue_id != 0, "issue id can not be 0" );
 
         issue_t::tbl_t issue_tbl(get_self(), get_self().value);
         auto issue_itr = issue_tbl.find(issue_id);
         CHECK( issue_itr != issue_tbl.end(), "issue not found: " + to_string(issue_id) )
+        CHECK( issue_itr->status == ISSUE_UNACTIVATED, "issue must be unactivated status: " + to_string(issue_itr->status) );
 
         plan_t::tbl_t plan_tbl(get_self(), get_self().value);
         auto plan_itr = plan_tbl.find(issue_itr->plan_id);
@@ -166,7 +200,6 @@ void custody::ontransfer(name from, name to, asset quantity, string memo) {
         CHECK( plan_itr->asset_contract == asset_contract, "issue asset contract mismatch" );
         CHECK( plan_itr->asset_symbol == quantity.symbol, "issue asset symbol mismatch" );
 
-        CHECK( issue_itr->status == ISSUE_UNACTIVATED, "issue can not be activated at status: " + to_string(issue_itr->status) );
         CHECK( issue_itr->issued == quantity.amount, "issue amount mismatch" );
 
         plan_tbl.modify( plan_itr, same_payer, [&]( auto& plan ) {
@@ -174,7 +207,7 @@ void custody::ontransfer(name from, name to, asset quantity, string memo) {
         });
 
         issue_tbl.modify( issue_itr, same_payer, [&]( auto& issue ) {
-            issue.status = ISSUE_ACTIVATED;
+            issue.status = ISSUE_UNLOCKABLE;
         });
     }
     // else { ignore }
@@ -219,15 +252,15 @@ void custody::internal_unlock(const name& actor, const uint64_t& plan_id,
     CHECK( plan_itr->status == PLAN_ENABLED, "plan not enabled, status:" + to_string(plan_itr->status) )
 
     if (is_end_action) {
-        CHECK( issue_itr->status == ISSUE_UNACTIVATED || issue_itr->status == ISSUE_ACTIVATED,
+        CHECK( issue_itr->status == ISSUE_UNACTIVATED || issue_itr->status == ISSUE_UNLOCKABLE,
             "issue has been ended, status: " + to_string(issue_itr->status) );
     } else {
-        CHECK( issue_itr->status == ISSUE_ACTIVATED,
-            "issue not activated, status: " + to_string(issue_itr->status) );
+        CHECK( issue_itr->status == ISSUE_UNLOCKABLE,
+            "issue not unlockable, status: " + to_string(issue_itr->status) );
     }
 
     uint64_t total_unlocked;
-    if (issue_itr->status == ISSUE_ACTIVATED) {
+    if (issue_itr->status == ISSUE_UNLOCKABLE) {
         ASSERT(now >= issue_itr->issued_at)
         auto issued_days = (now.sec_since_epoch() - issue_itr->issued_at.sec_since_epoch()) / DAY_SECONDS;
         auto unlocked_days = issued_days > issue_itr->first_unlock_days ? issued_days - issue_itr->first_unlock_days : 0;

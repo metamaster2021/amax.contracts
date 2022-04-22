@@ -54,7 +54,9 @@ public:
 
     [[eosio::action]] void addissue(const name& issuer, const name& receiver, uint64_t plan_id, uint64_t first_unlock_days);
     /**
-     * @param memo memo format:${plan_id}:${owner}:${first_unlock_days}, Eg: "1:armonia12345:91"
+     * @param memo - memo format:
+     *               plan:${plan_id}, pay plan fee, Eg: "plan:" or "plan:1"
+     *               issue:${issue_id}, deposit token to issue, Eg: "issue:" or "issue:1"
      */
     [[eosio::on_notify("*::transfer")]] void ontransfer(name from, name to, asset quantity, string memo);
     [[eosio::action]] void unlock(const name& unlocker, const uint64_t& plan_id, const uint64_t& issue_id);
