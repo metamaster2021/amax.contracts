@@ -27,7 +27,6 @@ if ( debug ) {                               \
 
 class [[eosio::contract("amax.custody")]] custody: public eosio::contract {
 private:
-    dbc                 _db;
     global_singleton    _global;
     global_t            _gstate;
 
@@ -36,8 +35,7 @@ public:
 
     custody(eosio::name receiver, eosio::name code, datastream<const char*> ds):
         contract(receiver, code, ds),
-        _global(get_self(), get_self().value),
-        _db(get_self())
+        _global(get_self(), get_self().value)
     {
         _gstate = _global.exists() ? _global.get() : global_t{};
     }

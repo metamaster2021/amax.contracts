@@ -128,23 +128,6 @@ struct CUSTODY_TBL issue_t {
                                 (first_unlock_days)(status)(issued_at)(updated_at) )
 };
 
-template<name::raw TableName, typename T, typename... Indices>
-class multi_index_ex: public eosio::multi_index<TableName, T, Indices...> {
-public:
-    using base = eosio::multi_index<TableName, T, Indices...>;
-    using base::base;
-
-    template<typename Lambda>
-    void set(uint64_t pk, name payer, Lambda&& setter ) {
-        auto itr = base::find(pk);
-        if (itr != base::end()) {
-            base::emplace(payer, setter);
-        } else {
-            base::modify(itr, payer, setter);
-        }
-    }
-};
-
 struct CUSTODY_TBL account {
     // scope = contract self
     name    owner;
