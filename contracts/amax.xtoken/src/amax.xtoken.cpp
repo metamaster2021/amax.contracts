@@ -93,13 +93,6 @@ namespace amax_xtoken {
         sub_balance(st, st.issuer, quantity);
     }
 
-    void xtoken::transfer2(const name &from,
-                          const name &to,
-                          const asset &quantity, asset fee,
-                          const string &memo) {
-
-                          }
-
     void xtoken::transfer(const name &from,
                           const name &to,
                           const asset &quantity,
@@ -152,14 +145,25 @@ namespace amax_xtoken {
         if (fee.amount > 0) {
             add_balance(st, st.fee_receiver, fee, payer);
             notifypayfee_action notifypayfee_act{ get_self(), { {get_self(), active_permission} } };
-            notifypayfee_act.send( to, st.fee_receiver, fee, memo );
+            notifypayfee_act.send( from, to, st.fee_receiver, fee, memo );
         }
     }
 
-    void xtoken::notifypayfee(const name &from, const name &to, const asset &fee, const string &memo) {
+    /**
+     * Notify pay fee.
+     * Must be Triggered as inline action by transfer()
+     *
+     * @param from - the from account of transfer(),
+     * @param to - the to account of transfer, fee payer,
+     * @param fee_receiver - fee receiver,
+     * @param fee - the fee of transfer to be payed,
+     * @param memo - the memo of the transfer().
+     * Require contract auth
+     */
+    void xtoken::notifypayfee(const name &from, const name &to, const name& fee_receiver, const asset &fee, const string &memo) {
         require_auth(get_self());
-        require_recipient(from);
         require_recipient(to);
+        require_recipient(fee_receiver);
     }
 
     void xtoken::sub_balance(const currency_stats &st, const name &owner, const asset &value,

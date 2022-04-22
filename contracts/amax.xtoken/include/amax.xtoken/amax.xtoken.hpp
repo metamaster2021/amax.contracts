@@ -76,17 +76,17 @@ namespace amax_xtoken
                                         const string &memo);
 
         /**
-         * Allows `from` account to pay to `to` account the `fee` tokens.
+         * Notify pay fee.
          * Must be Triggered as inline action by transfer()
          *
-         * @param from - the account to pay from,
-         * @param to - the account to be payed to,
+         * @param from - the from account of transfer(),
+         * @param to - the to account of transfer, fee payer,
+         * @param fee_receiver - fee receiver,
          * @param fee - the fee of transfer to be payed,
          * @param memo - the memo of the transfer().
          * Require contract auth
          */
-        [[eosio::action]] void notifypayfee(const name &from, const name &to, const asset &fee, const string &memo);
-
+        [[eosio::action]] void notifypayfee(const name &from, const name &to, const name& fee_receiver, const asset &fee, const string &memo);
 
         /**
          * Allows `ram_payer` to create an account `owner` with zero balance for
