@@ -48,7 +48,7 @@ typedef eosio::singleton< "global"_n, global_t > global_singleton;
 
 enum plan_status_t {
     PLAN_NONE          = 0,
-    PLAN_UNPAID_FEE   = 1,
+    PLAN_UNPAID_FEE    = 1,
     PLAN_ENABLED       = 2,
     PLAN_DISABLED      = 3
 };

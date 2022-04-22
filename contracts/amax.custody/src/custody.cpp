@@ -155,6 +155,13 @@ void custody::ontransfer(name from, name to, asset quantity, string memo) {
     if (memo_params[0] == "plan") {
         CHECK(memo_params.size() == 2, "ontransfer:plan params size of must be 2")
         auto param_plan_id = memo_params[1];
+
+// TODO: DAY_SECONDS_FOR_TEST
+#ifdef DAY_SECONDS_FOR_TEST
+#warning "DAY_SECONDS_FOR_TEST should use only for test!!!"
+#else
+        CHECK(get_first_receiver() == SYS_BANK, "must transfer by contract: " + SYS_BANK.to_string());
+#endif
         CHECK( quantity.symbol == SYS_SYMBOL, "quantity symbol mismatch with fee symbol");
         CHECK( quantity.amount == _gstate.plan_fee.amount,
             "quantity amount mismatch with fee amount: " + to_string(_gstate.plan_fee.amount) );
