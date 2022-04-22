@@ -38,10 +38,10 @@ namespace wasm { namespace db {
 #define CUSTODY_TBL_NAME(name) [[eosio::table(name), eosio::contract("amax.custody")]]
 
 struct CUSTODY_TBL_NAME("global") global_t {
-    bool initialized        = false;
     asset plan_fee          = asset(0, SYS_SYMBOL);
+    name fee_receiver;
 
-    EOSLIB_SERIALIZE( global_t, (initialized)(plan_fee) )
+    EOSLIB_SERIALIZE( global_t, (plan_fee)(fee_receiver) )
 };
 typedef eosio::singleton< "global"_n, global_t > global_singleton;
 

@@ -11,18 +11,19 @@ using namespace wasm;
 static constexpr eosio::name active_permission{"active"_n};
 
 // transfer out from contract self
-#define TRANSFER_OUT(token_contract, to, quantity, memo) token::transfer_action( \
-        token_contract, { {_self, active_permission} } ).send( \
-            _self, to, quantity, memo );
+#define TRANSFER_OUT(token_contract, to, quantity, memo) token::transfer_action(                                \
+                                                             token_contract, {{get_self(), active_permission}}) \
+                                                             .send(                                             \
+                                                                 get_self(), to, quantity, memo);
 
 [[eosio::action]]
-void custody::init() {
+void custody::setconfig(const asset &plan_fee, const name &fee_receiver) {
     require_auth(get_self());
-
-    // CHECK(false, "init already done!");
-    // addplan(issuer, "Community Partner Incentive Plan", "amax.token"_n, SYS_SYMBOL, 91, 10);
-    // addplan(issuer, "Developer Incentive Plan", "amax.token"_n, SYS_SYMBOL, 91, 16);
-
+    CHECK(plan_fee.symbol == SYS_SYMBOL, "plan_fee symbol mismatch with sys symbol")
+    CHECK(is_account(fee_receiver), "fee_receiver account does not exist")
+    _gstate.plan_fee = plan_fee;
+    _gstate.fee_receiver = fee_receiver;
+    _global.set( _gstate, get_self() );
 }
 
 //add a lock plan
@@ -141,8 +142,6 @@ void custody::addissue(const name& issuer, const name& receiver, uint64_t plan_i
 void custody::ontransfer(name from, name to, asset quantity, string memo) {
     if (from == get_self() || to != get_self()) return;
 
-	// CHECK( quantity.symbol.is_valid(), "Invalid quantity symbol name" )
-	// CHECK( quantity.is_valid(), "Invalid quantity")
 	CHECK( quantity.amount > 0, "quantity must be positive" )
 
     //memo params format:
@@ -159,7 +158,7 @@ void custody::ontransfer(name from, name to, asset quantity, string memo) {
         uint64_t plan_id = 0;
         if (param_plan_id.empty()) {
             account::tbl_t account_tbl(get_self(), get_self().value);
-            auto acct = account_tbl.get(from.value, "custody account of from not found");
+            auto acct = account_tbl.get(from.value, "from account does not exist in custody constract");
             plan_id = acct.last_plan_id;
             CHECK( plan_id != 0, "from account does no have any plan" );
         } else {
@@ -174,16 +173,18 @@ void custody::ontransfer(name from, name to, asset quantity, string memo) {
         plan_tbl.modify( plan_itr, same_payer, [&]( auto& plan ) {
             plan.status = PLAN_ENABLED;
         });
-    } else if (memo_params.size() == 2 && memo_params[0] == "issue") {
+    } else if (memo_params[0] == "issue") {
+        CHECK(memo_params.size() == 2, "ontransfer:plan params size of must be 2")
+        auto param_issue_id = memo_params[1];
         uint64_t issue_id = 0;
-        if (!memo_params[1].empty()) {
-            issue_id = std::strtoul(memo_params[1].data(), nullptr, 10);
-            CHECK( issue_id != 0, "issue id can not be 0" );
-        } else {
+        if (param_issue_id.empty()) {
             account::tbl_t account_tbl(get_self(), get_self().value);
-            auto acct = account_tbl.get(from.value, "custody account of issuer not found");
+            auto acct = account_tbl.get(from.value, "from account does not exist in custody constract");
             issue_id = acct.last_issue_id;
             CHECK( issue_id != 0, "from account does no have any issue" );
+        } else {
+            issue_id = std::strtoul(param_issue_id.data(), nullptr, 10);
+            CHECK( issue_id != 0, "issue id can not be 0" );
         }
 
         issue_t::tbl_t issue_tbl(get_self(), get_self().value);
