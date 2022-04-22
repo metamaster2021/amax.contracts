@@ -82,7 +82,6 @@ void custody::delplan(const name& owner, const uint64_t& plan_id) {
     CHECK(_db.get(plan), "plan not exist");
     CHECK( plan.owner == owner, "owner mismatch" )
     _db.del(plan);
-
 }
 
 [[eosio::action]]
@@ -172,9 +171,10 @@ void custody::ontransfer(name from, name to, asset quantity, string memo) {
         CHECK( plan_itr->status == PLAN_UNACTIVATED, "plan must be unactivated status:" + to_string(plan_itr->status) )
         plan_tbl.modify( plan_itr, same_payer, [&]( auto& plan ) {
             plan.status = PLAN_ENABLED;
+            plan.updated_at = current_time_point();
         });
     } else if (memo_params[0] == "issue") {
-        CHECK(memo_params.size() == 2, "ontransfer:plan params size of must be 2")
+        CHECK(memo_params.size() == 2, "ontransfer:issue params size of must be 2")
         auto param_issue_id = memo_params[1];
         uint64_t issue_id = 0;
         if (param_issue_id.empty()) {
@@ -203,12 +203,15 @@ void custody::ontransfer(name from, name to, asset quantity, string memo) {
 
         CHECK( issue_itr->issued == quantity.amount, "issue amount mismatch" );
 
+        auto now = current_time_point();
         plan_tbl.modify( plan_itr, same_payer, [&]( auto& plan ) {
             plan.total_issued += quantity.amount;
+            plan.updated_at = now;
         });
 
         issue_tbl.modify( issue_itr, same_payer, [&]( auto& issue ) {
             issue.status = ISSUE_UNLOCKABLE;
+            issue.updated_at = now;
         });
     }
     // else { ignore }
@@ -285,16 +288,17 @@ void custody::internal_unlock(const name& actor, const uint64_t& plan_id,
             } // else ignore
         }
 
-        auto refund = issue_itr->locked;
-        if (is_end_action && refund > 0) {
+        auto refunded = issue_itr->locked;
+        if (is_end_action && refunded > 0) {
             auto memo = "refund: " + to_string(issue_id);
-            auto refund_quantity = asset(refund, plan_itr->asset_symbol);
-            TRANSFER_OUT( plan_itr->asset_contract, issue_itr->issuer, refund_quantity, memo )
+            auto refunded_quantity = asset(refunded, plan_itr->asset_symbol);
+            TRANSFER_OUT( plan_itr->asset_contract, issue_itr->issuer, refunded_quantity, memo )
 
         }
         plan_tbl.modify( plan_itr, same_payer, [&]( auto& plan ) {
             plan.total_unlocked += cur_unlocked;
-            plan.total_refunded += refund;
+            plan.total_refunded += refunded;
+            plan.updated_at = current_time_point();
         });
     }
 
@@ -304,5 +308,6 @@ void custody::internal_unlock(const name& actor, const uint64_t& plan_id,
         if (is_end_action) {
             issue.status = ISSUE_ENDED;
         }
+        issue.updated_at = current_time_point();
     });
 }
