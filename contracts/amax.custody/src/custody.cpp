@@ -238,7 +238,7 @@ void custody::internal_unlock(const name& actor, const uint64_t& plan_id,
         }
         plan_tbl.modify( plan_itr, same_payer, [&]( auto& plan ) {
             plan.total_unlocked += cur_unlocked;
-            plan.total_refund += refund;
+            plan.total_refunded += refund;
         });
     }
 

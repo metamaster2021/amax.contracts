@@ -58,7 +58,7 @@ struct CUSTODY_TBL plan_t {
     uint64_t        unlock_times;               //unlock times, duration=unlock_interval_days*unlock_times
     uint64_t        total_issued = 0;           //stats: updated upon issue deposit
     uint64_t        total_unlocked = 0;         //stats: updated upon unlock and endissue
-    uint64_t        total_refund = 0;           //stats: updated upon and endissue
+    uint64_t        total_refunded = 0;         //stats: updated upon and endissue
     bool            enabled = true;             //can be disabled
     time_point      created_at;                 //creation time (UTC time)
     time_point      updated_at;                 //update time: last updated at
@@ -82,7 +82,7 @@ struct CUSTODY_TBL plan_t {
     > tbl_t;
 
     EOSLIB_SERIALIZE( plan_t, (id)(owner)(title)(asset_contract)(asset_symbol)(unlock_interval_days)(unlock_times)
-                              (total_issued)(total_unlocked)(total_refund)(enabled)(created_at)(updated_at) )
+                              (total_issued)(total_unlocked)(total_refunded)(enabled)(created_at)(updated_at) )
 
 };
 
