@@ -128,7 +128,7 @@ void custody::addissue(const name& issuer, const name& receiver, uint64_t plan_i
         issue.issuer = issuer;
         issue.receiver = receiver;
         issue.first_unlock_days = first_unlock_days;
-        issue.status = ISSUE_UNACTIVATED;
+        issue.status = ISSUE_UNDEPOSITED;
         issue.issued_at = now;
         issue.updated_at = now;
     });
@@ -194,7 +194,7 @@ void custody::ontransfer(name from, name to, asset quantity, string memo) {
         issue_t::tbl_t issue_tbl(get_self(), get_self().value);
         auto issue_itr = issue_tbl.find(issue_id);
         CHECK( issue_itr != issue_tbl.end(), "issue not found: " + to_string(issue_id) )
-        CHECK( issue_itr->status == ISSUE_UNACTIVATED, "issue must be unactivated status: " + to_string(issue_itr->status) );
+        CHECK( issue_itr->status == ISSUE_UNDEPOSITED, "issue must be undeposited status: " + to_string(issue_itr->status) );
 
         plan_t::tbl_t plan_tbl(get_self(), get_self().value);
         auto plan_itr = plan_tbl.find(issue_itr->plan_id);
@@ -214,7 +214,7 @@ void custody::ontransfer(name from, name to, asset quantity, string memo) {
         });
 
         issue_tbl.modify( issue_itr, same_payer, [&]( auto& issue ) {
-            issue.status = ISSUE_UNLOCKABLE;
+            issue.status = ISSUE_NORMAL;
             issue.updated_at = now;
         });
     }
@@ -260,15 +260,15 @@ void custody::internal_unlock(const name& actor, const uint64_t& plan_id,
     CHECK( plan_itr->status == PLAN_ENABLED, "plan not enabled, status:" + to_string(plan_itr->status) )
 
     if (is_end_action) {
-        CHECK( issue_itr->status == ISSUE_UNACTIVATED || issue_itr->status == ISSUE_UNLOCKABLE,
+        CHECK( issue_itr->status != ISSUE_ENDED,
             "issue has been ended, status: " + to_string(issue_itr->status) );
     } else {
-        CHECK( issue_itr->status == ISSUE_UNLOCKABLE,
-            "issue not unlockable, status: " + to_string(issue_itr->status) );
+        CHECK( issue_itr->status == ISSUE_NORMAL,
+            "issue not normal, status: " + to_string(issue_itr->status) );
     }
 
     uint64_t total_unlocked;
-    if (issue_itr->status == ISSUE_UNLOCKABLE) {
+    if (issue_itr->status == ISSUE_NORMAL) {
         ASSERT(now >= issue_itr->issued_at)
         auto issued_days = (now.sec_since_epoch() - issue_itr->issued_at.sec_since_epoch()) / DAY_SECONDS;
         auto unlocked_days = issued_days > issue_itr->first_unlock_days ? issued_days - issue_itr->first_unlock_days : 0;
