@@ -278,17 +278,15 @@ void custody::internal_unlock(const name& actor, const uint64_t& plan_id,
             "issue not normal, status: " + to_string(issue_itr->status) );
     }
 
-    uint64_t total_unlocked;
+    uint64_t total_unlocked = 0;
     if (issue_itr->status == ISSUE_NORMAL) {
         ASSERT(now >= issue_itr->issued_at)
         auto issued_days = (now.sec_since_epoch() - issue_itr->issued_at.sec_since_epoch()) / DAY_SECONDS;
         auto unlocked_days = issued_days > issue_itr->first_unlock_days ? issued_days - issue_itr->first_unlock_days : 0;
         ASSERT(plan_itr->unlock_interval_days > 0);
         auto unlocked_times = std::min(unlocked_days / plan_itr->unlock_interval_days, plan_itr->unlock_times);
-        auto unlocked_per_times = issue_itr->issued / plan_itr->unlock_times;
-
         ASSERT(plan_itr->unlock_times > 0)
-        auto total_unlocked = multiply_decimal64(issue_itr->issued, unlocked_times, plan_itr->unlock_times);
+        total_unlocked = multiply_decimal64(issue_itr->issued, unlocked_times, plan_itr->unlock_times);
         ASSERT(total_unlocked >= issue_itr->unlocked && issue_itr->issued >= total_unlocked)
         auto cur_unlocked = total_unlocked - issue_itr->unlocked;
         auto remaining_locked = issue_itr->issued - total_unlocked;
