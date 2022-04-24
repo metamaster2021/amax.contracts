@@ -14,13 +14,13 @@ namespace amax_xtoken
     #define SYMBOL(sym_code, precision) symbol(symbol_code(sym_code), precision)
 
     static constexpr symbol DEPOSIT_SYMBOL  = SYMBOL("CNY", 4);
-    static constexpr name SYS_BANK          = "amax.token"_n;
+    static constexpr name SYS_BANK          = "amax.xtoken"_n;
     static constexpr name ACTIVE_PERM       = "active"_n;
 
     /**
-     * deposit example for xtoken
+     * xtoken_deposit example for xtoken
      */
-    class [[eosio::contract("deposit")]] deposit : public contract
+    class [[eosio::contract("xtoken_deposit")]] xtoken_deposit : public contract
     {
     public:
         using contract::contract;

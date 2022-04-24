@@ -24,6 +24,8 @@ struct contracts {
       static std::vector<uint8_t> exchange_wasm() { return read_wasm("${CMAKE_SOURCE_DIR}/test_contracts/exchange.wasm"); }
       static std::vector<uint8_t> token_test_wasm() { return read_wasm("${CMAKE_BINARY_DIR}/test_contracts/token_test/token_test.wasm"); }
       static std::vector<char> token_test_abi() { return read_abi("${CMAKE_BINARY_DIR}/test_contracts/token_test/token_test.abi"); }
+      static std::vector<uint8_t> xtoken_deposit_wasm() { return read_wasm("${CMAKE_BINARY_DIR}/test_contracts/xtoken_deposit/xtoken_deposit.wasm"); }
+      static std::vector<char> xtoken_deposit_abi() { return read_abi("${CMAKE_BINARY_DIR}/test_contracts/xtoken_deposit/xtoken_deposit.abi"); }
    };
 };
 }} //ns eosio::testing

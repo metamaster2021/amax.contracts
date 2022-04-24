@@ -26,7 +26,7 @@ public:
    amax_xtoken_tester() {
       produce_blocks( 2 );
 
-      create_accounts( { N(alice), N(bob), N(carol), N(fee.receiver), N(amax.xtoken) } );
+      create_accounts( { N(alice), N(bob), N(carol), N(fee.receiver), N(amax.xtoken), N(deposit) } );
       produce_blocks( 2 );
 
       set_code( N(amax.xtoken), contracts::xtoken_wasm() );
@@ -65,6 +65,18 @@ public:
       auto symbol_code = symb.to_symbol_code().value;
       vector<char> data = get_row_by_account( N(amax.xtoken), acc, N(accounts), account_name(symbol_code) );
       return data.empty() ? fc::variant() : abi_ser.binary_to_variant( "account", data, abi_serializer::create_yield_function(abi_serializer_max_time) );
+   }
+
+   fc::variant get_deposit_account( account_name acc, const symbol& symb)
+   {
+      abi_serializer deposit_abi_ser;
+      const auto& accnt = control->db().get<account_object,by_name>( N(deposit) );
+      abi_def abi;
+      BOOST_REQUIRE_EQUAL(abi_serializer::to_abi(accnt.abi, abi), true);
+      deposit_abi_ser.set_abi(abi, abi_serializer::create_yield_function(abi_serializer_max_time));
+      auto symbol_code = symb.to_symbol_code().value;
+      vector<char> data = get_row_by_account( N(deposit), acc, N(accounts), account_name(symbol_code) );
+      return data.empty() ? fc::variant() : deposit_abi_ser.binary_to_variant( "account", data, abi_serializer::create_yield_function(abi_serializer_max_time) );
    }
 
    action_result create( account_name issuer,
@@ -548,6 +560,56 @@ BOOST_FIXTURE_TEST_CASE( transfer_fee_tests, amax_xtoken_tester ) try {
          ("is_frozen", false)
          ("is_fee_exempt", false)
       );
+
+} FC_LOG_AND_RETHROW()
+
+
+BOOST_FIXTURE_TEST_CASE( deposit, amax_xtoken_tester ) try {
+
+   set_code( N(deposit), contracts::util::xtoken_deposit_wasm() );
+   set_abi( N(deposit), contracts::util::xtoken_deposit_abi().data() );
+
+   produce_blocks();
+
+   auto token = create( N(alice), asset::from_string("1000.0000 CNY"));
+   produce_blocks(1);
+
+   // config token
+   feeratio( N(alice), SYMB(4,CNY), 30); // 0.3%, boost 10000
+   feereceiver( N(alice), SYMB(4,CNY), N(fee.receiver));
+
+   issue( N(alice), asset::from_string("1000.0000 CNY"), "hola" );
+
+   auto alice_balance = get_account(N(alice), "4,CNY");
+   REQUIRE_MATCHING_OBJECT( alice_balance, mvo()
+      ("balance", "1000.0000 CNY")
+      ("is_frozen", false)
+      ("is_fee_exempt", false)
+   );
+
+   BOOST_REQUIRE_EQUAL( success(),
+      transfer( N(alice), N(bob), asset::from_string("300.0000 CNY"), "bob is in whitelist, no fee" )
+   );
+
+   // payed fee=300.0000*0.003=0.9
+   auto bob_balance = get_account(N(bob), "4,CNY");
+   REQUIRE_MATCHING_OBJECT( bob_balance, mvo()
+      ("balance", "299.1000 CNY")
+      ("is_frozen", false)
+      ("is_fee_exempt", false)
+   );
+
+   BOOST_REQUIRE_EQUAL( success(),
+      transfer( N(bob), N(deposit), asset::from_string("100.0000 CNY"), "deposit" )
+   );
+
+   wdump( ( get_deposit_account(N(bob), SYMB(4,CNY)) ) );
+   auto bob_balance = get_account(N(bob), "4,CNY");
+   REQUIRE_MATCHING_OBJECT( get_deposit_account(N(bob), SYMB(4,CNY)) ), mvo()
+      ("balance", "99.7000 CNY")
+   );
+
+   // TODO: ...
 
 } FC_LOG_AND_RETHROW()
 
