@@ -289,7 +289,7 @@ void custody::internal_unlock(const name& actor, const uint64_t& plan_id,
 
         ASSERT(plan_itr->unlock_times > 0)
         auto total_unlocked = multiply_decimal64(issue_itr->issued, unlocked_times, plan_itr->unlock_times);
-        ASSERT(total_unlocked >= issue_itr->unlocked && issue_itr->issued > total_unlocked)
+        ASSERT(total_unlocked >= issue_itr->unlocked && issue_itr->issued >= total_unlocked)
         auto cur_unlocked = total_unlocked - issue_itr->unlocked;
         auto remaining_locked = issue_itr->issued - total_unlocked;
 
