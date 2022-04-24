@@ -300,7 +300,7 @@ void custody::internal_unlock(const name& actor, const uint64_t& plan_id,
             TRANSFER_OUT( plan_itr->asset_contract, issue_itr->receiver, unlock_quantity, memo )
         } else { // cur_unlocked == 0
             if (!is_end_action) {
-                CHECK( false, "already unlocked" )
+                CHECK( false, "It's not time to unlock asset yet" )
             } // else ignore
         }
 
