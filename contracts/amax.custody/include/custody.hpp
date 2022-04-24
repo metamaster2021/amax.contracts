@@ -3,28 +3,6 @@
 using namespace std;
 using namespace wasm::db;
 
-static constexpr bool DEBUG = true;
-
-#define WASM_FUNCTION_PRINT_LENGTH 50
-
-#define AMAX_LOG( debug, exception, ... ) {  \
-if ( debug ) {                               \
-   std::string str = std::string(__FILE__); \
-   str += std::string(":");                 \
-   str += std::to_string(__LINE__);         \
-   str += std::string(":[");                \
-   str += std::string(__FUNCTION__);        \
-   str += std::string("]");                 \
-   while(str.size() <= WASM_FUNCTION_PRINT_LENGTH) str += std::string(" ");\
-   eosio::print(str);                                                             \
-   eosio::print( __VA_ARGS__ ); }}
-
-#define div(a, b) divide_decimal(a, b, PRECISION_1)
-#define mul(a, b) multiply_decimal(a, b, PRECISION_1)
-
-#define high_div(a, b) divide_decimal(a, b, HIGH_PRECISION_1)
-#define high_mul(a,b ) multiply_decimal(a, b, HIGH_PRECISION_1)
-
 class [[eosio::contract("amax.custody")]] custody: public eosio::contract {
 private:
     global_singleton    _global;
