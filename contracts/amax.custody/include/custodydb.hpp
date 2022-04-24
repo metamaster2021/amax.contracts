@@ -69,7 +69,6 @@ struct CUSTODY_TBL plan_t {
     time_point      updated_at;                 //update time: last updated at
 
     uint64_t primary_key() const { return id; }
-    uint64_t scope() const { return 0; }
 
     uint64_t by_owner()const { return owner.value; }
 
@@ -112,7 +111,6 @@ struct CUSTODY_TBL issue_t {
     time_point    issued_at;                    //issue time (UTC time)
     time_point    updated_at;                   //update time: last unlocked at
 
-    uint64_t       scope() const { return plan_id; }
     uint64_t primary_key() const { return issue_id; }
 
     issue_t() {}
@@ -124,7 +122,7 @@ struct CUSTODY_TBL issue_t {
         indexed_by<"updateat"_n,     const_mem_fun<issue_t, uint64_t, &issue_t::by_updateat>>
     > tbl_t;
 
-    EOSLIB_SERIALIZE( issue_t,  (plan_id)(issue_id)(issuer)(receiver)(issued)(locked)(unlocked)
+    EOSLIB_SERIALIZE( issue_t,  (issue_id)(plan_id)(issuer)(receiver)(issued)(locked)(unlocked)
                                 (first_unlock_days)(status)(issued_at)(updated_at) )
 };
 
