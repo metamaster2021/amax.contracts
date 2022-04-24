@@ -36,7 +36,7 @@ ExternalProject_Add(
    test_contracts_project
    SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/test_contracts
    BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/test_contracts
-   CMAKE_ARGS -DCMAKE_TOOLCHAIN_FILE=${AMAX_CDT_ROOT}/lib/cmake/amax.cdt/AmaxWasmToolchain.cmake -DAMAX_COMPILE_TEST_CONTRACTS=${AMAX_COMPILE_TEST_CONTRACTS}
+   CMAKE_ARGS -DCMAKE_TOOLCHAIN_FILE=${AMAX_CDT_ROOT}/lib/cmake/amax.cdt/AmaxWasmToolchain.cmake
    UPDATE_COMMAND ""
    PATCH_COMMAND ""
    TEST_COMMAND ""
