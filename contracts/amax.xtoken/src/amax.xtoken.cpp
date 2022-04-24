@@ -101,7 +101,6 @@ namespace amax_xtoken {
         check(from != to, "cannot transfer to self");
         require_auth(from);
         check(is_account(to), "to account does not exist");
-        const auto& sym = quantity.symbol;
         auto sym_code_raw = quantity.symbol.code().raw();
         stats statstable(get_self(), sym_code_raw);
         const auto &st = statstable.get(sym_code_raw, "token of symbol does not exist");
