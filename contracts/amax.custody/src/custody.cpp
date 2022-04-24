@@ -117,7 +117,7 @@ void custody::addissue( const name& issuer, const name& receiver, uint64_t plan_
     CHECK( plan_itr->status == PLAN_ENABLED, "plan not enabled, status:" + to_string(plan_itr->status) )
 
     CHECK( is_account(receiver), "receiver account not exist" );
-    CHECK( quantity.symbol, "symbol of quantity mismatch with symbol of plan" );
+    CHECK( quantity.symbol == plan_itr->asset_symbol, "symbol of quantity mismatch with symbol of plan" );
 
     auto now = current_time_point();
 
@@ -132,6 +132,8 @@ void custody::addissue( const name& issuer, const name& receiver, uint64_t plan_
         issue.receiver = receiver;
         issue.first_unlock_days = first_unlock_days;
         issue.issued = quantity.amount;
+        issue.locked = 0;
+        issue.issued = 0;
         issue.status = ISSUE_UNDEPOSITED;
         issue.issued_at = now;
         issue.updated_at = now;
@@ -225,6 +227,7 @@ void custody::ontransfer(name from, name to, asset quantity, string memo) {
         });
 
         issue_tbl.modify( issue_itr, same_payer, [&]( auto& issue ) {
+            issue.locked = quantity.amount;
             issue.status = ISSUE_NORMAL;
             issue.updated_at = now;
         });
