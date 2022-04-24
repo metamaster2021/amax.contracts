@@ -103,14 +103,14 @@ bool starts_with(string_view sv, string_view s) {
 int64_t to_int64(string_view s, const char* err_title) {
     errno = 0;
     uint64_t ret = std::strtoll(s.data(), nullptr, 10);
-    CHECK(errno = 0, string(err_title) + ": convert str to int64 error: " + std::strerror(errno));
+    CHECK(errno == 0, string(err_title) + ": convert str to int64 error: " + std::strerror(errno));
     return ret;
 }
 
 uint64_t to_uint64(string_view s, const char* err_title) {
     errno = 0;
     uint64_t ret = std::strtoul(s.data(), nullptr, 10);
-    CHECK(errno = 0, string(err_title) + ": convert str to uint64 error: " + std::strerror(errno));
+    CHECK(errno == 0, string(err_title) + ": convert str to uint64 error: " + std::strerror(errno));
     return ret;
 }
 

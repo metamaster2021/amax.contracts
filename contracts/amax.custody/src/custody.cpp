@@ -183,7 +183,7 @@ void custody::ontransfer(name from, name to, asset quantity, string memo) {
         plan_t::tbl_t plan_tbl(get_self(), get_self().value);
         auto plan_itr = plan_tbl.find(plan_id);
         CHECK( plan_itr != plan_tbl.end(), "plan not found by plan_id: " + to_string(plan_id) )
-        CHECK( plan_itr->status == PLAN_UNPAID_FEE, "plan must be unpaid fee status:" + to_string(plan_itr->status) )
+        CHECK( plan_itr->status == PLAN_UNPAID_FEE, "plan must be unpaid fee, status:" + to_string(plan_itr->status) )
         plan_tbl.modify( plan_itr, same_payer, [&]( auto& plan ) {
             plan.status = PLAN_ENABLED;
             plan.updated_at = current_time_point();
@@ -205,7 +205,7 @@ void custody::ontransfer(name from, name to, asset quantity, string memo) {
         issue_t::tbl_t issue_tbl(get_self(), get_self().value);
         auto issue_itr = issue_tbl.find(issue_id);
         CHECK( issue_itr != issue_tbl.end(), "issue not found: " + to_string(issue_id) )
-        CHECK( issue_itr->status == ISSUE_UNDEPOSITED, "issue must be undeposited status: " + to_string(issue_itr->status) );
+        CHECK( issue_itr->status == ISSUE_UNDEPOSITED, "issue must be undeposited, status: " + to_string(issue_itr->status) );
 
         plan_t::tbl_t plan_tbl(get_self(), get_self().value);
         auto plan_itr = plan_tbl.find(issue_itr->plan_id);
