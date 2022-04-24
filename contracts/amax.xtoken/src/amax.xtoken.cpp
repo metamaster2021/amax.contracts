@@ -126,7 +126,6 @@ namespace amax_xtoken {
         {
             accounts to_accts(get_self(), to.value);
             auto to_acct = to_accts.find(sym_code_raw);
-            bool to_acct_in_fee_whitelist = (to_acct != to_accts.end()) && to_acct->is_fee_exempt;
             if ( to_acct == to_accts.end() || !to_acct->is_fee_exempt)
             {
                 fee.amount = std::max( st.min_fee_quantity.amount,
