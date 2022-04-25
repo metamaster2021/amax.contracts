@@ -133,7 +133,7 @@ void custody::addissue( const name& issuer, const name& receiver, uint64_t plan_
         issue.first_unlock_days = first_unlock_days;
         issue.issued = quantity.amount;
         issue.locked = 0;
-        issue.issued = 0;
+        issue.unlocked = 0;
         issue.status = ISSUE_UNDEPOSITED;
         issue.issued_at = now;
         issue.updated_at = now;
