@@ -38,7 +38,9 @@ void custody::setconfig(const asset &plan_fee, const name &fee_receiver) {
     CHECK( unlock_interval_days > 0 && unlock_interval_days <= MAX_LOCK_DAYS,
         "unlock_days must be > 0 and <= 365*10, i.e. 10 years" )
     CHECK( unlock_times > 0, "unlock times must be > 0" )
-
+    if (_gstate.plan_fee.amount > 0) {
+        CHECK(_gstate.fee_receiver.value != 0, "fee_receiver not set")
+    }
     plan_t::tbl_t plan_tbl(get_self(), get_self().value);
 	auto plan_id = plan_tbl.available_primary_key();
     if (plan_id == 0) plan_id = 1;
@@ -162,12 +164,7 @@ void custody::ontransfer(name from, name to, asset quantity, string memo) {
         CHECK(memo_params.size() == 2, "ontransfer:plan params size of must be 2")
         auto param_plan_id = memo_params[1];
 
-// TODO: DAY_SECONDS_FOR_TEST
-#ifdef DAY_SECONDS_FOR_TEST
-#warning "DAY_SECONDS_FOR_TEST should use only for test!!!"
-#else
         CHECK(get_first_receiver() == SYS_BANK, "must transfer by contract: " + SYS_BANK.to_string());
-#endif
         CHECK( quantity.symbol == SYS_SYMBOL, "quantity symbol mismatch with fee symbol");
         CHECK( quantity.amount == _gstate.plan_fee.amount,
             "quantity amount mismatch with fee amount: " + to_string(_gstate.plan_fee.amount) );
@@ -190,6 +187,8 @@ void custody::ontransfer(name from, name to, asset quantity, string memo) {
             plan.status = PLAN_ENABLED;
             plan.updated_at = current_time_point();
         });
+
+        TRANSFER_OUT( get_first_receiver(), _gstate.fee_receiver, quantity, memo )
     } else if (memo_params[0] == "issue") {
         CHECK(memo_params.size() == 2, "ontransfer:issue params size of must be 2")
         auto param_issue_id = memo_params[1];
