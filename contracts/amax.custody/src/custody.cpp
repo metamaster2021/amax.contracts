@@ -20,6 +20,7 @@ static constexpr eosio::name active_permission{"active"_n};
 void custody::setconfig(const asset &plan_fee, const name &fee_receiver) {
     require_auth(get_self());
     CHECK(plan_fee.symbol == SYS_SYMBOL, "plan_fee symbol mismatch with sys symbol")
+    CHECK(plan_fee.amount >= 0, "plan_fee symbol amount can not be negative")
     CHECK(is_account(fee_receiver), "fee_receiver account does not exist")
     _gstate.plan_fee = plan_fee;
     _gstate.fee_receiver = fee_receiver;
