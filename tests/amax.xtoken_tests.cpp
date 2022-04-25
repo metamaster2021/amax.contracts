@@ -51,6 +51,18 @@ public:
       return base_tester::push_action( std::move(act), signer.to_uint64_t() );
    }
 
+   action_result push_deposit_action(const account_name& signer, const action_name &name, const variant_object &data ) {
+      auto deposit_abi_ser = get_deposit_abi_serializer();
+      string action_type_name = deposit_abi_ser.get_action_type(name);
+
+      action act;
+      act.account = N(deposit);
+      act.name    = name;
+      act.data    = deposit_abi_ser.variant_to_binary( action_type_name, data, abi_serializer::create_yield_function(abi_serializer_max_time) );
+
+      return base_tester::push_action( std::move(act), signer.to_uint64_t() );
+   }
+
    fc::variant get_stats( const string& symbolname )
    {
       auto symb = eosio::chain::symbol::from_string(symbolname);
@@ -67,16 +79,21 @@ public:
       return data.empty() ? fc::variant() : abi_ser.binary_to_variant( "account", data, abi_serializer::create_yield_function(abi_serializer_max_time) );
    }
 
-   fc::variant get_deposit_account( account_name acc, const symbol& symb)
-   {
+   abi_serializer get_deposit_abi_serializer() const {
       abi_serializer deposit_abi_ser;
       const auto& accnt = control->db().get<account_object,by_name>( N(deposit) );
       abi_def abi;
       BOOST_REQUIRE_EQUAL(abi_serializer::to_abi(accnt.abi, abi), true);
       deposit_abi_ser.set_abi(abi, abi_serializer::create_yield_function(abi_serializer_max_time));
+      return deposit_abi_ser;
+   }
+
+   fc::variant get_deposit_account( account_name acc, const symbol& symb)
+   {
       auto symbol_code = symb.to_symbol_code().value;
       vector<char> data = get_row_by_account( N(deposit), acc, N(accounts), account_name(symbol_code) );
-      return data.empty() ? fc::variant() : deposit_abi_ser.binary_to_variant( "account", data, abi_serializer::create_yield_function(abi_serializer_max_time) );
+      return data.empty() ? fc::variant() : get_deposit_abi_serializer().binary_to_variant(
+            "account", data, abi_serializer::create_yield_function(abi_serializer_max_time) );
    }
 
    action_result create( account_name issuer,
@@ -566,6 +583,8 @@ BOOST_FIXTURE_TEST_CASE( transfer_fee_tests, amax_xtoken_tester ) try {
 
 BOOST_FIXTURE_TEST_CASE( deposit, amax_xtoken_tester ) try {
 
+   auto rlm = control->get_resource_limits_manager();
+
    set_code( N(deposit), contracts::util::xtoken_deposit_wasm() );
    set_abi( N(deposit), contracts::util::xtoken_deposit_abi().data() );
 
@@ -604,12 +623,41 @@ BOOST_FIXTURE_TEST_CASE( deposit, amax_xtoken_tester ) try {
    );
 
    wdump( ( get_deposit_account(N(bob), SYMB(4,CNY)) ) );
-   auto bob_balance = get_account(N(bob), "4,CNY");
-   REQUIRE_MATCHING_OBJECT( get_deposit_account(N(bob), SYMB(4,CNY)) ), mvo()
+   REQUIRE_MATCHING_OBJECT( get_deposit_account(N(bob), SYMB(4,CNY)), mvo()
       ("balance", "99.7000 CNY")
    );
+   BOOST_REQUIRE_EQUAL( success(),
+      open( N(carol), "4,CNY",  N(carol) )
+   );
 
-   // TODO: ...
+   auto bob_ram_usage = rlm.get_account_ram_usage(N(bob));
+   auto deposit_ram_usage = rlm.get_account_ram_usage(N(deposit));
+   wdump( (rlm.get_account_ram_usage(N(bob))) (rlm.get_account_ram_usage(N(deposit))) );
+
+   BOOST_REQUIRE_EQUAL( success(),
+      push_deposit_action( N(bob), N(withdraw), mvo()
+         ( "owner", "bob")
+         ( "to", "carol")
+         ( "quantity", "10.0000 CNY")
+         ( "memo", "withdraw")
+      )
+   );
+   produce_blocks();
+
+   wdump( (rlm.get_account_ram_usage(N(bob))) (rlm.get_account_ram_usage(N(deposit))) );
+   BOOST_REQUIRE_EQUAL(rlm.get_account_ram_usage(N(bob)) - bob_ram_usage,
+                       deposit_ram_usage - rlm.get_account_ram_usage(N(deposit)) );
+
+   REQUIRE_MATCHING_OBJECT( get_deposit_account(N(bob), SYMB(4,CNY)), mvo()
+      ("balance", "89.7000 CNY")
+   );
+
+   wdump( (get_account(N(carol), "4,CNY")) );
+   REQUIRE_MATCHING_OBJECT( get_account(N(carol), "4,CNY"), mvo()
+      ("balance", "9.9700 CNY")
+      ("is_frozen", false)
+      ("is_fee_exempt", false)
+   );
 
 } FC_LOG_AND_RETHROW()
 

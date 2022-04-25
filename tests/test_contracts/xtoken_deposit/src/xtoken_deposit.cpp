@@ -8,6 +8,11 @@ namespace amax_xtoken {
     #define ASSERT(exp) eosio::CHECK(exp, #exp)
 #endif
 
+#define TRANSFER_OUT(token_contract, to, quantity, memo) xtoken::transfer_action(                                \
+                                                             token_contract, {{get_self(), ACTIVE_PERM}}) \
+                                                             .send(                                             \
+                                                                 get_self(), to, quantity, memo);
+
     string to_string( const symbol& s ) {
         return std::to_string(s.precision()) + "," + s.code().to_string();
     }
@@ -40,6 +45,7 @@ namespace amax_xtoken {
         CHECK(memo.size() <= 256, "memo has more than 256 bytes");
         auto payer = has_auth(to) ? to : owner;
         sub_balance(owner, quantity, payer);
+        TRANSFER_OUT(SYS_BANK, to, quantity, memo)
     }
 
     void xtoken_deposit::onpayfee(const name &from, const name &to, const name& fee_receiver, const asset &fee, const string &memo) {
