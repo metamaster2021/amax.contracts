@@ -26,7 +26,7 @@ public:
      * @require by maintainer only
      * The delplan action will affect table scanning
      */
-    [[eosio::action]] void delplan(const name& owner, const uint64_t& plan_id);
+    // [[eosio::action]] void delplan(const name& owner, const uint64_t& plan_id);
 
     [[eosio::action]] void addissue(const name& issuer, const name& receiver, uint64_t plan_id, uint64_t first_unlock_days, const asset& quantity);
     /**

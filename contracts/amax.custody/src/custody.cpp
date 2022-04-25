@@ -78,17 +78,17 @@ void custody::setplanowner(const name& owner, const uint64_t& plan_id, const nam
     });
 }
 
-[[eosio::action]]
-void custody::delplan(const name& owner, const uint64_t& plan_id) {
-    require_auth(get_self());
+// [[eosio::action]]
+// void custody::delplan(const name& owner, const uint64_t& plan_id) {
+//     require_auth(get_self());
 
-    plan_t::tbl_t plan_tbl(get_self(), get_self().value);
-    auto plan_itr = plan_tbl.find(plan_id);
-    CHECK( plan_itr != plan_tbl.end(), "plan not found: " + to_string(plan_id) )
-    CHECK( owner == plan_itr->owner, "owner mismatch" )
+//     plan_t::tbl_t plan_tbl(get_self(), get_self().value);
+//     auto plan_itr = plan_tbl.find(plan_id);
+//     CHECK( plan_itr != plan_tbl.end(), "plan not found: " + to_string(plan_id) )
+//     CHECK( owner == plan_itr->owner, "owner mismatch" )
 
-    plan_tbl.erase(plan_itr);
-}
+//     plan_tbl.erase(plan_itr);
+// }
 
 [[eosio::action]]
 void custody::enableplan(const name& owner, const uint64_t& plan_id, bool enabled) {
