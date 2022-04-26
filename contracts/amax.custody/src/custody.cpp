@@ -285,6 +285,7 @@ void custody::internal_unlock(const name& actor, const uint64_t& plan_id,
     }
 
     uint64_t total_unlocked = 0;
+    auto remaining_locked = issue_itr->locked;
     if (issue_itr->status == ISSUE_NORMAL) {
         ASSERT(now >= issue_itr->issued_at)
         auto issued_days = (now.sec_since_epoch() - issue_itr->issued_at.sec_since_epoch()) / DAY_SECONDS;
@@ -300,7 +301,7 @@ void custody::internal_unlock(const name& actor, const uint64_t& plan_id,
         }
 
         auto cur_unlocked = total_unlocked - issue_itr->unlocked;
-        auto remaining_locked = issue_itr->issued - total_unlocked;
+        remaining_locked = issue_itr->issued - total_unlocked;
 
         if (cur_unlocked > 0) {
             auto unlock_quantity = asset(cur_unlocked, plan_itr->asset_symbol);
@@ -313,8 +314,8 @@ void custody::internal_unlock(const name& actor, const uint64_t& plan_id,
         }
 
         auto refunded = 0;
-        if (is_end_action && issue_itr->locked > 0) {
-            refunded = issue_itr->locked;
+        if (is_end_action && remaining_locked > 0) {
+            refunded = remaining_locked;
             auto memo = "refund: " + to_string(issue_id);
             auto refunded_quantity = asset(refunded, plan_itr->asset_symbol);
             TRANSFER_OUT( plan_itr->asset_contract, issue_itr->issuer, refunded_quantity, memo )
@@ -330,7 +331,7 @@ void custody::internal_unlock(const name& actor, const uint64_t& plan_id,
 
     issue_tbl.modify( issue_itr, same_payer, [&]( auto& issue ) {
         issue.unlocked = total_unlocked;
-        issue.locked = issue.issued - issue.unlocked;
+        issue.locked = remaining_locked;
         if (is_end_action || total_unlocked == issue.issued) {
             issue.status = ISSUE_ENDED;
         }
