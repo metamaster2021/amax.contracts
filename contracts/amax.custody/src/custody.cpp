@@ -319,6 +319,7 @@ void custody::internal_unlock(const name& actor, const uint64_t& plan_id,
             auto memo = "refund: " + to_string(issue_id);
             auto refunded_quantity = asset(refunded, plan_itr->asset_symbol);
             TRANSFER_OUT( plan_itr->asset_contract, issue_itr->issuer, refunded_quantity, memo )
+            remaining_locked = 0;
         }
         plan_tbl.modify( plan_itr, same_payer, [&]( auto& plan ) {
             plan.total_unlocked += cur_unlocked;
