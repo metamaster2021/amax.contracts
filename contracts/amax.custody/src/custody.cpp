@@ -104,7 +104,7 @@ void custody::enableplan(const name& owner, const uint64_t& plan_id, bool enable
     CHECK( plan_itr->status != new_status, "plan status is no changed" )
 
     plan_tbl.modify( plan_itr, same_payer, [&]( auto& plan ) {
-        plan.status = PLAN_UNPAID_FEE;
+        plan.status = new_status;
         plan.updated_at = current_time_point();
     });
 }
