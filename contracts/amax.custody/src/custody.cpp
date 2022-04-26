@@ -120,7 +120,10 @@ void custody::addissue( const name& issuer, const name& receiver, uint64_t plan_
     CHECK( plan_itr->status == PLAN_ENABLED, "plan not enabled, status:" + to_string(plan_itr->status) )
 
     CHECK( is_account(receiver), "receiver account not exist" );
+    CHECK( first_unlock_days <= MAX_LOCK_DAYS,
+        "unlock_days must be > 0 and <= 365*10, i.e. 10 years" )
     CHECK( quantity.symbol == plan_itr->asset_symbol, "symbol of quantity mismatch with symbol of plan" );
+	CHECK( quantity.amount > 0, "quantity must be positive" )
 
     auto now = current_time_point();
 
