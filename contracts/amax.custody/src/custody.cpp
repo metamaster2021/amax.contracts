@@ -285,7 +285,7 @@ void custody::internal_unlock(const name& actor, const uint64_t& plan_id,
     }
 
     uint64_t total_unlocked = 0;
-    auto remaining_locked = issue_itr->locked;
+    uint64_t remaining_locked = issue_itr->locked;
     if (issue_itr->status == ISSUE_NORMAL) {
         ASSERT(now >= issue_itr->issued_at)
         auto issued_days = (now.sec_since_epoch() - issue_itr->issued_at.sec_since_epoch()) / DAY_SECONDS;
@@ -316,7 +316,7 @@ void custody::internal_unlock(const name& actor, const uint64_t& plan_id,
             } // else ignore
         }
 
-        auto refunded = 0;
+        uint64_t refunded = 0;
         if (is_end_action && remaining_locked > 0) {
             refunded = remaining_locked;
             auto memo = "refund: " + to_string(issue_id);
