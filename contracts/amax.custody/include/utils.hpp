@@ -22,8 +22,11 @@ using namespace std;
     #define ASSERT(exp) CHECK(exp, #exp)
 #endif
 
-#ifndef TRACE
+#ifdef PRINT_TRACE
+    #warning "PRINT_TRACE should be used for test!!!"
     #define TRACE(...) print(__VA_ARGS__)
+#else
+    #define TRACE(...)
 #endif
 
 #define TRACE_L(...) TRACE(__VA_ARGS__, "\n")

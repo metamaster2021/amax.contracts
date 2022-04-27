@@ -303,6 +303,9 @@ void custody::internal_unlock(const name& actor, const uint64_t& plan_id,
         auto cur_unlocked = total_unlocked - issue_itr->unlocked;
         remaining_locked = issue_itr->issued - total_unlocked;
 
+        TRACE("unlock detail: ", PP0(issued_days), PP(unlocked_days), PP(unlocked_times), PP(total_unlocked),
+            PP(cur_unlocked), PP(remaining_locked), "\n");
+
         if (cur_unlocked > 0) {
             auto unlock_quantity = asset(cur_unlocked, plan_itr->asset_symbol);
             string memo = "unlock: " + to_string(issue_id) + "@" + to_string(plan_id);
