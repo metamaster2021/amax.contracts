@@ -70,15 +70,9 @@ struct CUSTODY_TBL plan_t {
 
     uint64_t primary_key() const { return id; }
 
-    uint64_t by_owner()const { return owner.value; }
-
-    plan_t() {}
-    plan_t(uint64_t pid): id(pid) {}
-    plan_t(uint64_t pid, name o, string t, name ac, symbol as, uint64_t uid, uint64_t ut): id(pid), title(t), asset_contract(ac), asset_symbol(as), unlock_interval_days(uid), unlock_times(ut) {
-        created_at = current_time_point();
-    }
-
     uint64_t by_updateat() const { return updated_at.sec_since_epoch(); }
+
+    uint64_t by_owner()const { return owner.value; }
 
     typedef eosio::multi_index<"plans"_n, plan_t,
         indexed_by<"updateat"_n,     const_mem_fun<plan_t, uint64_t, &plan_t::by_updateat>>,
@@ -112,9 +106,6 @@ struct CUSTODY_TBL issue_t {
     time_point    updated_at;                   //update time: last unlocked at
 
     uint64_t primary_key() const { return issue_id; }
-
-    issue_t() {}
-    issue_t(uint64_t p, uint64_t s): plan_id(p), issue_id(s) {}
 
     uint64_t by_updateat() const { return updated_at.sec_since_epoch(); }
 
