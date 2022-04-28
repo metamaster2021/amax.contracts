@@ -1,4 +1,4 @@
-#include <amax.token/amax.token.hpp>
+#include <amax.amtoken/amax.amtoken.hpp>
 
 namespace amax {
 
