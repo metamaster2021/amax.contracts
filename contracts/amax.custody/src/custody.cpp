@@ -1,5 +1,5 @@
 
-#include <amax.token/amax.token.hpp>
+#include <amax.token.hpp>
 #include "custody.hpp"
 #include "utils.hpp"
 
