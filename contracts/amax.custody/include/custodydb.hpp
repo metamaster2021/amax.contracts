@@ -98,6 +98,8 @@ struct CUSTODY_TBL issue_t {
     uint64_t      locked = 0;                   //currently locked amount
     uint64_t      unlocked = 0;                 //currently unlocked amount
     uint64_t      first_unlock_days = 0;        //unlock since issued_at
+    uint64_t      unlock_interval_days;         //interval between two consecutive unlock timepoints
+    uint64_t      unlock_times;                 //unlock times, duration=unlock_interval_days*unlock_times
     uint8_t       status = ISSUE_UNDEPOSITED;   //status of issue, see issue_status_t
     time_point    issued_at;                    //issue time (UTC time)
     time_point    updated_at;                   //update time: last unlocked at
@@ -118,7 +120,8 @@ struct CUSTODY_TBL issue_t {
     > tbl_t;
 
     EOSLIB_SERIALIZE( issue_t,  (issue_id)(plan_id)(issuer)(receiver)(issued)(locked)(unlocked)
-                                (first_unlock_days)(status)(issued_at)(updated_at) )
+                                (first_unlock_days)(unlock_interval_days)(unlock_times)
+                                (status)(issued_at)(updated_at) )
 };
 
 struct CUSTODY_TBL account {
