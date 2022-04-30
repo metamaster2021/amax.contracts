@@ -70,9 +70,11 @@ struct CUSTODY_TBL plan_t {
 
     uint64_t primary_key() const { return id; }
 
+    uint64_t by_updatedid() const { return (updated_at.sec_since_epoch() << 32) | (id & 0x00000000FFFFFFFF); }
     uint128_t by_owner() const { return (uint128_t)owner.value << 64 | (uint128_t)id; }
 
     typedef eosio::multi_index<"plans"_n, plan_t,
+        indexed_by<"updatedid"_n,  const_mem_fun<plan_t, uint128_t, &plan_t::by_updatedid> >,
         indexed_by<"owneridx"_n,  const_mem_fun<plan_t, uint128_t, &plan_t::by_owner> >
     > tbl_t;
 
@@ -106,6 +108,7 @@ struct CUSTODY_TBL issue_t {
 
     uint64_t primary_key() const { return issue_id; }
 
+    uint64_t by_updatedid() const { return (updated_at.sec_since_epoch() << 32) | (id & 0x00000000FFFFFFFF); }
     uint128_t by_plan() const { return (uint128_t)plan_id << 64 | (uint128_t)issue_id; }
     uint128_t by_receiver() const { return (uint128_t)receiver.value << 64 | (uint128_t)issue_id; }
     checksum256 by_planreceiver() const {
@@ -114,6 +117,7 @@ struct CUSTODY_TBL issue_t {
     }
 
     typedef eosio::multi_index<"issues"_n, issue_t,
+        indexed_by<"updatedid"_n,  const_mem_fun<plan_t, uint128_t, &plan_t::by_updatedid> >,
         indexed_by<"planidx"_n,     const_mem_fun<issue_t, uint128_t, &issue_t::by_plan>>,
         indexed_by<"receiveridx"_n,     const_mem_fun<issue_t, uint128_t, &issue_t::by_receiver>>
         indexed_by<"planreceiver"_n,     const_mem_fun<issue_t, checksum256, &issue_t::by_planreceiver>>
