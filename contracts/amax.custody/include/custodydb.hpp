@@ -106,10 +106,15 @@ struct CUSTODY_TBL issue_t {
 
     uint128_t by_plan() const { return (uint128_t)plan_id << 64 | (uint128_t)issue_id; }
     uint128_t by_receiver() const { return (uint128_t)receiver.value << 64 | (uint128_t)issue_id; }
+    checksum256 by_planreceiver() const {
+        // same as: BigNum plan_id << 192 | receiver.value << 128 | issue_id
+        return checksum256::make_from_word_sequence(0, plan_id, receiver.value, issue_id);
+    }
 
     typedef eosio::multi_index<"issues"_n, issue_t,
         indexed_by<"planidx"_n,     const_mem_fun<issue_t, uint128_t, &issue_t::by_plan>>,
         indexed_by<"receiveridx"_n,     const_mem_fun<issue_t, uint128_t, &issue_t::by_receiver>>
+        indexed_by<"planreceiver"_n,     const_mem_fun<issue_t, checksum256, &issue_t::by_planreceiver>>
     > tbl_t;
 
     EOSLIB_SERIALIZE( issue_t,  (issue_id)(plan_id)(issuer)(receiver)(issued)(locked)(unlocked)
