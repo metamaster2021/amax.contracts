@@ -16,7 +16,7 @@ using namespace wasm::db;
  * The `amax.xchain` is Cross-chain (X -> AMAX -> Y) contract
  * 
  */
-class [[eosio::contract("amax.xchain")]] token : public contract {
+class [[eosio::contract("amax.xchain")]] xchain : public contract {
 private:
    dbc                 _db;
    global_singleton    _global;
@@ -25,7 +25,7 @@ private:
 public:
    using contract::contract;
 
-   token(eosio::name receiver, eosio::name code, datastream<const char*> ds):
+   xchain(eosio::name receiver, eosio::name code, datastream<const char*> ds):
         _db(_self), contract(receiver, code, ds), _global(_self, _self.value) {
         if (_global.exists()) {
             _gstate = _global.get();
@@ -43,7 +43,7 @@ public:
     * Create asset token
     *
     */
-   ACTION create( const name& issuer, const uint16_t& asset_type, const string& uri, const int64_t& maximum_supply );
+   ACTION setaddress( const name& account, const name& base_chain, const string& address );
 
    /**
     *  This action issues to `to` account a `quantity` of tokens.
