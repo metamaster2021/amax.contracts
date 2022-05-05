@@ -38,47 +38,24 @@ public:
 
     ~token() { _global.set( _gstate, get_self() ); }
    
-   ACTION init();
-   /*
-    * Create asset token
-    *
-    */
-   ACTION setaddress( const name& account, const name& base_chain, const string& address );
+    ACTION init();
+    
+    /*
+     * Create asset token
+     *
+     */
+    ACTION setaddress( const name& account, const name& base_chain, const string& address );
 
-   /**
-    *  This action issues to `to` account a `quantity` of tokens.
-    *
-    * @param to - the account to issue tokens to, it must be the same as the issuer,
-    * @param quntity - the amount of tokens to be issued,
-    * @memo - the memo string that accompanies the token issue transaction.
-    */
-   [[eosio::action]]
-   void issue( const name& to, const token_asset& quantity, const string& memo );
-
-   [[eosio::action]]
-   void retire( const token_asset& quantity, const string& memo );
-
-   /*
-    * Transfers assets.
-    *
-    * This action transfers one or more assets by changing scope.
-    * Sender's RAM will be charged to transfer asset.
-    * Transfer will fail if asset is offered for claim or is delegated.
-    *
-    * @param from is account who sends the asset.
-    * @param to is account of receiver.
-    * @param asset is array of asset_id & asset_quantity to transfer.
-    * @param memo is transfers comment.
-    * @return no return value.
-    */
-   [[eosio::action]]
-   ACTION transfer(const name& from, const name& to, const token_asset& quantity, const string& memo );
-   using transfer_action = action_wrapper< "transfer"_n, &token::transfer >;
-
-   ACTION setpowasset( const name& issuer, const uint64_t symbid, const pow_asset_meta& asset_meta);
+    /**
+     * ontransfer, trigger by recipient of transfer()
+     * @param quantity - mirrored asset on AMC
+     * @param memo - memo format: $addr@$chain
+     *               
+     */
+    [[eosio::on_notify("*::transfer")]] 
+    void ontransfer(name from, name to, asset quantity, string memo);
 
    private:
-   void add_balance( const name& owner, const token_asset& value );
-   void sub_balance( const name& owner, const token_asset& value );
+
 };
 } //namespace apollo

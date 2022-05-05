@@ -28,7 +28,7 @@ static constexpr uint64_t max_memo_size     = 1024;
 
 #define hash(str) sha256(const_cast<char*>(str.c_str()), str.size());
 
-enum class chain_type: name {
+enum class chain: name {
     BTC         = "btc"_,
     ETH         = "eth"_,
     AMC         = "amc"_,
@@ -48,9 +48,14 @@ struct [[eosio::table("global"), eosio::contract("amax.xchain")]] global_t {
     name fee_collector;         // mgmt fees to collector
     uint64_t fee_rate = 4;      // boost by 10,000, i.e. 0.04%
     bool active = false;
-   
 
-    EOSLIB_SERIALIZE( global_t, (admin)(maker)(checker)(fee_collector)(fee_rate)(active) )
+    map<symbol_code, vector<name>> xchain_assets = {
+        { symbol_code("AMBTC"),  { chain::BTC } },
+        { symbol_code("AMETH"),  { chain::ETH } },
+        { symbol_code("AMUSDT"), { chain::ETH, chain::BSC, chain::TRON } }
+    };
+
+    EOSLIB_SERIALIZE( global_t, (admin)(maker)(checker)(fee_collector)(fee_rate)(active)(xchain_assets) )
 };
 
 typedef eosio::singleton< "global"_n, global_t > global_singleton;
