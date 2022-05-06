@@ -50,17 +50,25 @@ struct [[eosio::table("global"), eosio::contract("amax.xchain")]] global_t {
     name maker;
     name checker;
     name fee_collector;         // mgmt fees to collector
+    name eos_collector;
+    name amax_collector;
     uint64_t fee_rate = 4;      // boost by 10,000, i.e. 0.04%
     bool active = false;
+
+    name_set base_chains = { chain::BTC, chain::ETH, chain::TRON, chain::EOS };
 
     map<symbol_code, vector<name>> xchain_assets = {
         { symbol_code("AMBTC"),  { chain::BTC } },
         { symbol_code("AMETH"),  { chain::ETH } },
         { symbol_code("AMUSDT"), { chain::ETH, chain::BSC, chain::TRON } }
     };
-    name_set 
 
-    EOSLIB_SERIALIZE( global_t, (admin)(maker)(checker)(fee_collector)(fee_rate)(active)(xchain_assets) )
+    map<name, string> xin_accounts = {
+        { chain::AMC,  "armoniaxinto" },
+        { chain::EOS,  "armoniaxinto" }
+    };
+
+    EOSLIB_SERIALIZE( global_t, (admin)(maker)(checker)(fee_collector)(fee_rate)(active)(xchain_assets) (base_chains) )
 };
 
 typedef eosio::singleton< "global"_n, global_t > global_singleton;
@@ -92,15 +100,10 @@ struct account_xchain_address_t {
     account_xchain_address_t(const name& ch): base_chain(ch) {};
 
 
-    uint64_t primary_key()const { return id; }
+    uint64_t    primary_key()const { return id; }
+    uint64_t    by_update_time() const { return (uint64_t) updated_at.utc_seconds; }
 
-    uint64_t by_update_time() const {
-        return (uint64_t) updated_at.utc_seconds ;
-    }
-
-    checksum256 by_xin_to() const {
-        return hash(xin_to); 
-    }
+    checksum256 by_xin_to() const { return hash(xin_to); }
 
     typedef eosio::multi_index<"xinaddrmap"_n, account_xchain_address_t,
         indexed_by<"updatedat"_n, const_mem_fun<account_xchain_address_t, uint64_t, &account_xchain_address_t::by_update_time> >
@@ -112,57 +115,86 @@ struct account_xchain_address_t {
 TBL xin_order_t {
     uint64_t        id;         //PK
     string          txid;
+    string          user_amacct;
+    string          xin_from;
+    string          xin_to;
     name            chain;
+    name            coin_name;
+    asset           quantity;  //for deposit_quantity
     name            status; //xin_order_status
-    asset           submitted;  //for deposit_quantity
-    asset           verified;   //for deposit_quantity
+
+    string          close_reason;
     name            maker;
     name            checker;
-    time_point_sec  submitted_at;
-    time_point_sec  verified_at;
+    time_point_sec  created_at;
+    time_point_sec  closed_at;
+    time_point_sec  updated_at;
 
     xin_order_t() {}
     xin_order_t(const uint64_t& i): id(i) {}
 
     uint64_t    primary_key()const { return id; }
+    uint64_t    by_update_time() const { return (uint64_t) updated_at.utc_seconds; }
+
     uint64_t    by_chain() const { return chain.value; }
     checksum256 by_txid() const { return hash(txid); }    //unique index
     uint64_t    by_status() const { return status.value; }
 
     typedef eosio::multi_index
       < "xinorders"_n,  xin_order_t,
+        indexed_by<"updatedat"_n, const_mem_fun<xin_order_t, uint64_t, &xin_order_t::by_update_time> >,
         indexed_by<"xintxids"_n, const_mem_fun<xin_order_t, checksum256, &xin_order_t::by_txid> >,
         indexed_by<"xinstatus"_n, const_mem_fun<xin_order_t, uint64_t, &xin_order_t::by_status> >
     > idx_t;
 
-    EOSLIB_SERIALIZE(xin_order_t, (id)(txid)(chain)(status)(submitted)(verified)(maker)(checker)(submitted_at)(verified_at) )
+    EOSLIB_SERIALIZE(xin_order_t,   (id)(txid)(user_amacct)(xin_from)(xin_to)
+                                    (chain)(coin_name)(quantity)(status)
+                                    (close_reason)(maker)(checker)(created_at)(closed_at)(updated_at) )
 
 };
 
 TBL xout_order_t {
     uint64_t        id;         //PK
     string          txid;
+    name            account;
+    string          xout_from; 
+    string          xout_to;
     name            chain;
-    name            status;     //xout_order_status
-    asset           submitted;  //for deposit_quantity
-    asset           verified;   //for deposit_quantity
+    name            coin_name;
+
+    asset           apply_amount; 
+    asset           amount;
+    asset           fee;
+    name            status;
+    string          memo;
+    
+    string          close_reason;
     name            maker;
     name            checker;
-    time_point_sec  submitted_at;
-    time_point_sec  verified_at;
+    time_point_sec  created_at;
+    time_point_sec  closed_at;
+    time_point_sec  updated_at;
+
 
     xout_order_t() {};
+
+    uint64_t    primary_key()const { return id; }
+    uint64_t    by_update_time() const { return (uint64_t) updated_at.utc_seconds; }
 
     checksum256 by_txid() const { return hash(txid); }    //unique index
 
     typedef eosio::multi_index
       < "xoutorders"_n,  xout_order_t,
+        indexed_by<"updatedat"_n, const_mem_fun<xin_order_t, uint64_t, &xin_order_t::by_update_time> >,
         indexed_by<"xouttxids"_n, const_mem_fun<xin_order_t, checksum256, &xin_order_t::by_txid> >
     > idx_t;
 
     uint64_t primary_key() const { return id; };
 
-    EOSLIB_SERIALIZE(xout_order_t, (id)(txid)(chain) )
+    EOSLIB_SERIALIZE(xout_order_t,  (id)(txid)(account)(xout_from)(xout_to)(chain)(coin_name)
+                                    (apply_amount)(amount)(fee)(status)(memo)
+                                    (close_reason)(maker)(checker)(created_at)(closed_at)(updated_at) )
+                                    
 };
 
 } // amax

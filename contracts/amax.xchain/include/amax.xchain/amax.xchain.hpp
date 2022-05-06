@@ -40,23 +40,38 @@ public:
    
     ACTION init();
     
-    /*
-     * Create asset token
-     *
+    ACTION reqxintoaddr( const name& account, const name& base_chain );
+
+    ACTION setaddress( const name& account, const name& base_chain, const string& xin_to );
+
+    ACTION mkxinorder( const name& to, const name& chain, const string& txid, const string& order_no, const asset& quantity);
+
+    /**
+     * checker to confirm xin order
      */
-    ACTION setaddress( const name& account, const name& base_chain, const string& address );
+    ACTION chkxinorder( const name& account, const uint64_t& id, const string& txid, const asset& quantity );
 
-
-    ACTION createxin( const name& to, const name& chain, const string& txid, const asset& quantity);
+    ACTION cancelorder( const name& account, const uint_64& id, const string& xin_to, const string& cancel_reason );
 
     /**
      * ontransfer, trigger by recipient of transfer()
      * @param quantity - mirrored asset on AMC
-     * @param memo - memo format: $addr@$chain
+     * @param memo - memo format: $addr@$chain@coin_name&order_no
      *               
      */
     [[eosio::on_notify("*::transfer")]] 
     void ontransfer(name from, name to, asset quantity, string memo);
+
+    ACTION onpaying( const name& account, const uint64_t& id, const string& txid, const asset& quantity );
+   
+    ACTION onpaysucc( const name& account, const uint64_t& id, const string& payno, const asset& quantity );
+
+    /**
+     * checker to confirm out order
+     */
+    ACTION chkxoutorder( const name& account, const uint64_t& id, const string& txid, const asset& quantity );
+
+    ACTION cancelxout( const name& account, const uint64_t& id, const string& payno, const asset& quantity );
 
    private:
 
