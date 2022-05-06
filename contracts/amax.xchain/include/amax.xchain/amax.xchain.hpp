@@ -36,7 +36,7 @@ public:
         }
     }
 
-    ~token() { _global.set( _gstate, get_self() ); }
+    ~xchain() { _global.set( _gstate, get_self() ); }
    
     ACTION init();
     
@@ -45,6 +45,9 @@ public:
      *
      */
     ACTION setaddress( const name& account, const name& base_chain, const string& address );
+
+
+    ACTION createxin( const name& to, const name& chain, const string& txid, const asset& quantity);
 
     /**
      * ontransfer, trigger by recipient of transfer()
