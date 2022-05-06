@@ -74,6 +74,6 @@ public:
     ACTION cancelxout( const name& account, const uint64_t& id, const string& payno, const asset& quantity );
 
    private:
-
+    void _check_base_chain(const asset& quantity);
 };
 } //namespace apollo

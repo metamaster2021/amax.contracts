@@ -4,17 +4,44 @@ namespace amax {
 
 ACTION xchain::reqxintoaddr( const name& account, const name& base_chain )
 {
+   require_auth( account );
 
+   check( _gstate.base_chains.count(quantity.symbol) != 0, "base chain is not allowed for xchain in" );
+   
+   auto idx = (uint128_t)account.value << 64 || (uint128_t)base_chain.value;
+   auto xchaddr_idx = account_xchain_address_t:::idx_t(_self, _self.value);
+   check( xchaddr_idx.find(idx) == xchaddr_idx.end(),  "the record already exists" );
+
+   auto xchaddr = account_xchain_address_t();
+   xchaddr.id = xchaddr_idx::available_primary_key();
+   xchaddr.account = account;
+   xchaddr.base_chain = base_chain;
+   xchaddr.created_at = time_point_sec(current_time_point());
+
+   if( _gstate.account_chains.count(quantity.symbol) != 0 ) {
+      xchaddr.status = "pending"_n;
+   } else {
+      xchaddr.status = "initialized"_n;
+      xchaddr.xin_to = str(xchaddr.id);
+      xchaddr.updated_at = time_point_sec(current_time_point());
+   }
+   _db.set(account, xchaddr);
 }
 
 ACTION xchain::setaddress( const name& account, const name& base_chain, const string& xin_to ) 
 {
-   require_auth( get_self() );
-   check( address.length() < 100, "illegal address" );
+   require_auth( _gstate.maker );
 
-   auto xchaddr = account_xchain_address_t(base_chain);
-   _db.get(xchaddr);
-   xchaddr.xin_to = address;
+   check( xin_to.length() < max_addr_len, "illegal address" );
+   check( _gstate.base_chains.count(quantity.symbol) != 0, "base chain is not allowed for xchain in" );
+
+   auto idx = (uint128_t)account.value << 64 || (uint128_t)base_chain.value;
+   auto xchaddr_idx = account_xchain_address_t:::idx_t(_self, _self.value);
+   auto xchaddr_ptr = xchaddr_idx.find(idx)
+   check( xchaddr_ptr != xchaddr_idx.end(),  "the record not exists" );
+   check( xchaddr_ptr->status == "pending"_n, "address already existed");
+
+   xchaddr.xin_to = xin_to;
    _db.set(xchaddr);
 }
 
@@ -68,7 +95,11 @@ ACTION xchain::chkxoutorder( const name& account, const uint64_t& id, const stri
 
 ACTION xchain::cancelxout( const name& account, const uint64_t& id, const string& payno, const asset& quantity )
 {
-   
+
+}
+
+void xchain::_check_base_chain(const asset& quantity) {
+
 }
 
 } /// namespace apollo

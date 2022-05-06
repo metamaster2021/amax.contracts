@@ -25,6 +25,7 @@ static constexpr eosio::name CNYD_BANK{"cnyd.token"_n};
 
 static constexpr uint64_t percent_boost     = 10000;
 static constexpr uint64_t max_memo_size     = 1024;
+static constexpr uint64_t max_addr_len      = 128;
 
 typedef set<symbol> symbol_set;
 typedef set<name> name_set;
@@ -50,12 +51,12 @@ struct [[eosio::table("global"), eosio::contract("amax.xchain")]] global_t {
     name maker;
     name checker;
     name fee_collector;         // mgmt fees to collector
-    name eos_collector;
-    name amax_collector;
     uint64_t fee_rate = 4;      // boost by 10,000, i.e. 0.04%
     bool active = false;
 
-    name_set base_chains = { chain::BTC, chain::ETH, chain::TRON, chain::EOS };
+    name_set base_chains = { chain::AMC, chain::BTC, chain::ETH, chain::TRON, chain::EOS };
+    name_set account_chains = { chain::AMC, chain::EOS };
+
 
     map<symbol_code, vector<name>> xchain_assets = {
         { symbol_code("AMBTC"),  { chain::BTC } },
@@ -73,40 +74,39 @@ struct [[eosio::table("global"), eosio::contract("amax.xchain")]] global_t {
 
 typedef eosio::singleton< "global"_n, global_t > global_singleton;
 
-// enum class order_status: name {
-//     CREATED         = "created"_n;
-//     FUFILLED        = "fufilled"_n;
-//     CANCELED        = "canceled"_n;
-// };
+enum class order_status : uint8_t{
+    CREATED         = 1,
+    FUFILLED        = 2,
+    CANCELED        = 3
+};
 
-// enum class address_status: name {
-//     PENDING         = "pending"_n,
-//     INITIALIZED     = "initialize"_n
-// };
+enum class address_status : uint8_t{
+    PENDING         = 1,
+    CONFIGURED      = 2
+};
 
 ///cross-chain deposit address
-///Scope: account
 struct account_xchain_address_t {
     uint64_t        id;
     name            account;
     name            base_chain; 
     string          xin_to;            //E.g. Eth or BTC address, eos id
-    name            status;
+    uint8_t         status;
 
     time_point_sec  created_at;
     time_point_sec  updated_at;
 
     account_xchain_address_t() {};
-    account_xchain_address_t(const name& ch): base_chain(ch) {};
-
 
     uint64_t    primary_key()const { return id; }
     uint64_t    by_update_time() const { return (uint64_t) updated_at.utc_seconds; }
+    uint128_t   by_accout_base_chain() const { return (uint128_t)account.value << 64 || (uint128_t)base_chain.value; }
 
     checksum256 by_xin_to() const { return hash(xin_to); }
 
     typedef eosio::multi_index<"xinaddrmap"_n, account_xchain_address_t,
-        indexed_by<"updatedat"_n, const_mem_fun<account_xchain_address_t, uint64_t, &account_xchain_address_t::by_update_time> >
+        indexed_by<"updatedat"_n, const_mem_fun<account_xchain_address_t, uint64_t, &account_xchain_address_t::by_update_time> >,
+        indexed_by<"acctchain"_n, const_mem_fun<account_xchain_address_t, uint128_t, &account_xchain_address_t::by_accout_base_chain> >
     > idx_t;
 
     EOSLIB_SERIALIZE( account_xchain_address_t, (id)(account)(base_chain)(xin_to)(status)(created_at)(updated_at) )
@@ -121,7 +121,7 @@ TBL xin_order_t {
     name            chain;
     name            coin_name;
     asset           quantity;  //for deposit_quantity
-    name            status; //xin_order_status
+    uint8_t         status; //xin_order_status
 
     string          close_reason;
     name            maker;
@@ -165,7 +165,7 @@ TBL xout_order_t {
     asset           apply_amount; 
     asset           amount;
     asset           fee;
-    name            status;
+    uint8_t         status;
     string          memo;
     
     string          close_reason;
@@ -188,8 +188,6 @@ TBL xout_order_t {
         indexed_by<"updatedat"_n, const_mem_fun<xin_order_t, uint64_t, &xin_order_t::by_update_time> >,
         indexed_by<"xouttxids"_n, const_mem_fun<xin_order_t, checksum256, &xin_order_t::by_txid> >
     > idx_t;
-
-    uint64_t primary_key() const { return id; };
 
     EOSLIB_SERIALIZE(xout_order_t,  (id)(txid)(account)(xout_from)(xout_to)(chain)(coin_name)
                                     (apply_amount)(amount)(fee)(status)(memo)
