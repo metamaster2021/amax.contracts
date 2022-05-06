@@ -26,6 +26,10 @@ static constexpr eosio::name CNYD_BANK{"cnyd.token"_n};
 static constexpr uint64_t percent_boost     = 10000;
 static constexpr uint64_t max_memo_size     = 1024;
 
+typedef set<symbol> symbol_set;
+typedef set<name> name_set;
+
+
 #define hash(str) sha256(const_cast<char*>(str.c_str()), str.size());
 
 namespace chain {
@@ -54,6 +58,7 @@ struct [[eosio::table("global"), eosio::contract("amax.xchain")]] global_t {
         { symbol_code("AMETH"),  { chain::ETH } },
         { symbol_code("AMUSDT"), { chain::ETH, chain::BSC, chain::TRON } }
     };
+    name_set 
 
     EOSLIB_SERIALIZE( global_t, (admin)(maker)(checker)(fee_collector)(fee_rate)(active)(xchain_assets) )
 };
