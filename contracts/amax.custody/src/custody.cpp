@@ -53,6 +53,9 @@ void custody::setconfig(const asset &plan_fee, const name &fee_receiver) {
         plan.asset_symbol = asset_symbol;
         plan.unlock_interval_days = unlock_interval_days;
         plan.unlock_times = unlock_times;
+        plan.total_issued = asset(0, asset_symbol);
+        plan.total_unlocked = asset(0, asset_symbol);
+        plan.total_refunded = asset(0, asset_symbol);
         plan.status =  _gstate.plan_fee.amount != 0 ? PLAN_UNPAID_FEE : PLAN_ENABLED;
         plan.created_at = current_time_point();
         plan.updated_at = plan.created_at;
@@ -137,9 +140,9 @@ void custody::addissue( const name& issuer, const name& receiver, uint64_t plan_
         issue.issuer = issuer;
         issue.receiver = receiver;
         issue.first_unlock_days = first_unlock_days;
-        issue.issued = quantity.amount;
-        issue.locked = 0;
-        issue.unlocked = 0;
+        issue.issued = quantity;
+        issue.locked = asset(0, quantity.symbol);
+        issue.unlocked = asset(0, quantity.symbol);
         issue.unlock_interval_days = plan_itr->unlock_interval_days;
         issue.unlock_times = plan_itr->unlock_times;
         issue.status = ISSUE_UNDEPOSITED;
@@ -223,16 +226,16 @@ void custody::ontransfer(name from, name to, asset quantity, string memo) {
         CHECK( plan_itr->asset_contract == asset_contract, "issue asset contract mismatch" );
         CHECK( plan_itr->asset_symbol == quantity.symbol, "issue asset symbol mismatch" );
 
-        CHECK( issue_itr->issued == quantity.amount, "issue amount mismatch" );
+        CHECK( issue_itr->issued == quantity, "issue amount mismatch" );
 
         auto now = current_time_point();
         plan_tbl.modify( plan_itr, same_payer, [&]( auto& plan ) {
-            plan.total_issued += quantity.amount;
+            plan.total_issued += quantity;
             plan.updated_at = now;
         });
 
         issue_tbl.modify( issue_itr, same_payer, [&]( auto& issue ) {
-            issue.locked = quantity.amount;
+            issue.locked = quantity;
             issue.status = ISSUE_NORMAL;
             issue.updated_at = now;
         });
@@ -286,8 +289,8 @@ void custody::internal_unlock(const name& actor, const uint64_t& plan_id,
             "issue not normal, status: " + to_string(issue_itr->status) );
     }
 
-    uint64_t total_unlocked = 0;
-    uint64_t remaining_locked = issue_itr->locked;
+    int64_t total_unlocked = 0;
+    int64_t remaining_locked = issue_itr->locked.amount;
     if (issue_itr->status == ISSUE_NORMAL) {
         ASSERT(now >= issue_itr->issued_at)
         auto issued_days = (now.sec_since_epoch() - issue_itr->issued_at.sec_since_epoch()) / DAY_SECONDS;
@@ -295,15 +298,16 @@ void custody::internal_unlock(const name& actor, const uint64_t& plan_id,
         ASSERT(plan_itr->unlock_interval_days > 0);
         auto unlocked_times = std::min(unlocked_days / plan_itr->unlock_interval_days, plan_itr->unlock_times);
         if (unlocked_times >= plan_itr->unlock_times) {
-            total_unlocked = issue_itr->issued;
+            total_unlocked = issue_itr->issued.amount;
         } else {
             ASSERT(plan_itr->unlock_times > 0)
-            total_unlocked = multiply_decimal64(issue_itr->issued, unlocked_times, plan_itr->unlock_times);
-            ASSERT(total_unlocked >= issue_itr->unlocked && issue_itr->issued >= total_unlocked)
+            total_unlocked = multiply_decimal64(issue_itr->issued.amount, unlocked_times, plan_itr->unlock_times);
+            ASSERT(total_unlocked >= issue_itr->unlocked.amount && issue_itr->issued.amount >= total_unlocked)
         }
 
-        auto cur_unlocked = total_unlocked - issue_itr->unlocked;
-        remaining_locked = issue_itr->issued - total_unlocked;
+        int64_t cur_unlocked = total_unlocked - issue_itr->unlocked.amount;
+        remaining_locked = issue_itr->issued.amount - total_unlocked;
+        ASSERT(remaining_locked >= 0);
 
         TRACE("unlock detail: ", PP0(issued_days), PP(unlocked_days), PP(unlocked_times), PP(total_unlocked),
             PP(cur_unlocked), PP(remaining_locked), "\n");
@@ -327,18 +331,18 @@ void custody::internal_unlock(const name& actor, const uint64_t& plan_id,
             remaining_locked = 0;
         }
         plan_tbl.modify( plan_itr, same_payer, [&]( auto& plan ) {
-            plan.total_unlocked += cur_unlocked;
+            plan.total_unlocked.amount += cur_unlocked;
             if (refunded > 0) {
-                plan.total_refunded += refunded;
+                plan.total_refunded.amount += refunded;
             }
             plan.updated_at = current_time_point();
         });
     }
 
     issue_tbl.modify( issue_itr, same_payer, [&]( auto& issue ) {
-        issue.unlocked = total_unlocked;
-        issue.locked = remaining_locked;
-        if (is_end_action || total_unlocked == issue.issued) {
+        issue.unlocked.amount = total_unlocked;
+        issue.locked.amount = remaining_locked;
+        if (is_end_action || issue.unlocked == issue.issued) {
             issue.status = ISSUE_ENDED;
         }
         issue.updated_at = current_time_point();
