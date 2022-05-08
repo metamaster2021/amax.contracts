@@ -6,8 +6,8 @@ ACTION xchain::reqxintoaddr( const name& account, const name& base_chain )
 {
    require_auth( account );
 
-   check( _gstate.base_chains.count(quantity.symbol) != 0, "base chain is not allowed for xchain in" );
-   
+   auto type = _check_base_chain(base_chain.symbol_name);
+
    auto idx = (uint128_t)account.value << 64 || (uint128_t)base_chain.value;
    auto xchaddr_idx = account_xchain_address_t:::idx_t(_self, _self.value);
    check( xchaddr_idx.find(idx) == xchaddr_idx.end(),  "the record already exists" );
@@ -18,7 +18,7 @@ ACTION xchain::reqxintoaddr( const name& account, const name& base_chain )
    xchaddr.base_chain = base_chain;
    xchaddr.created_at = time_point_sec(current_time_point());
 
-   if( _gstate.account_chains.count(quantity.symbol) != 0 ) {
+   if( type != 0 ) {
       xchaddr.status = (uint8_t)address_status::PENDING;
    } else {
       xchaddr.status = (uint8_t)address_status::CONFIGURED;
@@ -33,7 +33,7 @@ ACTION xchain::setaddress( const name& account, const name& base_chain, const st
    require_auth( _gstate.maker );
 
    check( xin_to.length() < max_addr_len, "illegal address" );
-   check( _gstate.base_chains.count(quantity.symbol) != 0, "base chain is not allowed for xchain in" );
+   _check_base_chain(base_chain);
 
    auto idx = (uint128_t)account.value << 64 || (uint128_t)base_chain.value;
    auto xchaddr_idx = account_xchain_address_t:::idx_t(_self, _self.value);
@@ -53,6 +53,8 @@ ACTION xchain::mkxinorder( const name& to, const name& chain, const name& coin_n
 {
    require_auth( _gstate.maker );
 
+   _check_chain_coin(chain, coin_name);
+   
    xin_order_t::idx_t xin_orders(_self, _self.value);
     auto txid_index 			   = xin_orders.get_index<"xintxids"_n>();
     auto lower_itr 				= ordersn_index.lower_bound(hash(txid));
@@ -131,12 +133,16 @@ void xchain::ontransfer(name from, name to, asset quantity, string memo)
    if( to != _self ) return;
 
    auto parts = split(memo, "@");
+   auto memo_detail =  "";
    check(parts.size() >= 4, "Expected format 'address@chain@coin_name@order_no'");
    //check chain, coin_name
    auto xout_to = parts[0];
    auto chain = parts[1];
    auto coin_name = part[2];
    auto order_no = part[3];
+   if(parts.size() == 5) {
+      memo_detail =  part[4];
+   }
    
    if (get_first_receiver() == SYS_BANK) return;
 
@@ -150,9 +156,9 @@ void xchain::ontransfer(name from, name to, asset quantity, string memo)
       row.coin_name           = coin_name;
       row.apply_amount		   = quantity;
       row.amount		         = quantity;
-      //   row.fee			         = ;
+      //   row.fee			         = ;  
       row.status			      = (uint8_t)order_status::CREATED;
-      row.memo			         = memo;
+      row.memo			         = memo_detail;
       row.maker               = from;
       row.created_at          = time_point_sec(current_time_point());
       row.updated_at          = time_point_sec(current_time_point());;
@@ -168,7 +174,7 @@ ACTION xchain::onpaying( const name& account, const uint64_t& id, const string& 
    auto xout_order_itr = xout_orders.find(id);
    check( xout_order_itr != xout_orders.end(), "xout order not found: " + to_string(id) );
    check(xout_order_itr.status == (unit8_t)xout_order_status::CREATED,  "xout order status is not created: " + to_string(id));
-   
+
    xout_orders.modify( *xout_order_itr, _self, [&]( auto& row ) {
       row.status     = (uint8_t)order_status::PAYING;
       row.txid       = txid;
@@ -217,7 +223,8 @@ ACTION xchain::chkxoutorder( const name& account, const uint64_t& id )
 
 ACTION xchain::cancelxout( const name& account, const uint64_t& id )
 {
-   require_auth( _gstate.checker );
+   require_auth(account);
+   check(account == _gstate.checker || account == _gstate.taker, "account is not checker or taker" )
 
    xout_order_t::idx_t xout_orders(_self, _self.value);
    auto xout_order_itr = xout_orders.find(id);
@@ -225,15 +232,32 @@ ACTION xchain::cancelxout( const name& account, const uint64_t& id )
    check(xout_order_itr.status == (unit8_t)xout_order_status::PAY_SUCCESS ||
                xout_order_itr.status == (unit8_t)xout_order_status::PAYING 
                ,  "xout order status is not pay_success");
-   
 
-   //check status
-   
    xout_orders.modify( *xout_order_itr, _self, [&]( auto& row ) {
       row.status     = (uint8_t)order_status::CHECKED;
       row.closed_at  = time_point_sec(current_time_point());
-      row.updated_at = time_point_sec(current_time_point());
+      row.updated_at = time_point_sec(current_time_point());   
    });
+}
+
+uint8_t xchain::_check_base_chain(const name& chain) {
+   chain::idx_t chains(_self, _self.value);
+   auto chain_itr = chains.find(chain.value);
+
+   check( chain_itr != chains.end(), "chain not found: " + to_string(chain) );
+   check( chain_itr->base_chain,  to_string(chain) + "is not base chain" );
+   
+   if( chain_itr->xin_account == null )
+      return 0;
+   else 
+      return 1;
+
+}
+
+uint8_t xchain::_check_chain_coin(const name& chain, const name& coin) {
+   chain_coin_t::idx_t chain_coins(_self, _self.value);
+   auto chain_coin_itr = chain_coins.find(chain.value);
+   check( chain_coin_itr != chain_coins.end(), "chain_coin not found: " + to_string(chain) + "_" +  to_string(coin));
 }
 
 } /// namespace apollo

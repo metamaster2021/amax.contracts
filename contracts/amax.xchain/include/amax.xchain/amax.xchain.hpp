@@ -76,5 +76,7 @@ public:
     ACTION cancelxout( const name& account, const uint64_t& id );
 
    private:
+   
+    uint8_t _check_base_chain(const name& base_chain);
 };
 } //namespace apollo

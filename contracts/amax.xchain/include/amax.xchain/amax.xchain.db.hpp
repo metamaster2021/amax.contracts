@@ -61,23 +61,7 @@ struct [[eosio::table("global"), eosio::contract("amax.xchain")]] global_t {
     uint64_t fee_rate = 4;      // boost by 10,000, i.e. 0.04%
     bool active = false;
 
-    nameset base_chains = { chain::AMC, chain::BTC, chain::ETH, chain::TRON, chain::EOS };
-    nameset chains = { chain::AMC, chain::BTC, chain::ETH, chain::TRON, chain::EOS };
-    nameset coins = { coin::ETH, coin::USDT, coin::CNYD };
-    nameset account_chains = { chain::AMC, chain::EOS };
-
-    map<name, vector<name>> chain_coins = {
-        { coin::BTC,  { chain::BTC } },
-        { coin::ETH,  { chain::ETH } },
-        { coin::USDT, { chain::ETH, chain::BSC, chain::TRON } }
-    };
-
-    map<name, string> xin_accounts = {
-        { chain::AMC,  "armoniaxinto" },
-        { chain::EOS,  "armoniaxinto" }
-    };
-
-    EOSLIB_SERIALIZE( global_t, (admin)(maker)(checker)(fee_collector)(fee_rate)(active) (base_chains)(xchain_assets)(xchian_fee)(xin_accounts) )
+    EOSLIB_SERIALIZE( global_t, (admin)(maker)(checker)(fee_collector)(fee_rate)(active) )
 };
 
 typedef eosio::singleton< "global"_n, global_t > global_singleton;
@@ -214,7 +198,7 @@ TBL xout_order_t {
 
 TBL chain_t {
     name     chain;         //PK
-    uint8_t  type;          //1: address 2: account
+    boolean  base_chain;
     string   xin_account;
 
     chain_t() {};
