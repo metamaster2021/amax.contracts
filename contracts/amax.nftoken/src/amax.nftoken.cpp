@@ -1,4 +1,4 @@
-#include <amax.token/amax.token.hpp>
+#include <amax.nftoken/amax.nftoken.hpp>
 
 namespace eosio {
 
