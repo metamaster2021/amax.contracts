@@ -27,8 +27,8 @@ static constexpr uint64_t percent_boost     = 10000;
 static constexpr uint64_t max_memo_size     = 1024;
 static constexpr uint64_t max_addr_len      = 128;
 
-typedef set<symbol> symbol_set;
-typedef set<name> name_set;
+typedef set<symbol> symbolset;
+typedef set<name> nameset;
 
 
 #define hash(str) sha256(const_cast<char*>(str.c_str()), str.size());
@@ -44,6 +44,13 @@ namespace chain {
     static constexpr eosio::name EOS         = "eos"_n;
 };
 
+namespace coin {
+    static constexpr eosio::name BTC        = "btc"_n;
+    static constexpr eosio::name ETH        = "eth"_n;
+    static constexpr eosio::name USDT       = "usdt"_n;
+    static constexpr eosio::name CNYD       = "cnyd"_n;
+};
+
 #define TBL struct [[eosio::table, eosio::contract("amax.xchain")]]
 
 struct [[eosio::table("global"), eosio::contract("amax.xchain")]] global_t {
@@ -54,14 +61,15 @@ struct [[eosio::table("global"), eosio::contract("amax.xchain")]] global_t {
     uint64_t fee_rate = 4;      // boost by 10,000, i.e. 0.04%
     bool active = false;
 
-    name_set base_chains = { chain::AMC, chain::BTC, chain::ETH, chain::TRON, chain::EOS };
-    name_set account_chains = { chain::AMC, chain::EOS };
+    nameset base_chains = { chain::AMC, chain::BTC, chain::ETH, chain::TRON, chain::EOS };
+    nameset chains = { chain::AMC, chain::BTC, chain::ETH, chain::TRON, chain::EOS };
+    nameset coins = { coin::ETH, coin::USDT, coin::CNYD };
+    nameset account_chains = { chain::AMC, chain::EOS };
 
-
-    map<symbol_code, vector<name>> xchain_assets = {
-        { symbol_code("AMBTC"),  { chain::BTC } },
-        { symbol_code("AMETH"),  { chain::ETH } },
-        { symbol_code("AMUSDT"), { chain::ETH, chain::BSC, chain::TRON } }
+    map<name, vector<name>> chain_coins = {
+        { coin::BTC,  { chain::BTC } },
+        { coin::ETH,  { chain::ETH } },
+        { coin::USDT, { chain::ETH, chain::BSC, chain::TRON } }
     };
 
     map<name, string> xin_accounts = {
@@ -69,16 +77,25 @@ struct [[eosio::table("global"), eosio::contract("amax.xchain")]] global_t {
         { chain::EOS,  "armoniaxinto" }
     };
 
-    EOSLIB_SERIALIZE( global_t, (admin)(maker)(checker)(fee_collector)(fee_rate)(active)(xchain_assets) (base_chains) )
+    EOSLIB_SERIALIZE( global_t, (admin)(maker)(checker)(fee_collector)(fee_rate)(active) (base_chains)(xchain_assets)(xchian_fee)(xin_accounts) )
 };
 
 typedef eosio::singleton< "global"_n, global_t > global_singleton;
 
 enum class order_status : uint8_t{
     CREATED         = 1,
-    FUFILLED        = 2,
-    CANCELED        = 3
+    FUFILLED        = 8,
+    CANCELED        = 9
 };
+
+enum class xout_order_status : uint8_t{
+    CREATED         = 1,
+    PAYING          = 2,
+    PAY_SUCCESS     = 3,
+    CHECKED         = 6,
+    CANCELED        = 9
+};
+
 
 enum class address_status : uint8_t{
     PENDING         = 1,
@@ -193,6 +210,40 @@ TBL xout_order_t {
                                     (apply_amount)(amount)(fee)(status)(memo)
                                     (close_reason)(maker)(checker)(created_at)(closed_at)(updated_at) )
                                     
+};
+
+TBL chain_t {
+    name     chain;         //PK
+    uint8_t  type;          //1: address 2: account
+    string   xin_account;
+
+    chain_t() {};
+
+    uint64_t primary_key()const { return chain.vale; }
+
+    typedef eosio::multi_index< "chains"_n,  chain_t > idx_t;
+};
+
+TBL coin_t {
+    name     coin;         //PK
+
+    coin_t() {};
+
+    uint64_t primary_key()const { return coin.vale; }
+
+    typedef eosio::multi_index< "coins"_n,  coin_t > idx_t;
+};
+
+TBL chain_coin_t {
+    name     chain;        //PK
+    name     coin;         //PK
+    asset    fee;
+
+    coin_chain_t() {};
+
+    uint64_t primary_key()const { return chain.value << 32 | coin.value; }
+
+    typedef eosio::multi_index< "chaincoins"_n,  chain_coin_t > idx_t;
 };
 
 } // amax

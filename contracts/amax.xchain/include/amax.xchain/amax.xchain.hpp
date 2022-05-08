@@ -44,14 +44,16 @@ public:
 
     ACTION setaddress( const name& account, const name& base_chain, const string& xin_to );
 
-    ACTION mkxinorder( const name& to, const name& chain, const string& txid, const string& order_no, const asset& quantity);
+    ACTION mkxinorder(  const name& to, const name& chain, const name& coin_name, 
+                        const string& txid, const string& xin_from, const string& xin_to,
+                        const asset& quantity);
 
     /**
      * checker to confirm xin order
      */
-    ACTION chkxinorder( const name& account, const uint64_t& id, const string& txid, const asset& quantity );
+    ACTION chkxinorder( const name& account, const uint64_t& id);
 
-    ACTION cancelorder( const name& account, const uint_64& id, const string& xin_to, const string& cancel_reason );
+    ACTION cancelorder( const name& account, const uint_64& id,const string& cancel_reason );
 
     /**
      * ontransfer, trigger by recipient of transfer()
@@ -62,18 +64,17 @@ public:
     [[eosio::on_notify("*::transfer")]] 
     void ontransfer(name from, name to, asset quantity, string memo);
 
-    ACTION onpaying( const name& account, const uint64_t& id, const string& txid, const asset& quantity );
+    ACTION onpaying( const name& account, const uint64_t& id, const string& txid, const string& payno, const string& xout_from, const asset& quantity );
    
-    ACTION onpaysucc( const name& account, const uint64_t& id, const string& payno, const asset& quantity );
+    ACTION onpaysucc( const name& account, const uint64_t& id );
 
     /**
      * checker to confirm out order
      */
-    ACTION chkxoutorder( const name& account, const uint64_t& id, const string& txid, const asset& quantity );
+    ACTION chkxoutorder( const name& account, const uint64_t& id );
 
-    ACTION cancelxout( const name& account, const uint64_t& id, const string& payno, const asset& quantity );
+    ACTION cancelxout( const name& account, const uint64_t& id );
 
    private:
-    void _check_base_chain(const asset& quantity);
 };
 } //namespace apollo
