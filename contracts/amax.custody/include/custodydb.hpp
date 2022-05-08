@@ -61,9 +61,9 @@ struct CUSTODY_TBL plan_t {
     symbol          asset_symbol;               //E.g. AMAX | CNYD
     uint64_t        unlock_interval_days;       //interval between two consecutive unlock timepoints
     uint64_t        unlock_times;               //unlock times, duration=unlock_interval_days*unlock_times
-    uint64_t        total_issued = 0;           //stats: updated upon issue deposit
-    uint64_t        total_unlocked = 0;         //stats: updated upon unlock and endissue
-    uint64_t        total_refunded = 0;         //stats: updated upon and endissue
+    asset           total_issued;               //stats: updated upon issue deposit
+    asset           total_unlocked;             //stats: updated upon unlock and endissue
+    asset           total_refunded;             //stats: updated upon and endissue
     uint8_t         status = PLAN_UNPAID_FEE;   //status, see plan_status_t
     time_point      created_at;                 //creation time (UTC time)
     time_point      updated_at;                 //update time: last updated at
@@ -96,9 +96,9 @@ struct CUSTODY_TBL issue_t {
     uint64_t      plan_id = 0;                  //plan id
     name          issuer;                       //issuer
     name          receiver;                     //receiver of issue who can unlock
-    uint64_t      issued = 0;                   //originally issued amount
-    uint64_t      locked = 0;                   //currently locked amount
-    uint64_t      unlocked = 0;                 //currently unlocked amount
+    asset         issued;                       //originally issued amount
+    asset         locked;                       //currently locked amount
+    asset         unlocked;                     //currently unlocked amount
     uint64_t      first_unlock_days = 0;        //unlock since issued_at
     uint64_t      unlock_interval_days;         //interval between two consecutive unlock timepoints
     uint64_t      unlock_times;                 //unlock times, duration=unlock_interval_days*unlock_times
