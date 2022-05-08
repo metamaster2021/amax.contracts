@@ -8,13 +8,12 @@ namespace amax {
 using std::string;
 using namespace eosio;
 
-static constexpr name AMAX_BANK = "amax.token"_n;
-static constexpr name APL_BANK = "aplink.token"_n;
-static constexpr name CNYD_BANK = "cnyd.token"_n;
-
-static constexpr symbol_code AMAX = symbol_code("AMAX");
-static constexpr symbol_code APL = symbol_code("APL");
-static constexpr symbol_code CNYD = symbol_code("CNYD");
+static constexpr name AMAX_BANK  = "amax.token"_n;
+static constexpr name APL_BANK   = "aplink.token"_n;
+static constexpr name CNYD_BANK  = "cnyd.token"_n;
+static constexpr symbol   AMAX   = symbol(symbol_code("AMAX"), 8);
+static constexpr symbol   APL    = symbol(symbol_code("APL"), 4);
+static constexpr symbol   CNYD   = symbol(symbol_code("CNYD"), 4);
 
 class [[eosio::contract("currencyview")]] currencyview : public contract {
 public:
@@ -35,13 +34,14 @@ public:
    typedef eosio::multi_index< name("accounts"), accounts > tbl_accounts;
 
 private:
-   asset get_balance(const name& bank, const symbol_code& symbcode, const name& account) {
+   asset get_balance(const name& bank, const symbol& symb, const name& account) {
       tbl_accounts tmp(bank, account.value);
-      auto itr = tmp.find(symbcode.raw());
+      auto itr = tmp.find(symb.code().raw());
 
-      eosio::check(itr != tmp.end(), "The token doesn't exist in the token contract, or the account doesn't own any of these tokens");
-      auto balance = itr->balance;
-      return balance;
+      if (itr != tmp.end())
+         return itr->balance;
+      else 
+         return asset(0, symb);
    }
 };
 }
