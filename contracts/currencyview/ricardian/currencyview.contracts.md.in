@@ -1,0 +1,10 @@
+<h1 class="contract">view</h1>
+
+---
+spec_version: "0.2.0"
+title: View AMAX/APL/CNYD
+summary: 'View AMAX/APL/CNYD'
+icon: @ICON_BASE_URL@/@TOKEN_ICON_URI@
+---
+
+return balances of three tokens for a given account
