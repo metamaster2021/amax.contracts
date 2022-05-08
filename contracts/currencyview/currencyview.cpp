@@ -24,7 +24,7 @@ public:
       auto apl_bal = get_balance(APL_BANK, APL, account);
       auto cnyd_bal = get_balance(CNYD_BANK, CNYD, account);
 
-      check(false, amax_bal.to_string() + "," + apl_bal.to_string() + "," + cnyd_bal.to_string());
+      check(false, ">>" + amax_bal.to_string() + "," + apl_bal.to_string() + "," + cnyd_bal.to_string());
    }
 
    struct accounts {
