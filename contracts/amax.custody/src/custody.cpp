@@ -157,7 +157,7 @@ void custody::ontransfer(name from, name to, asset quantity, string memo) {
         CHECK(memo_params.size() == 4, "ontransfer:issue params size of must be 4")
         auto receiver = name(memo_params[1]);
         auto plan_id = to_uint64(memo_params[2], "plan_id");
-        auto first_unlock_days = to_uint64(memo_params[1], "first_unlock_days");
+        auto first_unlock_days = to_uint64(memo_params[3], "first_unlock_days");
 
         plan_t::tbl_t plan_tbl(get_self(), get_self().value);
         auto plan_itr = plan_tbl.find(plan_id);
