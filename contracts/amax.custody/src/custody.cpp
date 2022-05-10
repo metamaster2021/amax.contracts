@@ -112,51 +112,6 @@ void custody::enableplan(const name& owner, const uint64_t& plan_id, bool enable
     });
 }
 
-void custody::addissue( const name& issuer, const name& receiver, uint64_t plan_id,
-                        uint64_t first_unlock_days, const asset& quantity)
-{
-    require_auth( issuer );
-
-    plan_t::tbl_t plan_tbl(get_self(), get_self().value);
-    auto plan_itr = plan_tbl.find(plan_id);
-    CHECK( plan_itr != plan_tbl.end(), "plan not found: " + to_string(plan_id) )
-    CHECK( plan_itr->status == PLAN_ENABLED, "plan not enabled, status:" + to_string(plan_itr->status) )
-
-    CHECK( is_account(receiver), "receiver account not exist" );
-    CHECK( first_unlock_days <= MAX_LOCK_DAYS,
-        "unlock_days must be > 0 and <= 365*10, i.e. 10 years" )
-    CHECK( quantity.symbol == plan_itr->asset_symbol, "symbol of quantity mismatch with symbol of plan" );
-	CHECK( quantity.amount > 0, "quantity must be positive" )
-
-    auto now = current_time_point();
-
-    issue_t::tbl_t issue_tbl(get_self(), get_self().value);
-    auto issue_id = issue_tbl.available_primary_key();
-    if (issue_id == 0) issue_id = 1;
-
-    issue_tbl.emplace( issuer, [&]( auto& issue ) {
-        issue.issue_id = issue_id;
-        issue.plan_id = plan_id;
-        issue.issuer = issuer;
-        issue.receiver = receiver;
-        issue.first_unlock_days = first_unlock_days;
-        issue.issued = quantity;
-        issue.locked = asset(0, quantity.symbol);
-        issue.unlocked = asset(0, quantity.symbol);
-        issue.unlock_interval_days = plan_itr->unlock_interval_days;
-        issue.unlock_times = plan_itr->unlock_times;
-        issue.status = ISSUE_UNDEPOSITED;
-        issue.issued_at = now;
-        issue.updated_at = now;
-    });
-
-    account::tbl_t account_tbl(get_self(), get_self().value);
-    account_tbl.set(issuer.value, issuer, [&]( auto& acct ) {
-            acct.owner = issuer;
-            acct.last_issue_id = issue_id;
-    });
-}
-
 //issue-in op: transfer tokens to the contract and lock them according to the given plan
 [[eosio::action]]
 void custody::ontransfer(name from, name to, asset quantity, string memo) {
@@ -165,8 +120,8 @@ void custody::ontransfer(name from, name to, asset quantity, string memo) {
 	CHECK( quantity.amount > 0, "quantity must be positive" )
 
     //memo params format:
-    //plan:${plan_id}, Eg: "plan:" or "plan:1"
-    //issue:${issue_id}, Eg: "issue:" or "issue:1"
+    //1. plan:${plan_id}, Eg: "plan:" or "plan:1"
+    //2. issue:${receiver}:${plan_id}:${first_unlock_days}, Eg: "issue:receiver1234:1:30"
     vector<string_view> memo_params = split(memo, ":");
     ASSERT(memo_params.size() > 0);
     if (memo_params[0] == "plan") {
@@ -199,45 +154,56 @@ void custody::ontransfer(name from, name to, asset quantity, string memo) {
 
         TRANSFER_OUT( get_first_receiver(), _gstate.fee_receiver, quantity, memo )
     } else if (memo_params[0] == "issue") {
-        CHECK(memo_params.size() == 2, "ontransfer:issue params size of must be 2")
-        auto param_issue_id = memo_params[1];
-        uint64_t issue_id = 0;
-        if (param_issue_id.empty()) {
-            account::tbl_t account_tbl(get_self(), get_self().value);
-            auto acct = account_tbl.get(from.value, "from account does not exist in custody constract");
-            issue_id = acct.last_issue_id;
-            CHECK( issue_id != 0, "from account does no have any issue" );
-        } else {
-            issue_id = std::strtoul(param_issue_id.data(), nullptr, 10);
-            CHECK( issue_id != 0, "issue id can not be 0" );
-        }
-
-        issue_t::tbl_t issue_tbl(get_self(), get_self().value);
-        auto issue_itr = issue_tbl.find(issue_id);
-        CHECK( issue_itr != issue_tbl.end(), "issue not found: " + to_string(issue_id) )
-        CHECK( issue_itr->status == ISSUE_UNDEPOSITED, "issue must be undeposited, status: " + to_string(issue_itr->status) );
+        CHECK(memo_params.size() == 4, "ontransfer:issue params size of must be 4")
+        auto receiver = name(memo_params[1]);
+        auto plan_id = to_uint64(memo_params[2], "plan_id");
+        auto first_unlock_days = to_uint64(memo_params[1], "first_unlock_days");
 
         plan_t::tbl_t plan_tbl(get_self(), get_self().value);
-        auto plan_itr = plan_tbl.find(issue_itr->plan_id);
-        CHECK( plan_itr != plan_tbl.end(), "plan not found: " + to_string(issue_itr->plan_id) )
+        auto plan_itr = plan_tbl.find(plan_id);
+        CHECK( plan_itr != plan_tbl.end(), "plan not found: " + to_string(plan_id) )
         CHECK( plan_itr->status == PLAN_ENABLED, "plan not enabled, status:" + to_string(plan_itr->status) )
 
-        auto asset_contract = get_first_receiver();
-        CHECK( plan_itr->asset_contract == asset_contract, "issue asset contract mismatch" );
+        CHECK( is_account(receiver), "receiver account not exist" );
+        CHECK( first_unlock_days <= MAX_LOCK_DAYS,
+            "unlock_days must be > 0 and <= 365*10, i.e. 10 years" )
+        CHECK( quantity.symbol == plan_itr->asset_symbol, "symbol of quantity mismatch with symbol of plan" );
+        CHECK( quantity.amount > 0, "quantity must be positive" )
+        CHECK( plan_itr->asset_contract == get_first_receiver(), "issue asset contract mismatch" );
         CHECK( plan_itr->asset_symbol == quantity.symbol, "issue asset symbol mismatch" );
 
-        CHECK( issue_itr->issued == quantity, "issue amount mismatch" );
-
         auto now = current_time_point();
+
         plan_tbl.modify( plan_itr, same_payer, [&]( auto& plan ) {
             plan.total_issued += quantity;
             plan.updated_at = now;
         });
 
-        issue_tbl.modify( issue_itr, same_payer, [&]( auto& issue ) {
+        issue_t::tbl_t issue_tbl(get_self(), get_self().value);
+        auto issue_id = issue_tbl.available_primary_key();
+        if (issue_id == 0) issue_id = 1;
+
+        const auto& issuer = from;
+        issue_tbl.emplace( issuer, [&]( auto& issue ) {
+            issue.issue_id = issue_id;
+            issue.plan_id = plan_id;
+            issue.issuer = issuer;
+            issue.receiver = receiver;
+            issue.first_unlock_days = first_unlock_days;
+            issue.issued = quantity;
             issue.locked = quantity;
+            issue.unlocked = asset(0, quantity.symbol);
+            issue.unlock_interval_days = plan_itr->unlock_interval_days;
+            issue.unlock_times = plan_itr->unlock_times;
             issue.status = ISSUE_NORMAL;
+            issue.issued_at = now;
             issue.updated_at = now;
+        });
+
+        account::tbl_t account_tbl(get_self(), get_self().value);
+        account_tbl.set(issuer.value, issuer, [&]( auto& acct ) {
+                acct.owner = issuer;
+                acct.last_issue_id = issue_id;
         });
     }
     // else { ignore }

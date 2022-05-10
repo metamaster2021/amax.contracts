@@ -28,12 +28,23 @@ public:
      */
     // [[eosio::action]] void delplan(const name& owner, const uint64_t& plan_id);
 
-    [[eosio::action]] void addissue(const name& issuer, const name& receiver, uint64_t plan_id, uint64_t first_unlock_days, const asset& quantity);
     /**
      * ontransfer, trigger by recipient of transfer()
      * @param memo - memo format:
-     *               plan:${plan_id}, pay plan fee, Eg: "plan:" or "plan:1"
-     *               issue:${issue_id}, deposit token to issue, Eg: "issue:" or "issue:1"
+     * 1. plan:${plan_id}, pay plan fee, Eg: "plan:" or "plan:1"
+     *    pay plan fee
+     *
+     * 2. issue:${receiver}:${plan_id}:${first_unlock_days}, Eg: "issue:receiver1234:1:30"
+     *
+     *    add issue, the owner
+     *    @param receiver - owner name
+     *    @param plan_id - plan id
+     *    @param first_unlock_days - first unlock days after created
+     *
+     *    transfer() params:
+     *    @param from - issuer
+     *    @param to   - must be contract self
+     *    @param quantity - issued quantity
      */
     [[eosio::on_notify("*::transfer")]] void ontransfer(name from, name to, asset quantity, string memo);
     [[eosio::action]] void unlock(const name& unlocker, const uint64_t& plan_id, const uint64_t& issue_id);
