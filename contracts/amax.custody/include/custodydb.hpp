@@ -85,7 +85,7 @@ struct CUSTODY_TBL plan_t {
 
 enum issue_status_t {
     ISSUE_NONE          = 0,
-    ISSUE_UNDEPOSITED   = 1,
+    // ISSUE_UNDEPOSITED   = 1,
     ISSUE_NORMAL        = 2,
     ISSUE_ENDED         = 3
 };
@@ -102,7 +102,7 @@ struct CUSTODY_TBL issue_t {
     uint64_t      first_unlock_days = 0;        //unlock since issued_at
     uint64_t      unlock_interval_days;         //interval between two consecutive unlock timepoints
     uint64_t      unlock_times;                 //unlock times, duration=unlock_interval_days*unlock_times
-    uint8_t       status = ISSUE_UNDEPOSITED;   //status of issue, see issue_status_t
+    uint8_t       status = ISSUE_NONE;          //status of issue, see issue_status_t
     time_point    issued_at;                    //issue time (UTC time)
     time_point    updated_at;                   //update time: last unlocked at
 
