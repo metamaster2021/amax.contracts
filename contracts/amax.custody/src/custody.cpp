@@ -16,14 +16,28 @@ static constexpr eosio::name active_permission{"active"_n};
                                                              .send(                                             \
                                                                  get_self(), to, quantity, memo);
 
-[[eosio::action]]
-void custody::init() {
-    auto issues = issue_t::tbl_t(_self, _self.value);
-    auto itr = issues.begin();
-    while (itr != issues.end()) {
-        issues.modify( *itr, _self, [&]( auto& row ) {
-        });
-    }
+// [[eosio::action]]
+// void custody::init() {
+//     auto issues = issue_t::tbl_t(_self, _self.value);
+//     auto itr = issues.begin();
+//     while (itr != issues.end()) {
+//         issues.modify( *itr, _self, [&]( auto& row ) {
+//         });
+//     }
+// }
+
+[[eosio::action]] 
+void custody::fixissue(const uint64_t& issue_id, const asset& issued, const asset& locked, const asset& unlocked) {
+    require_auth(get_self());
+
+    issue_t::tbl_t issue_tbl(get_self(), get_self().value);
+    auto itr = issue_tbl.find(issue_id);
+    check( itr != issue_tbl.end(), "issue not found: " + to_string(issue_id) );
+    issue_tbl.modify(itr, get_self(), [&]( auto& issue ) {
+        issue.issued = issued;
+        issue.locked = locked;
+        issue.unlocked = unlocked;
+    });
 }
 
 [[eosio::action]]
