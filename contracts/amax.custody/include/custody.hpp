@@ -18,6 +18,7 @@ public:
         _gstate = _global.exists() ? _global.get() : global_t{};
     }
 
+    [[eosio::action]] void init();
     [[eosio::action]] void setconfig(const asset &plan_fee, const name &fee_receiver);
     [[eosio::action]] void addplan(const name& owner, const string& title, const name& asset_contract, const symbol& asset_symbol, const uint64_t& unlock_interval_days, const int64_t& unlock_times);
     [[eosio::action]] void setplanowner(const name& owner, const uint64_t& plan_id, const name& new_owner);

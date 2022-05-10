@@ -110,14 +110,16 @@ struct CUSTODY_TBL issue_t {
 
     uint64_t by_updatedid() const { return ((uint64_t)updated_at.sec_since_epoch() << 32) | (issue_id & 0x00000000FFFFFFFF); }
     uint128_t by_plan() const { return (uint128_t)plan_id << 64 | (uint128_t)issue_id; }
-    uint128_t by_receiver() const { return (uint128_t)receiver.value << 64 | (uint128_t)issue_id; }
+    uint128_t by_receiver_issue() const { return (uint128_t)receiver.value << 64 | (uint128_t)issue_id; }
     uint128_t by_planreceiver() const { return (uint128_t)plan_id << 64 | (uint128_t)receiver.value; }
+    uint64_t by_receiver()const { return receiver.value; }
 
     typedef eosio::multi_index<"issues"_n, issue_t,
-        indexed_by<"updatedid"_n,  const_mem_fun<issue_t, uint64_t, &issue_t::by_updatedid> >,
-        indexed_by<"planidx"_n,     const_mem_fun<issue_t, uint128_t, &issue_t::by_plan>>,
-        indexed_by<"receiveridx"_n,     const_mem_fun<issue_t, uint128_t, &issue_t::by_receiver>>,
-        indexed_by<"planreceiver"_n,     const_mem_fun<issue_t, uint128_t, &issue_t::by_planreceiver>>
+        indexed_by<"updatedid"_n,       const_mem_fun<issue_t, uint64_t, &issue_t::by_updatedid> >,
+        indexed_by<"planidx"_n,         const_mem_fun<issue_t, uint128_t, &issue_t::by_plan>>,
+        indexed_by<"receiveridx"_n,     const_mem_fun<issue_t, uint128_t, &issue_t::by_receiver_issue>>,
+        indexed_by<"planreceiver"_n,    const_mem_fun<issue_t, uint128_t, &issue_t::by_planreceiver>>,
+        indexed_by<"receivers"_n,       const_mem_fun<issue_t, uint64_t, &issue_t::by_receiver>>
     > tbl_t;
 
     EOSLIB_SERIALIZE( issue_t,  (issue_id)(plan_id)(issuer)(receiver)(issued)(locked)(unlocked)

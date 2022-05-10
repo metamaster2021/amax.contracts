@@ -17,6 +17,16 @@ static constexpr eosio::name active_permission{"active"_n};
                                                                  get_self(), to, quantity, memo);
 
 [[eosio::action]]
+void custody::init() {
+    auto issues = issue_t::tbl_t(_self, _self.value);
+    auto itr = issues.begin();
+    while (itr != issues.end()) {
+        issues.modify( *itr, _self, [&]( auto& row ) {
+        });
+    }
+}
+
+[[eosio::action]]
 void custody::setconfig(const asset &plan_fee, const name &fee_receiver) {
     require_auth(get_self());
     CHECK(plan_fee.symbol == SYS_SYMBOL, "plan_fee symbol mismatch with sys symbol")
