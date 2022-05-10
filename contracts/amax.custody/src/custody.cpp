@@ -184,7 +184,7 @@ void custody::ontransfer(name from, name to, asset quantity, string memo) {
         if (issue_id == 0) issue_id = 1;
 
         const auto& issuer = from;
-        issue_tbl.emplace( issuer, [&]( auto& issue ) {
+        issue_tbl.emplace( _self, [&]( auto& issue ) {
             issue.issue_id = issue_id;
             issue.plan_id = plan_id;
             issue.issuer = issuer;
@@ -200,11 +200,6 @@ void custody::ontransfer(name from, name to, asset quantity, string memo) {
             issue.updated_at = now;
         });
 
-        account::tbl_t account_tbl(get_self(), get_self().value);
-        account_tbl.set(issuer.value, issuer, [&]( auto& acct ) {
-                acct.owner = issuer;
-                acct.last_issue_id = issue_id;
-        });
     }
     // else { ignore }
 }

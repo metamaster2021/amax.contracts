@@ -129,13 +129,12 @@ struct CUSTODY_TBL account {
     // scope = contract self
     name    owner;
     uint64_t last_plan_id;
-    uint64_t last_issue_id;
 
     uint64_t primary_key()const { return owner.value; }
 
     typedef multi_index_ex< "accounts"_n, account > tbl_t;
 
-    EOSLIB_SERIALIZE( account,  (owner)(last_plan_id)(last_issue_id) )
+    EOSLIB_SERIALIZE( account,  (owner)(last_plan_id) )
 };
 
 } }
