@@ -31,7 +31,7 @@ typedef set<symbol> symbolset;
 typedef set<name> nameset;
 
 
-#define hash(str) sha256(const_cast<char*>(str.c_str()), str.size());
+#define hash(str) sha256(const_cast<char*>(str.c_str()), str.size())
 
 namespace chain {
     static constexpr eosio::name BTC         = "btc"_n;
@@ -68,6 +68,7 @@ typedef eosio::singleton< "global"_n, global_t > global_singleton;
 
 enum class order_status : uint8_t{
     CREATED         = 1,
+    PAYING          = 4,
     FUFILLED        = 8,
     CANCELED        = 9
 };
@@ -116,7 +117,7 @@ struct account_xchain_address_t {
 TBL xin_order_t {
     uint64_t        id;         //PK
     string          txid;
-    string          user_amacct;
+    name            user_amacct;
     string          xin_from;
     string          xin_to;
     name            chain;
@@ -139,7 +140,7 @@ TBL xin_order_t {
 
     uint64_t    by_chain() const { return chain.value; }
     checksum256 by_txid() const { return hash(txid); }    //unique index
-    uint64_t    by_status() const { return status.value; }
+    uint64_t    by_status() const { return (uint64_t)status; }
 
     typedef eosio::multi_index
       < "xinorders"_n,  xin_order_t,
@@ -176,9 +177,6 @@ TBL xout_order_t {
     time_point_sec  closed_at;
     time_point_sec  updated_at;
 
-
-    xout_order_t() {};
-
     uint64_t    primary_key()const { return id; }
     uint64_t    by_update_time() const { return (uint64_t) updated_at.utc_seconds; }
 
@@ -186,8 +184,8 @@ TBL xout_order_t {
 
     typedef eosio::multi_index
       < "xoutorders"_n,  xout_order_t,
-        indexed_by<"updatedat"_n, const_mem_fun<xin_order_t, uint64_t, &xin_order_t::by_update_time> >,
-        indexed_by<"xouttxids"_n, const_mem_fun<xin_order_t, checksum256, &xin_order_t::by_txid> >
+        indexed_by<"updatedat"_n, const_mem_fun<xout_order_t, uint64_t, &xout_order_t::by_update_time> >,
+        indexed_by<"xouttxids"_n, const_mem_fun<xout_order_t, checksum256, &xout_order_t::by_txid> >
     > idx_t;
 
     EOSLIB_SERIALIZE(xout_order_t,  (id)(txid)(account)(xout_from)(xout_to)(chain)(coin_name)
@@ -197,13 +195,13 @@ TBL xout_order_t {
 };
 
 TBL chain_t {
-    name     chain;         //PK
-    boolean  base_chain;
-    string   xin_account;
+    name        chain;         //PK
+    bool        base_chain;
+    string      xin_account;
 
     chain_t() {};
 
-    uint64_t primary_key()const { return chain.vale; }
+    uint64_t primary_key()const { return chain.value; }
 
     typedef eosio::multi_index< "chains"_n,  chain_t > idx_t;
 };
@@ -213,7 +211,7 @@ TBL coin_t {
 
     coin_t() {};
 
-    uint64_t primary_key()const { return coin.vale; }
+    uint64_t primary_key()const { return coin.value; }
 
     typedef eosio::multi_index< "coins"_n,  coin_t > idx_t;
 };
@@ -223,7 +221,7 @@ TBL chain_coin_t {
     name     coin;         //PK
     asset    fee;
 
-    coin_chain_t() {};
+    chain_coin_t() {};
 
     uint64_t primary_key()const { return chain.value << 32 | coin.value; }
 

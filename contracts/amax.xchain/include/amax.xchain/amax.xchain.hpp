@@ -38,13 +38,12 @@ public:
 
     ~xchain() { _global.set( _gstate, get_self() ); }
    
-    ACTION init();
     
     ACTION reqxintoaddr( const name& account, const name& base_chain );
 
     ACTION setaddress( const name& account, const name& base_chain, const string& xin_to );
 
-    ACTION mkxinorder(  const name& to, const name& chain, const name& coin_name, 
+    ACTION mkxinorder(  const name& to, const name& chain_name, const name& coin_name, 
                         const string& txid, const string& xin_from, const string& xin_to,
                         const asset& quantity);
 
@@ -53,7 +52,7 @@ public:
      */
     ACTION chkxinorder( const name& account, const uint64_t& id);
 
-    ACTION cancelorder( const name& account, const uint_64& id,const string& cancel_reason );
+    ACTION cancelorder( const name& account, const uint64_t& id,const string& cancel_reason );
 
     /**
      * ontransfer, trigger by recipient of transfer()
@@ -64,8 +63,8 @@ public:
     [[eosio::on_notify("*::transfer")]] 
     void ontransfer(name from, name to, asset quantity, string memo);
 
-    ACTION onpaying( const name& account, const uint64_t& id, const string& txid, const string& payno, const string& xout_from, const asset& quantity );
-   
+    ACTION onpaying( const name& account, const uint64_t& id, const string& txid, const string& payno, const string& xout_from );
+
     ACTION onpaysucc( const name& account, const uint64_t& id );
 
     /**
@@ -76,7 +75,9 @@ public:
     ACTION cancelxout( const name& account, const uint64_t& id );
 
    private:
-   
+
+    void _check_chain_coin(const name& chain, const name& coin);
+
     uint8_t _check_base_chain(const name& base_chain);
 };
 } //namespace apollo
