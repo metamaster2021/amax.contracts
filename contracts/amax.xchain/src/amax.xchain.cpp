@@ -78,11 +78,11 @@ ACTION xchain::mkxinorder( const name& to, const name& chain_name, const name& c
       row.chain 			   = chain_name;
       row.coin_name  	   = coin_name;
       row.quantity		   = quantity;
-      row.status   			= (uint8_t)order_status::CREATED;
+      row.status   			= (uint8_t)xin_order_status::CREATED;
       row.maker			   = _gstate.maker;
       row.created_at       = created_at;
       row.updated_at       = created_at;
-    });
+   });
 
 }
 
@@ -97,10 +97,10 @@ ACTION xchain::chkxinorder( const name& account, const uint64_t& id )
    auto xin_order_itr = xin_orders.find(id);
    check( xin_order_itr != xin_orders.end(), "xin order not found: " + to_string(id) );
    auto status = xin_order_itr->status;
-   check(status != (uint8_t)order_status::CREATED, "xin order already closed: " + to_string(id) );
+   check(status != (uint8_t)xin_order_status::CREATED, "xin order already closed: " + to_string(id) );
 
    xin_orders.modify(xin_order_itr, _self, [&]( auto& row ) {
-      row.status         = (uint8_t)order_status::FUFILLED;
+      row.status         = (uint8_t)xin_order_status::FUFILLED;
       row.closed_at      = time_point_sec(current_time_point());
       row.updated_at     = time_point_sec(current_time_point());
    });
@@ -114,10 +114,10 @@ ACTION xchain::cancelorder( const name& account, const uint64_t& id, const strin
    auto xin_order_itr = xin_orders.find(id);
    check( xin_order_itr != xin_orders.end(), "xin order not found: " + to_string(id) );
    auto status = xin_order_itr->status;
-   check( (uint8_t)status != (uint8_t)order_status::CREATED, "xin order already closed: " + to_string(id) );
+   check( (uint8_t)status != (uint8_t)xin_order_status::CREATED, "xin order already closed: " + to_string(id) );
    
    xin_orders.modify(xin_order_itr, _self, [&]( auto& row ) {
-      row.status           = (uint8_t)order_status::CANCELED;
+      row.status           = (uint8_t)xin_order_status::CANCELED;
       row.close_reason     = cancel_reason;
       row.closed_at        = time_point_sec(current_time_point());
       row.updated_at       = time_point_sec(current_time_point());
@@ -146,6 +146,7 @@ void xchain::ontransfer(name from, name to, asset quantity, string memo)
    auto chain_name = name(parts[1]);
    auto coin_name = name(parts[2]);
    auto order_no = parts[3];
+
    if(parts.size() == 5) {
       // memo_detail = parts[4];
    }
@@ -163,7 +164,7 @@ void xchain::ontransfer(name from, name to, asset quantity, string memo)
       row.apply_amount		   = quantity;
       row.amount		         = quantity;
       //   row.fee			         = ;  
-      row.status			      = (uint8_t)order_status::CREATED;
+      row.status			      = (uint8_t)xin_order_status::CREATED;
       row.memo			         = memo_detail;
       row.maker               = from;
       row.created_at          = time_point_sec(current_time_point());
@@ -182,7 +183,7 @@ ACTION xchain::onpaying( const name& account, const uint64_t& id, const string& 
    check(status == (uint8_t)xout_order_status::CREATED,  "xout order status is not created: " + to_string(id));
 
    xout_orders.modify( *xout_order_itr, _self, [&]( auto& row ) {
-      row.status     = (uint8_t)order_status::PAYING;
+      row.status     = (uint8_t)xout_order_status::PAYING;
       row.txid       = txid;
       row.xout_from  = xout_from;
       row.maker      = _gstate.maker;
@@ -197,11 +198,11 @@ ACTION xchain::onpaysucc( const name& account, const uint64_t& id )
    xout_order_t::idx_t xout_orders(_self, _self.value);
    auto xout_order_itr = xout_orders.find(id);
    check( xout_order_itr != xout_orders.end(), "xout order not found: " + to_string(id) );
-   check(xout_order_itr->status == (uint8_t)xout_order_status::PAYING,  "xout order status is not paying");
+   check( xout_order_itr->status == (uint8_t)xout_order_status::PAYING,  "xout order status is not paying");
 
    //check status
    xout_orders.modify( *xout_order_itr, _self, [&]( auto& row ) {
-      row.status     = (uint8_t)order_status::FUFILLED;
+      row.status     = (uint8_t)xin_order_status::FUFILLED;
       row.updated_at = time_point_sec(current_time_point());
    });
 }
@@ -221,7 +222,7 @@ ACTION xchain::chkxoutorder( const name& account, const uint64_t& id )
    check(xout_order_itr->status == (uint8_t)xout_order_status::PAY_SUCCESS,  "xout order status is not pay_success");
 
    xout_orders.modify( *xout_order_itr, _self, [&]( auto& row ) {
-      row.status     = (uint8_t)order_status::FUFILLED;
+      row.status     = (uint8_t)xin_order_status::FUFILLED;
       row.closed_at  = time_point_sec(current_time_point());
       row.updated_at = time_point_sec(current_time_point());
    });
@@ -237,10 +238,10 @@ ACTION xchain::cancelxout( const name& account, const uint64_t& id )
    check( xout_order_itr != xout_orders.end(), "xout order not found: " + to_string(id) );
    check(xout_order_itr->status == (uint8_t)xout_order_status::PAY_SUCCESS ||
                xout_order_itr->status == (uint8_t)xout_order_status::PAYING 
-               ,  "xout order status is not pay_success");
+               ,  "xout order status is not ready for cancel");
 
    xout_orders.modify( *xout_order_itr, _self, [&]( auto& row ) {
-      row.status     = (uint8_t)order_status::FUFILLED;
+      row.status     = (uint8_t)xin_order_status::FUFILLED;
       row.closed_at  = time_point_sec(current_time_point());
       row.updated_at = time_point_sec(current_time_point());   
    });
@@ -262,7 +263,16 @@ uint8_t xchain::_check_base_chain(const name& chain) {
 void xchain::_check_chain_coin(const name& chain, const name& coin) {
    chain_coin_t::idx_t chain_coins(_self, _self.value);
    auto chain_coin_itr = chain_coins.find(chain.value);
+
    check( chain_coin_itr != chain_coins.end(), "chain_coin not found: " + chain.to_string() + "_" + coin.to_string());
+   while (chain_coin_itr != chain_coins.end()) {
+      if (chain_coin_itr->coin == coin )
+         return;
+      chain_coin_itr++;
+   }
+
+   check(false , "not find any valid pair chain and coin");
+   
 }
 
 } /// namespace apollo

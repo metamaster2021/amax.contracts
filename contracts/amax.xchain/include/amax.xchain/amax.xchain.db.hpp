@@ -66,9 +66,8 @@ struct [[eosio::table("global"), eosio::contract("amax.xchain")]] global_t {
 
 typedef eosio::singleton< "global"_n, global_t > global_singleton;
 
-enum class order_status : uint8_t{
+enum class xin_order_status : uint8_t{
     CREATED         = 1,
-    PAYING          = 4,
     FUFILLED        = 8,
     CANCELED        = 9
 };
