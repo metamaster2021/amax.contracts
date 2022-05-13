@@ -148,7 +148,7 @@ void xchain::ontransfer(name from, name to, asset quantity, string memo)
    auto order_no = parts[3];
 
    if(parts.size() == 5) {
-      // memo_detail = parts[4];
+      // memo_detail  = parts[4];
    }
    
    if (get_first_receiver() == SYS_BANK) return;
