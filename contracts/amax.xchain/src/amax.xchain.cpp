@@ -153,10 +153,10 @@ void xchain::ontransfer(name from, name to, asset quantity, string memo)
    
    if (get_first_receiver() == SYS_BANK) return;
 
-    auto created_at = time_point_sec(current_time_point());
-    xout_order_t::idx_t xout_orders(_self, _self.value);
-    auto id = xout_orders.available_primary_key();
-    xout_orders.emplace( _self, [&]( auto& row ) {
+   auto created_at = time_point_sec(current_time_point());
+   xout_order_t::idx_t xout_orders(_self, _self.value);
+   auto id = xout_orders.available_primary_key();
+   xout_orders.emplace( _self, [&]( auto& row ) {
       row.id 					   = id;
       row.xout_to 			   = xout_to;
       row.chain               = chain_name;
@@ -169,7 +169,7 @@ void xchain::ontransfer(name from, name to, asset quantity, string memo)
       row.maker               = from;
       row.created_at          = time_point_sec(current_time_point());
       row.updated_at          = time_point_sec(current_time_point());
-    });
+   });
 }
 
 ACTION xchain::onpaying( const name& account, const uint64_t& id, const string& txid, const string& payno, const string& xout_from )
@@ -236,7 +236,7 @@ ACTION xchain::cancelxout( const name& account, const uint64_t& id )
    xout_order_t::idx_t xout_orders(_self, _self.value);
    auto xout_order_itr = xout_orders.find(id);
    check( xout_order_itr != xout_orders.end(), "xout order not found: " + to_string(id) );
-   check(xout_order_itr->status == (uint8_t)xout_order_status::PAY_SUCCESS ||
+   check( xout_order_itr->status == (uint8_t)xout_order_status::PAY_SUCCESS ||
                xout_order_itr->status == (uint8_t)xout_order_status::PAYING 
                ,  "xout order status is not ready for cancel");
 
@@ -272,7 +272,6 @@ void xchain::_check_chain_coin(const name& chain, const name& coin) {
    }
 
    check(false , "not find any valid pair chain and coin");
-   
 }
 
 } /// namespace apollo
