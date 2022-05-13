@@ -74,9 +74,21 @@ public:
 
     ACTION cancelxout( const name& account, const uint64_t& id );
 
+    ACTION addchain(const name& account, const name& chain, const bool& base_chain, const string& xin_account );
+
+    ACTION delchain(const name& account, const name& chain);
+
+    ACTION addcoin(const name& account, const name& coin);
+
+    ACTION delcoin(const name& account, const name& coin);
+
+    ACTION addchaincoin(const name& account, const name& chain, const name& coin, const asset& fee);
+
+    ACTION delchaincoin(const name& account, const name& chain, const name& coin);
+
    private:
 
-    void _check_chain_coin(const name& chain, const name& coin);
+    asset _check_chain_coin(const name& chain, const name& coin);
 
     uint8_t _check_base_chain(const name& base_chain);
 };

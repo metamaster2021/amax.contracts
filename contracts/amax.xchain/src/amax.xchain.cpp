@@ -150,6 +150,8 @@ void xchain::ontransfer(name from, name to, asset quantity, string memo)
    if(parts.size() == 5) {
       // memo_detail  = parts[4];
    }
+   asset fee = _check_chain_coin(chain_name, coin_name);
+
    
    if (get_first_receiver() == SYS_BANK) return;
 
@@ -163,7 +165,7 @@ void xchain::ontransfer(name from, name to, asset quantity, string memo)
       row.coin_name           = coin_name;
       row.apply_amount		   = quantity;
       row.amount		         = quantity;
-      //   row.fee			         = ;  
+      row.fee			         = fee;  
       row.status			      = (uint8_t)xin_order_status::CREATED;
       row.memo			         = memo_detail;
       row.maker               = from;
@@ -260,18 +262,90 @@ uint8_t xchain::_check_base_chain(const name& chain) {
       return 1;
 }
 
-void xchain::_check_chain_coin(const name& chain, const name& coin) {
+asset xchain::_check_chain_coin(const name& chain, const name& coin) {
    chain_coin_t::idx_t chain_coins(_self, _self.value);
-   auto chain_coin_itr = chain_coins.find(chain.value);
+
+   auto chain_coin_itr = chain_coins.find(chain.value << 32 | coin.value);
 
    check( chain_coin_itr != chain_coins.end(), "chain_coin not found: " + chain.to_string() + "_" + coin.to_string());
-   while (chain_coin_itr != chain_coins.end()) {
-      if (chain_coin_itr->coin == coin )
-         return;
-      chain_coin_itr++;
-   }
-
-   check(false , "not find any valid pair chain and coin");
+   return chain_coin_itr->fee;
 }
 
-} /// namespace apollo
+void xchain::addchain(const name& account, const name& chain, const bool& base_chain, const string& xin_account ) {
+   require_auth( account );
+
+   chain_t::idx_t chains(_self, _self.value);
+   auto chain_itr = chains.find(chain.value);
+
+   check( chain_itr == chains.end(), "chain already found: " + chain.to_string() );
+
+   auto chain_info = chain_t();
+   chain_info.chain = account;
+   chain_info.base_chain = base_chain;
+   chain_info.xin_account = xin_account;
+   _db.set( chain_info);
+}
+
+void xchain::delchain(const name& account, const name& chain) {
+   require_auth( account );
+
+   chain_t::idx_t chains(_self, _self.value);
+   auto chain_itr = chains.find(chain.value);
+
+   check( chain_itr != chains.end(), "chain not found: " + chain.to_string() );
+   chains.erase(chain_itr);
+}
+
+void xchain::addcoin(const name& account, const name& coin) {
+   require_auth( account );
+
+   coin_t::idx_t coins(_self, _self.value);
+   auto itr = coins.find(coin.value);
+
+   check( itr == coins.end(), "coin already found: " + coin.to_string() );
+
+   auto coin_info = coin_t();
+   coin_info.coin = coin;
+   _db.set( coin_info);
+}
+
+void xchain::delcoin(const name& account, const name& coin) {
+   require_auth( account );
+
+   coin_t::idx_t coins(_self, _self.value);
+   auto itr = coins.find(coin.value);
+
+   check( itr != coins.end(), "coin not found: " + coin.to_string() );
+   coins.erase(itr);
+}
+
+void xchain::addchaincoin(const name& account, const name& chain, const name& coin, const asset& fee) {
+   require_auth( account );
+
+   chain_coin_t::idx_t chain_coins(_self, _self.value);
+
+   auto chain_coin_itr = chain_coins.find(chain.value << 32 | coin.value);
+
+   check( chain_coin_itr == chain_coins.end(), "chain_coin already exist found: " + chain.to_string() + "_" + coin.to_string());
+
+   auto chain_coin = chain_coin_t();
+   chain_coin.chain = chain;
+   chain_coin.coin = coin;
+   chain_coin.fee = fee;
+
+   _db.set(chain_coin);
+}
+
+void xchain::delchaincoin(const name& account, const name& chain, const name& coin) {
+   require_auth( account );
+
+   chain_coin_t::idx_t chain_coins(_self, _self.value);
+
+   auto chain_coin_itr = chain_coins.find(chain.value << 32 | coin.value);
+
+   check( chain_coin_itr != chain_coins.end(), "chain_coin is not existed: " + chain.to_string() + "_" + coin.to_string());
+   chain_coins.erase(chain_coin_itr);
+}
+
+
+} /// namespace xchain
