@@ -4,6 +4,7 @@
 #include <eosio/eosio.hpp>
 #include <string>
 #include <wasm_db.hpp>
+#include "amax.xchain/amax.token.hpp"
 #include "amax.xchain/amax.xchain.db.hpp"
 
 namespace amax {
@@ -16,6 +17,12 @@ using namespace wasm::db;
  * The `amax.xchain` is Cross-chain (X -> AMAX -> Y) contract
  * 
  */
+
+#define TRANSFER(bank, to, quantity, memo) \
+    {	token::transfer_action act{ bank, { {_self, active_perm} } };\
+			act.send( _self, to, quantity , memo );}
+
+
 class [[eosio::contract("amax.xchain")]] xchain : public contract {
 private:
    dbc                 _db;
@@ -38,7 +45,8 @@ public:
 
     ~xchain() { _global.set( _gstate, get_self() ); }
    
-    
+    ACTION init(const name& admin, const name& maker, const name& checker, const name& fee_collector ) ;
+
     ACTION reqxintoaddr( const name& account, const name& base_chain );
 
     ACTION setaddress( const name& account, const name& base_chain, const string& xin_to );
@@ -63,7 +71,7 @@ public:
     [[eosio::on_notify("*::transfer")]] 
     void ontransfer(name from, name to, asset quantity, string memo);
 
-    ACTION onpaying( const name& account, const uint64_t& id, const string& txid, const string& payno, const string& xout_from );
+    ACTION onpay( const name& account, const uint64_t& id, const string& txid, const string& payno, const string& xout_from );
 
     ACTION onpaysucc( const name& account, const uint64_t& id );
 

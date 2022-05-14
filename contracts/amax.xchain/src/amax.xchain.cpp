@@ -3,8 +3,17 @@
 
 namespace amax {
 
-static constexpr eosio::name SYS_BANK{"eosio.token"_n};
+static constexpr eosio::name SYS_BANK{"amax.token"_n};
+static constexpr eosio::name XCHAIN_BANK{"amax.amtoken"_n};
 
+ACTION xchain::init(const name& admin, const name& maker, const name& checker, const name& fee_collector ) {
+   require_auth( _self );
+   
+   _gstate.admin           = admin;
+   _gstate.maker           = maker;
+   _gstate.checker         = checker;
+   _gstate.fee_collector   = fee_collector;
+}
 
 ACTION xchain::reqxintoaddr( const name& account, const name& base_chain )
 {
@@ -172,9 +181,11 @@ void xchain::ontransfer(name from, name to, asset quantity, string memo)
       row.created_at          = time_point_sec(current_time_point());
       row.updated_at          = time_point_sec(current_time_point());
    });
+
+   TRANSFER( XCHAIN_BANK, _gstate.fee_collector, fee,  to_string(id));
 }
 
-ACTION xchain::onpaying( const name& account, const uint64_t& id, const string& txid, const string& payno, const string& xout_from )
+ACTION xchain::onpay( const name& account, const uint64_t& id, const string& txid, const string& payno, const string& xout_from )
 {
    require_auth( _gstate.maker );
 
