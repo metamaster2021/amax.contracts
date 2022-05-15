@@ -23,16 +23,15 @@ ACTION xchain::reqxintoaddr( const name& applicant, const name& base_chain )
    auto chain_info  = chain_t(base_chain); 
    check( _db.get(chain_info), "chain does not exist: " + base_chain.to_string() );
 
-   auto acct_xchain_addr = account_xchain_address_t( applicant, base_chain );
-
    auto idx = make128key(applicant.value, base_chain.value);
    // check(false ,  idx);
    account_xchain_address_t::idx_t xchaddrs( _self, _self.value );
    check( xchaddrs.find(idx) == xchaddrs.end(),  "the record already exists" );
 
-   acct_xchain_addr.id           = xchaddrs.available_primary_key();
-   acct_xchain_addr.created_at   = time_point_sec( current_time_point() );
-   acct_xchain_addr.updated_at   = acct_xchain_addr.created_at;   
+   auto acct_xchain_addr            = account_xchain_address_t( applicant, base_chain );
+   acct_xchain_addr.id              = xchaddrs.available_primary_key();
+   acct_xchain_addr.created_at      = time_point_sec( current_time_point() );
+   acct_xchain_addr.updated_at      = acct_xchain_addr.created_at;   
 
    if( chain_info.common_xin_account != "" ) { //for chain type like eos, amax
       acct_xchain_addr.status       = (uint8_t)address_status::CONFIGURED;
