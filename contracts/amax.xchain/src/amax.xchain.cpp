@@ -57,12 +57,15 @@ ACTION xchain::setaddress( const name& account, const name& base_chain, const st
    check( xchaddr_ptr->status != (uint8_t)address_status::CONFIGURED, "address already existed");
 
    xchaddrs.modify( *xchaddr_ptr, _self, [&]( auto& row ) {
-      row.status = (uint8_t)address_status::CONFIGURED;
-      row.xin_to = xin_to;
+      row.status     = (uint8_t)address_status::CONFIGURED;
+      row.xin_to     = xin_to;
       row.updated_at = time_point_sec(current_time_point());
    });
 }
 
+/**
+ * maker create xin order
+ * */
 ACTION xchain::mkxinorder( const name& to, const name& chain_name, const name& coin_name, 
                            const string& txid, const string& xin_from, const string& xin_to,
                            const asset& quantity)
@@ -98,9 +101,9 @@ ACTION xchain::mkxinorder( const name& to, const name& chain_name, const name& c
 /**
  * checker to confirm xin order
  */
-ACTION xchain::chkxinorder( const name& account, const uint64_t& id )
+ACTION xchain::chkxinorder( const uint64_t& id )
 {
-   require_auth( _gstate.maker );
+   require_auth( _gstate.checker );
 
    xin_order_t::idx_t xin_orders(_self, _self.value);
    auto xin_order_itr = xin_orders.find(id);
@@ -110,14 +113,19 @@ ACTION xchain::chkxinorder( const name& account, const uint64_t& id )
 
    xin_orders.modify(xin_order_itr, _self, [&]( auto& row ) {
       row.status         = (uint8_t)xin_order_status::FUFILLED;
+      row.checker        = _gstate.checker;
       row.closed_at      = time_point_sec(current_time_point());
       row.updated_at     = time_point_sec(current_time_point());
    });
 }
 
-ACTION xchain::cancelorder( const name& account, const uint64_t& id, const string& cancel_reason )
+
+/**
+ * checker cancel the xin order 
+ * */
+ACTION xchain::cslxinorder( const uint64_t& id, const string& cancel_reason )
 {
-   require_auth( _gstate.maker);
+   require_auth( _gstate.checker);
 
    xin_order_t::idx_t xin_orders(_self, _self.value);
    auto xin_order_itr = xin_orders.find(id);
@@ -128,6 +136,7 @@ ACTION xchain::cancelorder( const name& account, const uint64_t& id, const strin
    xin_orders.modify(xin_order_itr, _self, [&]( auto& row ) {
       row.status           = (uint8_t)xin_order_status::CANCELED;
       row.close_reason     = cancel_reason;
+      row.checker          = _gstate.checker;
       row.closed_at        = time_point_sec(current_time_point());
       row.updated_at       = time_point_sec(current_time_point());
    });
@@ -161,7 +170,6 @@ void xchain::ontransfer(name from, name to, asset quantity, string memo)
    }
    asset fee = _check_chain_coin(chain_name, coin_name);
 
-   
    if (get_first_receiver() == SYS_BANK) return;
 
    auto created_at = time_point_sec(current_time_point());
@@ -184,7 +192,9 @@ void xchain::ontransfer(name from, name to, asset quantity, string memo)
 
    TRANSFER( XCHAIN_BANK, _gstate.fee_collector, fee,  to_string(id));
 }
-
+/**
+ * maker onpay the order
+ * */
 ACTION xchain::onpay( const name& account, const uint64_t& id, const string& txid, const string& payno, const string& xout_from )
 {
    require_auth( _gstate.maker );
@@ -204,6 +214,9 @@ ACTION xchain::onpay( const name& account, const uint64_t& id, const string& txi
    });
 }
 
+/**
+ * maker onpay the order
+ * */
 ACTION xchain::onpaysucc( const name& account, const uint64_t& id )
 {
    require_auth( _gstate.maker );
@@ -223,7 +236,7 @@ ACTION xchain::onpaysucc( const name& account, const uint64_t& id )
 /**
  * checker to confirm out order
  */
-ACTION xchain::chkxoutorder( const name& account, const uint64_t& id )
+ACTION xchain::chkxoutorder( const uint64_t& id )
 {
    require_auth( _gstate.checker );
 
@@ -238,9 +251,13 @@ ACTION xchain::chkxoutorder( const name& account, const uint64_t& id )
       row.status     = (uint8_t)xin_order_status::FUFILLED;
       row.closed_at  = time_point_sec(current_time_point());
       row.updated_at = time_point_sec(current_time_point());
+      row.checker    = _gstate.checker;
    });
 }
 
+/**
+ * maker or checker can cancel xchain out order
+ */
 ACTION xchain::cancelxout( const name& account, const uint64_t& id )
 {
    require_auth(account);
@@ -257,6 +274,7 @@ ACTION xchain::cancelxout( const name& account, const uint64_t& id )
       row.status     = (uint8_t)xin_order_status::FUFILLED;
       row.closed_at  = time_point_sec(current_time_point());
       row.updated_at = time_point_sec(current_time_point());   
+      row.checker    = account;   
    });
 }
 

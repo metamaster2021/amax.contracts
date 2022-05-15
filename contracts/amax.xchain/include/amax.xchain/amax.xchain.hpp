@@ -45,7 +45,7 @@ public:
 
     ~xchain() { _global.set( _gstate, get_self() ); }
    
-    ACTION init(const name& admin, const name& maker, const name& checker, const name& fee_collector ) ;
+    ACTION init( const name& admin, const name& maker, const name& checker, const name& fee_collector );
 
     ACTION reqxintoaddr( const name& account, const name& base_chain );
 
@@ -58,9 +58,9 @@ public:
     /**
      * checker to confirm xin order
      */
-    ACTION chkxinorder( const name& account, const uint64_t& id);
+    ACTION chkxinorder( const uint64_t& id);
 
-    ACTION cancelorder( const name& account, const uint64_t& id,const string& cancel_reason );
+    ACTION cslxinorder( const uint64_t& id,const string& cancel_reason );
 
     /**
      * ontransfer, trigger by recipient of transfer()
@@ -78,7 +78,7 @@ public:
     /**
      * checker to confirm out order
      */
-    ACTION chkxoutorder( const name& account, const uint64_t& id );
+    ACTION chkxoutorder( const uint64_t& id );
 
     ACTION cancelxout( const name& account, const uint64_t& id );
 
