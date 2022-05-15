@@ -49,7 +49,7 @@ public:
 
     ACTION reqxintoaddr( const name& account, const name& base_chain );
 
-    ACTION setaddress( const name& account, const name& base_chain, const string& xin_to );
+    ACTION setaddress( const name& applicant, const name& base_chain, const string& xin_to );
 
     ACTION mkxinorder(  const name& to, const name& chain_name, const name& coin_name, 
                         const string& txid, const string& xin_from, const string& xin_to,
@@ -82,7 +82,7 @@ public:
 
     ACTION cancelxout( const name& account, const uint64_t& id );
 
-    ACTION addchain( const name& chain, const bool& base_chain, const string& xin_account );
+    ACTION addchain( const name& chain, const bool is_basechain, const string& common_xin_account );
 
     ACTION delchain( const name& chain );
 
@@ -96,8 +96,5 @@ public:
 
    private:
 
-    asset _check_chain_coin(const name& chain, const name& coin);
-
-    uint8_t _check_base_chain(const name& base_chain);
 };
 } //namespace apollo

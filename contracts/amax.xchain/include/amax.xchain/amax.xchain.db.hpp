@@ -92,17 +92,16 @@ struct account_xchain_address_t {
     name            account;
     name            base_chain; 
     string          xin_to;            //E.g. Eth or BTC address, eos id
-    uint8_t         status;
-
+    uint8_t         status = (uint8_t)address_status::PENDING;
     time_point_sec  created_at;
     time_point_sec  updated_at;
 
     account_xchain_address_t() {};
+    account_xchain_address_t(const name& a, const name& bc) : account(a), base_chain(bc) {};
 
     uint64_t    primary_key()const { return id; }
     uint64_t    by_update_time() const { return (uint64_t) updated_at.utc_seconds; }
     uint128_t   by_accout_base_chain() const { return (uint128_t)account.value << 64 || (uint128_t)base_chain.value; }
-
     checksum256 by_xin_to() const { return hash(xin_to); }
 
     typedef eosio::multi_index<"xinaddrmap"_n, account_xchain_address_t,
@@ -195,36 +194,49 @@ TBL xout_order_t {
 
 TBL chain_t {
     name        chain;         //PK
-    bool        base_chain;
-    string      xin_account;
+    bool        is_basechain;
+    string      common_xin_account = "";
 
     chain_t() {};
+    chain_t( const name& c ):chain( c ) {}
 
     uint64_t primary_key()const { return chain.value; }
 
     typedef eosio::multi_index< "chains"_n,  chain_t > idx_t;
+
+     EOSLIB_SERIALIZE(chain_t, (chain)(is_basechain)(common_xin_account) );
 };
 
 TBL coin_t {
     name     coin;         //PK
 
     coin_t() {};
+    coin_t( const name& c ):coin( c ) {}
 
     uint64_t primary_key()const { return coin.value; }
 
     typedef eosio::multi_index< "coins"_n,  coin_t > idx_t;
+
+    EOSLIB_SERIALIZE(coin_t, (coin) );
+
 };
 
 TBL chain_coin_t {
-    name     chain;        //PK
-    name     coin;         //PK
+    name     chain;        //co-PK
+    name     coin;         //co-PK
     asset    fee;
 
     chain_coin_t() {};
+    chain_coin_t( const name& ch, const name& co ):chain( ch ),coin( co ) {}
+
+    string to_string() const { return chain.to_string() + "_" + coin.to_string(); } 
 
     uint64_t primary_key()const { return chain.value << 32 | coin.value; }
 
     typedef eosio::multi_index< "chaincoins"_n,  chain_coin_t > idx_t;
+
+    EOSLIB_SERIALIZE( chain_coin_t, (chain)(coin)(fee) );
+
 };
 
 } // amax

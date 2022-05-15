@@ -15,45 +15,44 @@ ACTION xchain::init( const name& admin, const name& maker, const name& checker, 
    _gstate.fee_collector   = fee_collector;
 }
 
-ACTION xchain::reqxintoaddr( const name& account, const name& base_chain )
+ACTION xchain::reqxintoaddr( const name& applicant, const name& base_chain )
 {
-   require_auth( account );
+   require_auth( applicant );
 
-   auto type = _check_base_chain( base_chain );
+   auto chain_info  = chain_t(base_chain); 
+   check( _db.get(chain_info), "chain does not exist: " + base_chain.to_string() );
 
-   auto idx = (uint128_t)account.value << 64 || (uint128_t)base_chain.value;
+   auto acct_xchain_addr = account_xchain_address_t( applicant, base_chain );
+   auto idx = acct_xchain_addr.by_accout_base_chain();
    account_xchain_address_t::idx_t xchaddrs( _self, _self.value );
    check( xchaddrs.find(idx) == xchaddrs.end(),  "the record already exists" );
 
-   auto xchaddr = account_xchain_address_t();
-   xchaddr.id = xchaddrs.available_primary_key();
-   xchaddr.account      = account;
-   xchaddr.base_chain   = base_chain;
-   xchaddr.created_at   = time_point_sec( current_time_point() );
+   acct_xchain_addr.id           = xchaddrs.available_primary_key();
+   acct_xchain_addr.created_at   = time_point_sec( current_time_point() );
+   acct_xchain_addr.updated_at   = acct_xchain_addr.created_at;   
 
-   if( type != 0 ) {
-      xchaddr.status = (uint8_t)address_status::PENDING;
-   } else {
-      xchaddr.status = (uint8_t)address_status::CONFIGURED;
-      xchaddr.xin_to = to_string(xchaddr.id);
-      xchaddr.updated_at = time_point_sec( current_time_point() );
+   if( chain_info.common_xin_account != "" ) { //for chain type like eos, amax
+      acct_xchain_addr.status       = (uint8_t)address_status::CONFIGURED;
+      acct_xchain_addr.xin_to       = to_string(acct_xchain_addr.id);
    }
-   _db.set( xchaddr );
+   _db.set( acct_xchain_addr );
 }
 
-ACTION xchain::setaddress( const name& account, const name& base_chain, const string& xin_to ) 
+ACTION xchain::setaddress( const name& applicant, const name& base_chain, const string& xin_to ) 
 {
    require_auth( _gstate.maker );
 
    check( xin_to.length() < max_addr_len, "illegal address" );
-   _check_base_chain( base_chain );
 
-   auto idx = (uint128_t)account.value << 64 || (uint128_t)base_chain.value;
+   auto chain_info =  chain_t( base_chain );
+   check( _db.get(chain_info), "chain does not exist: " + base_chain.to_string() );
+
+   auto acct_xchain_addr = account_xchain_address_t( applicant, base_chain );
+   auto idx = acct_xchain_addr.by_accout_base_chain();
 
    account_xchain_address_t::idx_t  xchaddrs( _self, _self.value );
    auto xchaddr_ptr = xchaddrs.find( idx );
-   
-   check( xchaddr_ptr != xchaddrs.end(),  "the record not exists" );
+   check( xchaddr_ptr != xchaddrs.end(),  "the record does not exist" );
    check( xchaddr_ptr->status != (uint8_t)address_status::CONFIGURED, "address already existed" );
 
    xchaddrs.modify( *xchaddr_ptr, _self, [&]( auto& row ) {
@@ -72,8 +71,9 @@ ACTION xchain::mkxinorder( const name& to, const name& chain_name, const name& c
 {
    require_auth( _gstate.maker );
 
-   _check_chain_coin( chain_name, coin_name );
-   
+   auto chain_coin = chain_coin_t(chain_name, coin_name);
+   check( _db.get(chain_coin), "chain_coin does not exist: " + chain_coin.to_string());
+
    xin_order_t::idx_t xin_orders( _self, _self.value );
    auto txid_index 			   = xin_orders.get_index<"xintxids"_n>();
    check( txid_index.find( hash(txid) ) == txid_index.end() , "txid already existing!" );
@@ -148,29 +148,24 @@ ACTION xchain::cslxinorder( const uint64_t& id, const string& cancel_reason )
  * @param memo - memo format: $addr@$chain@coin_name@order_no@memo
  *               
  */
-[[eosio::on_notify("*::transfer")]] 
+[[eosio::on_notify("amax.token::transfer")]] 
 void xchain::ontransfer( name from, name to, asset quantity, string memo ) 
 {
    eosio::print( "from: ", from, ", to:", to, ", quantity:" , quantity, ", memo:" , memo );
 
    if( _self == from ) return;
    if( to != _self ) return;
+   if( get_first_receiver() == SYS_BANK ) return;
 
    auto parts = split( memo, "@" );
-   auto memo_detail =  "";
-   check( parts.size() >= 4, "Expected format 'address@chain@coin_name@order_no'" );
-   //check chain, coin_name
+   check( parts.size() >= 4, "Expected format 'address@chain@coin_name@order_no@memo'" );
    auto xout_to = parts[0];
    auto chain_name = name( parts[1] );
    auto coin_name = name( parts[2] );
    auto order_no = parts[3];
 
-   if( parts.size() == 5 ) {
-      // memo_detail  = parts[4];
-   }
-   asset fee = _check_chain_coin( chain_name, coin_name );
-
-   if( get_first_receiver() == SYS_BANK ) return;
+   auto chain_coin = chain_coin_t( chain_name, coin_name );
+   check( _db.get(chain_coin), "chain_coin does not exist: " + chain_coin.to_string() );
 
    auto created_at = time_point_sec( current_time_point() );
    xout_order_t::idx_t xout_orders( _self, _self.value );
@@ -182,15 +177,15 @@ void xchain::ontransfer( name from, name to, asset quantity, string memo )
       row.coin_name           = coin_name;
       row.apply_amount		   = quantity;
       row.amount		         = quantity;
-      row.fee			         = fee;  
+      row.fee			         = chain_coin.fee;  
       row.status			      = (uint8_t)xin_order_status::CREATED;
-      row.memo			         = memo_detail;
       row.maker               = from;
       row.created_at          = time_point_sec( current_time_point() );
       row.updated_at          = time_point_sec( current_time_point() );
+      if( parts.size() == 5 ) row.memo = parts[4];
    });
 
-   TRANSFER( XCHAIN_BANK, _gstate.fee_collector, fee,  to_string(id) );
+   TRANSFER( XCHAIN_BANK, _gstate.fee_collector, chain_coin.fee,  to_string(id) );
 }
 /**
  * maker onpay the order
@@ -278,62 +273,31 @@ ACTION xchain::cancelxout( const name& account, const uint64_t& id )
    });
 }
 
-uint8_t xchain::_check_base_chain( const name& chain ) {
-   chain_t::idx_t chains( _self, _self.value );
-   auto chain_itr = chains.find( chain.value );
-
-   check( chain_itr != chains.end(), "chain not found: " + chain.to_string() );
-   check( chain_itr->base_chain,  chain.to_string() + "is not base chain" );
-   
-   if( chain_itr->xin_account.empty() )
-      return 0;
-   else 
-      return 1;
-}
-
-asset xchain::_check_chain_coin(const name& chain, const name& coin) {
-   chain_coin_t::idx_t chain_coins( _self, _self.value );
-
-   auto chain_coin_itr = chain_coins.find( chain.value << 32 | coin.value );
-
-   check( chain_coin_itr != chain_coins.end(), "chain_coin not found: " + chain.to_string() + "_" + coin.to_string() );
-   return chain_coin_itr->fee;
-}
-
-void xchain::addchain( const name& chain, const bool& base_chain, const string& xin_account ) {
+void xchain::addchain( const name& chain, const bool is_basechain, const string& common_xin_account ) {
    require_auth( _self );
 
-   chain_t::idx_t chains( _self, _self.value );
-   auto chain_itr = chains.find( chain.value );
+   auto chain_info = chain_t(chain);
+   check( !_db.get(chain_info), "chain already exists: " + chain.to_string() );
 
-   check( chain_itr == chains.end(), "chain already found: " + chain.to_string() );
-
-   auto chain_info = chain_t();
-   chain_info.chain = chain;
-   chain_info.base_chain = base_chain;
-   chain_info.xin_account = xin_account;
+   chain_info.is_basechain       = is_basechain;
+   chain_info.common_xin_account = common_xin_account;
    _db.set( chain_info );
 }
 
 void xchain::delchain( const name& chain ) {
    require_auth( _self );
+   auto chain_info = chain_t(chain);
+   check( _db.get(chain_info), "chain does not exists: " + chain.to_string() );
 
-   chain_t::idx_t chains( _self, _self.value );
-   auto chain_itr = chains.find( chain.value );
-
-   check( chain_itr != chains.end(), "chain not found: " + chain.to_string() );
-   chains.erase( chain_itr );
+   _db.del( chain_info );
 }
 
 void xchain::addcoin( const name& coin ) {
    require_auth( _self );
 
-   coin_t::idx_t coins( _self, _self.value );
-   auto itr = coins.find( coin.value );
+   auto coin_info = coin_t(coin);
+   check( !_db.get(coin_info), "coin already exists: " + coin.to_string() );
 
-   check( itr == coins.end(), "coin already found: " + coin.to_string() );
-
-   auto coin_info = coin_t();
    coin_info.coin = coin;
    _db.set( coin_info );
 }
@@ -341,40 +305,29 @@ void xchain::addcoin( const name& coin ) {
 void xchain::delcoin( const name& coin ) {
    require_auth( _self );
 
-   coin_t::idx_t coins( _self, _self.value );
-   auto itr = coins.find( coin.value );
+   auto coin_info = coin_t(coin);
+   check( _db.get(coin_info), "coin already exists: " + coin.to_string() );
 
-   check( itr != coins.end(), "coin not found: " + coin.to_string() );
-   coins.erase( itr );
+   _db.del( coin_info );
 }
 
 void xchain::addchaincoin( const name& chain, const name& coin, const asset& fee ) {
    require_auth( _self );
 
-   chain_coin_t::idx_t chain_coins( _self, _self.value );
+   auto chain_coin = chain_coin_t(chain, coin);
+   check( !_db.get(chain_coin), "chain_coin already exists: " + chain_coin.to_string());
 
-   auto chain_coin_itr = chain_coins.find( chain.value << 32 | coin.value );
-
-   check( chain_coin_itr == chain_coins.end(), "chain_coin already exist found: " + chain.to_string() + "_" + coin.to_string());
-
-   auto chain_coin = chain_coin_t();
-   chain_coin.chain = chain;
-   chain_coin.coin = coin;
    chain_coin.fee = fee;
-
    _db.set( chain_coin );
 }
 
 void xchain::delchaincoin( const name& chain, const name& coin ) {
    require_auth( _self );
 
-   chain_coin_t::idx_t chain_coins( _self, _self.value );
+   auto chain_coin = chain_coin_t(chain, coin);
+   check( _db.get(chain_coin), "chain_coin does not exists: " + chain_coin.to_string());
 
-   auto chain_coin_itr = chain_coins.find( chain.value << 32 | coin.value );
-
-   check( chain_coin_itr != chain_coins.end(), "chain_coin is not existed: " + chain.to_string() + "_" + coin.to_string() );
-   chain_coins.erase( chain_coin_itr );
+   _db.del( chain_coin );
 }
-
 
 } /// namespace xchain
