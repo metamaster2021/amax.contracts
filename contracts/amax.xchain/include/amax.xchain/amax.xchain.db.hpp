@@ -67,24 +67,24 @@ struct [[eosio::table("global"), eosio::contract("amax.xchain")]] global_t {
 
 typedef eosio::singleton< "global"_n, global_t > global_singleton;
 
-enum class xin_order_status : uint8_t{
-    CREATED         = 1,
-    FUFILLED        = 8,
-    CANCELED        = 9
-};
-
-enum class xout_order_status : uint8_t{
-    CREATED         = 1,
-    PAYING          = 2,
-    PAY_SUCCESS     = 3,
-    CHECKED         = 6,
-    CANCELED        = 9
+namespace address_status {
+    static constexpr eosio::name REQUESTED          = "requested"_n;
+    static constexpr eosio::name PROVISIONED        = "provisioned"_n;
 };
 
 
-enum class address_status : uint8_t{
-    PENDING         = 1,
-    CONFIGURED      = 2
+namespace xin_order_status {
+    static constexpr eosio::name CREATED            = "created"_n;
+    static constexpr eosio::name FUFILLED           = "fulfilled"_n;
+    static constexpr eosio::name CANCELED           = "canceled"_n;
+};
+
+namespace xout_order_status {
+    static constexpr eosio::name CREATED            = "created"_n;
+    static constexpr eosio::name SENT               = "sent"_n;        // by maker after sending coins in third chain
+    static constexpr eosio::name CONFIRMED          = "confirmed"_n;   // by maker after block finality confirmation.
+    static constexpr eosio::name CHECKED            = "checked"_n;
+    static constexpr eosio::name CANCELED           = "canceled"_n;
 };
 
 ///cross-chain deposit address
@@ -93,7 +93,7 @@ TBL account_xchain_address_t {
     name            account;
     name            base_chain; 
     string          xin_to;            //E.g. Eth or BTC address, eos id
-    uint8_t         status = (uint8_t)address_status::PENDING;
+    name            status = address_status::REQUESTED;
     time_point_sec  created_at;
     time_point_sec  updated_at;
 
@@ -122,8 +122,8 @@ TBL xin_order_t {
     string          xin_to;
     name            chain;
     symbol          coin_name;
-    asset           quantity;  //for deposit_quantity
-    uint8_t         status; //xin_order_status
+    asset           quantity;   //for deposit_quantity
+    name            status;     //xin_order_status
 
     string          close_reason;
     name            maker;
@@ -140,7 +140,7 @@ TBL xin_order_t {
 
     uint64_t    by_chain() const { return chain.value; }
     checksum256 by_txid() const { return hash(txid); }    //unique index
-    uint64_t    by_status() const { return (uint64_t)status; }
+    uint64_t    by_status() const { return status.value; }
 
     typedef eosio::multi_index
       < "xinorders"_n,  xin_order_t,
@@ -167,7 +167,7 @@ TBL xout_order_t {
     asset           apply_amount; 
     asset           amount;
     asset           fee;
-    uint8_t         status;
+    name            status;
     string          memo;
     
     string          close_reason;
@@ -179,13 +179,14 @@ TBL xout_order_t {
 
     uint64_t    primary_key()const { return id; }
     uint64_t    by_update_time() const { return (uint64_t) updated_at.utc_seconds; }
-
     checksum256 by_txid() const { return hash(txid); }    //unique index
+    uint64_t    by_status() const { return status.value; }
 
     typedef eosio::multi_index
       < "xoutorders"_n,  xout_order_t,
         indexed_by<"updatedat"_n, const_mem_fun<xout_order_t, uint64_t, &xout_order_t::by_update_time> >,
-        indexed_by<"xouttxids"_n, const_mem_fun<xout_order_t, checksum256, &xout_order_t::by_txid> >
+        indexed_by<"xouttxids"_n, const_mem_fun<xout_order_t, checksum256, &xout_order_t::by_txid> >,
+        indexed_by<"xoutstatus"_n, const_mem_fun<xout_order_t, uint64_t, &xout_order_t::by_status> >
     > idx_t;
 
     EOSLIB_SERIALIZE(xout_order_t,  (id)(txid)(account)(xout_from)(xout_to)(chain)(coin_name)

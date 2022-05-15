@@ -58,9 +58,9 @@ public:
     /**
      * checker to confirm xin order
      */
-    ACTION chkxinorder( const uint64_t& id);
+    ACTION checkxinord( const uint64_t& id);
 
-    ACTION cslxinorder( const uint64_t& id, const string& cancel_reason );
+    ACTION cancelxinord( const uint64_t& id, const string& cancel_reason );
 
     /**
      * ontransfer, trigger by recipient of transfer()
@@ -71,29 +71,26 @@ public:
     [[eosio::on_notify("*::transfer")]] 
     void ontransfer(name from, name to, asset quantity, string memo);
 
-    ACTION onpay( const name& account, const uint64_t& id, const string& txid, const string& payno, const string& xout_from );
+    ACTION setxousent( const uint64_t& id, const string& txid, const string& xout_from );
 
-    ACTION onpaysucc( const name& account, const uint64_t& id );
+    ACTION setxouconfm(  const uint64_t& id );
 
     /**
      * checker to confirm out order
      */
-    ACTION chkxoutorder( const uint64_t& id );
-
-    ACTION cancelxout( const name& account, const uint64_t& id );
+    ACTION checkxouord( const uint64_t& id );
+    ACTION cancelxouord( const name& account, const uint64_t& id );
 
     ACTION addchain( const name& chain, const bool is_basechain, const string& common_xin_account );
-
     ACTION delchain( const name& chain );
 
     ACTION addcoin( const symbol& coin );
-
     ACTION delcoin( const symbol& coin );
 
     ACTION addchaincoin( const name& chain, const symbol& coin, const asset& fee );
-
     ACTION delchaincoin( const name& chain, const symbol& coin );
 
+    ACTION deltable();
    private:
     
 };
