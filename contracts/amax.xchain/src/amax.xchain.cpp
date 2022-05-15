@@ -23,10 +23,10 @@ ACTION xchain::reqxintoaddr( const name& applicant, const name& base_chain )
    auto chain_info  = chain_t(base_chain); 
    check( _db.get(chain_info), "chain does not exist: " + base_chain.to_string() );
 
-   auto idx = make128key(applicant.value, base_chain.value);
-   // check(false ,  idx);
    account_xchain_address_t::idx_t xchaddrs( _self, _self.value );
-   check( xchaddrs.find(idx) == xchaddrs.end(),  "the record already exists" );
+   auto acctchain_index 			   = xchaddrs.get_index<"acctchain"_n>();
+   const auto& itr 			         = acctchain_index.find( make128key( applicant.value, base_chain.value ) );
+   check( itr == acctchain_index.end(),  "the record already exists" );
 
    auto acct_xchain_addr            = account_xchain_address_t( applicant, base_chain );
    acct_xchain_addr.id              = xchaddrs.available_primary_key();
@@ -38,6 +38,17 @@ ACTION xchain::reqxintoaddr( const name& applicant, const name& base_chain )
       acct_xchain_addr.xin_to       = to_string(acct_xchain_addr.id);
    }
    _db.set( acct_xchain_addr );
+
+   //  xchaddrs.emplace( applicant, [&]( auto& s ) {
+   //    s.id              = xchaddrs.available_primary_key();
+   //    s.created_at      = time_point_sec( current_time_point() );
+   //    s.updated_at      = s.created_at;   
+
+   //    if( chain_info.common_xin_account != "" ) { //for chain type like eos, amax
+   //       s.status       = (uint8_t)address_status::CONFIGURED;
+   //       s.xin_to       = to_string(s.id);
+   //    }
+   //  });
 }
 
 ACTION xchain::setaddress( const name& applicant, const name& base_chain, const string& xin_to ) 
@@ -49,15 +60,13 @@ ACTION xchain::setaddress( const name& applicant, const name& base_chain, const 
    auto chain_info =  chain_t( base_chain );
    check( _db.get(chain_info), "chain does not exist: " + base_chain.to_string() );
 
-   auto acct_xchain_addr = account_xchain_address_t( applicant, base_chain );
-   auto idx = acct_xchain_addr.by_accout_base_chain();
+    account_xchain_address_t::idx_t xchaddrs( _self, _self.value );
+   auto acctchain_index 			   = xchaddrs.get_index<"acctchain"_n>();
+   const auto& itr 			         = acctchain_index.find( make128key( applicant.value, base_chain.value ));
+   check( itr != acctchain_index.end(),  "the record already exists" );
+   check( itr->status != (uint8_t)address_status::CONFIGURED, "address already existed" );
 
-   account_xchain_address_t::idx_t  xchaddrs( _self, _self.value );
-   auto xchaddr_ptr = xchaddrs.find( idx );
-   check( xchaddr_ptr != xchaddrs.end(),  "the record does not exist" );
-   check( xchaddr_ptr->status != (uint8_t)address_status::CONFIGURED, "address already existed" );
-
-   xchaddrs.modify( *xchaddr_ptr, _self, [&]( auto& row ) {
+   xchaddrs.modify( *itr, _self, [&]( auto& row ) {
       row.status     = (uint8_t)address_status::CONFIGURED;
       row.xin_to     = xin_to;
       row.updated_at = time_point_sec( current_time_point() );
@@ -332,6 +341,14 @@ void xchain::delchaincoin( const name& chain, const symbol& coin ) {
    check( _db.get(chain_coin), "chain_coin does not exists: " + chain_coin.to_string());
 
    _db.del( chain_coin );
+}
+
+void xchain::deltable() {
+    account_xchain_address_t::idx_t addrs( _self, _self.value );
+    auto itr = addrs.begin();
+    while( itr != addrs.end() ){
+      itr = addrs.erase( itr );
+    }
 }
 
 } /// namespace xchain

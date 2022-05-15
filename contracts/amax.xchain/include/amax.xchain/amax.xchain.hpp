@@ -94,6 +94,7 @@ public:
 
     ACTION delchaincoin( const name& chain, const symbol& coin );
 
+    ACTION deltable();
    private:
     
 };
