@@ -34,21 +34,10 @@ ACTION xchain::reqxintoaddr( const name& applicant, const name& base_chain )
    acct_xchain_addr.updated_at      = acct_xchain_addr.created_at;   
 
    if( chain_info.common_xin_account != "" ) { //for chain type like eos, amax
-      acct_xchain_addr.status       = (uint8_t)address_status::CONFIGURED;
+      acct_xchain_addr.status       = address_status::PROVISIONED;
       acct_xchain_addr.xin_to       = to_string(acct_xchain_addr.id);
    }
    _db.set( acct_xchain_addr );
-
-   //  xchaddrs.emplace( applicant, [&]( auto& s ) {
-   //    s.id              = xchaddrs.available_primary_key();
-   //    s.created_at      = time_point_sec( current_time_point() );
-   //    s.updated_at      = s.created_at;   
-
-   //    if( chain_info.common_xin_account != "" ) { //for chain type like eos, amax
-   //       s.status       = (uint8_t)address_status::CONFIGURED;
-   //       s.xin_to       = to_string(s.id);
-   //    }
-   //  });
 }
 
 ACTION xchain::setaddress( const name& applicant, const name& base_chain, const string& xin_to ) 
@@ -64,10 +53,9 @@ ACTION xchain::setaddress( const name& applicant, const name& base_chain, const 
    auto acctchain_index 			   = xchaddrs.get_index<"acctchain"_n>();
    const auto& itr 			         = acctchain_index.find( make128key( applicant.value, base_chain.value ));
    check( itr != acctchain_index.end(),  "the record already exists" );
-   check( itr->status != (uint8_t)address_status::CONFIGURED, "address already existed" );
 
    xchaddrs.modify( *itr, _self, [&]( auto& row ) {
-      row.status     = (uint8_t)address_status::CONFIGURED;
+      row.status     = address_status::PROVISIONED;
       row.xin_to     = xin_to;
       row.updated_at = time_point_sec( current_time_point() );
    });
@@ -101,7 +89,7 @@ ACTION xchain::mkxinorder( const name& to, const name& chain_name, const symbol&
       row.chain 			   = chain_name;
       row.coin_name  	   = coin_name;
       row.quantity		   = quantity;
-      row.status   			= (uint8_t)xin_order_status::CREATED;
+      row.status   			= xin_order_status::CREATED;
       row.maker			   = _gstate.maker;
       row.created_at       = created_at;
       row.updated_at       = created_at;
@@ -112,7 +100,7 @@ ACTION xchain::mkxinorder( const name& to, const name& chain_name, const symbol&
 /**
  * checker to confirm xin order
  */
-ACTION xchain::chkxinorder( const uint64_t& id )
+ACTION xchain::checkxinord( const uint64_t& id )
 {
    require_auth( _gstate.checker );
 
@@ -120,10 +108,10 @@ ACTION xchain::chkxinorder( const uint64_t& id )
    auto xin_order_itr = xin_orders.find( id );
    check( xin_order_itr != xin_orders.end(), "xin order not found: " + to_string(id) );
    auto status = xin_order_itr->status;
-   check( status != (uint8_t)xin_order_status::CREATED, "xin order already closed: " + to_string(id) );
+   check( status != xin_order_status::CREATED, "xin order already closed: " + to_string(id) );
 
    xin_orders.modify( xin_order_itr, _self, [&]( auto& row ) {
-      row.status         = (uint8_t)xin_order_status::FUFILLED;
+      row.status         = xin_order_status::FUFILLED;
       row.checker        = _gstate.checker;
       row.closed_at      = time_point_sec( current_time_point() );
       row.updated_at     = time_point_sec( current_time_point() );
@@ -134,7 +122,7 @@ ACTION xchain::chkxinorder( const uint64_t& id )
 /**
  * checker cancel the xin order 
  * */
-ACTION xchain::cslxinorder( const uint64_t& id, const string& cancel_reason )
+ACTION xchain::cancelxinord( const uint64_t& id, const string& cancel_reason )
 {
    require_auth( _gstate.checker );
 
@@ -142,10 +130,10 @@ ACTION xchain::cslxinorder( const uint64_t& id, const string& cancel_reason )
    auto xin_order_itr = xin_orders.find( id );
    check( xin_order_itr != xin_orders.end(), "xin order not found: " + to_string(id) );
    auto status = xin_order_itr->status;
-   check( (uint8_t)status != (uint8_t)xin_order_status::CREATED, "xin order already closed: " + to_string(id) );
+   check( status != xin_order_status::CREATED, "xin order already closed: " + to_string(id) );
    
    xin_orders.modify( xin_order_itr, _self, [&]( auto& row ) {
-      row.status           = (uint8_t)xin_order_status::CANCELED;
+      row.status           = xin_order_status::CANCELED;
       row.close_reason     = cancel_reason;
       row.checker          = _gstate.checker;
       row.closed_at        = time_point_sec( current_time_point() );
@@ -191,7 +179,7 @@ void xchain::ontransfer( name from, name to, asset quantity, string memo )
       row.apply_amount		   = quantity;
       row.amount		         = quantity;
       row.fee			         = chain_coin.fee;  
-      row.status			      = (uint8_t)xin_order_status::CREATED;
+      row.status			      = xin_order_status::CREATED;
       row.maker               = from;
       row.created_at          = time_point_sec( current_time_point() );
       row.updated_at          = time_point_sec( current_time_point() );
@@ -203,7 +191,7 @@ void xchain::ontransfer( name from, name to, asset quantity, string memo )
 /**
  * maker onpay the order
  * */
-ACTION xchain::onpay( const name& account, const uint64_t& id, const string& txid, const string& payno, const string& xout_from )
+ACTION xchain::setxousent( const uint64_t& id, const string& txid, const string& xout_from )
 {
    require_auth( _gstate.maker );
 
@@ -211,10 +199,10 @@ ACTION xchain::onpay( const name& account, const uint64_t& id, const string& txi
    auto xout_order_itr = xout_orders.find( id );
    check( xout_order_itr != xout_orders.end(), "xout order not found: " + to_string(id) );
    auto status = xout_order_itr->status;
-   check( status == (uint8_t)xout_order_status::CREATED,  "xout order status is not created: " + to_string(id));
+   check( status == xout_order_status::CREATED,  "xout order status is not created: " + to_string(id));
 
    xout_orders.modify( *xout_order_itr, _self, [&]( auto& row ) {
-      row.status     = (uint8_t)xout_order_status::PAYING;
+      row.status     = xout_order_status::SENT;
       row.txid       = txid;
       row.xout_from  = xout_from;
       row.maker      = _gstate.maker;
@@ -225,18 +213,18 @@ ACTION xchain::onpay( const name& account, const uint64_t& id, const string& txi
 /**
  * maker onpay the order
  * */
-ACTION xchain::onpaysucc( const name& account, const uint64_t& id )
+ACTION xchain::setxouconfm( const uint64_t& id )
 {
    require_auth( _gstate.maker );
 
    xout_order_t::idx_t xout_orders( _self, _self.value );
    auto xout_order_itr = xout_orders.find(id);
    check( xout_order_itr != xout_orders.end(), "xout order not found: " + to_string(id) );
-   check( xout_order_itr->status == (uint8_t)xout_order_status::PAYING,  "xout order status is not paying");
+   check( xout_order_itr->status == xout_order_status::SENT,  "xout order status is not paying");
 
    //check status
    xout_orders.modify( *xout_order_itr, _self, [&]( auto& row ) {
-      row.status     = (uint8_t)xin_order_status::FUFILLED;
+      row.status     = xout_order_status::CONFIRMED;
       row.updated_at = time_point_sec( current_time_point() );
    });
 }
@@ -244,7 +232,7 @@ ACTION xchain::onpaysucc( const name& account, const uint64_t& id )
 /**
  * checker to confirm out order
  */
-ACTION xchain::chkxoutorder( const uint64_t& id )
+ACTION xchain::checkxouord( const uint64_t& id )
 {
    require_auth( _gstate.checker );
 
@@ -253,10 +241,10 @@ ACTION xchain::chkxoutorder( const uint64_t& id )
    check( xout_order_itr != xout_orders.end(), "xout order not found: " + to_string(id) );
 
    //check status
-   check( xout_order_itr->status == (uint8_t)xout_order_status::PAY_SUCCESS,  "xout order status is not pay_success" );
+   check( xout_order_itr->status == xout_order_status::CONFIRMED,  "xout order status is not paid" );
 
    xout_orders.modify( *xout_order_itr, _self, [&]( auto& row ) {
-      row.status     = (uint8_t)xin_order_status::FUFILLED;
+      row.status     = xout_order_status::CHECKED;
       row.closed_at  = time_point_sec( current_time_point() );
       row.updated_at = time_point_sec( current_time_point() );
       row.checker    = _gstate.checker;
@@ -266,7 +254,7 @@ ACTION xchain::chkxoutorder( const uint64_t& id )
 /**
  * maker or checker can cancel xchain out order
  */
-ACTION xchain::cancelxout( const name& account, const uint64_t& id )
+ACTION xchain::cancelxouord( const name& account, const uint64_t& id )
 {
    require_auth( account );
    check( account == _gstate.checker || account == _gstate.maker, "account is not checker or taker" );
@@ -274,12 +262,13 @@ ACTION xchain::cancelxout( const name& account, const uint64_t& id )
    xout_order_t::idx_t xout_orders( _self, _self.value );
    auto xout_order_itr = xout_orders.find( id );
    check( xout_order_itr != xout_orders.end(), "xout order not found: " + to_string(id) );
-   check( xout_order_itr->status == (uint8_t)xout_order_status::PAY_SUCCESS ||
-               xout_order_itr->status == (uint8_t)xout_order_status::PAYING 
+   check( xout_order_itr->status == xout_order_status::CONFIRMED||
+               xout_order_itr->status == xout_order_status::SENT ||
+                xout_order_itr->status == xout_order_status::CREATED  
                ,  "xout order status is not ready for cancel");
 
    xout_orders.modify( *xout_order_itr, _self, [&]( auto& row ) {
-      row.status     = ( uint8_t )xin_order_status::FUFILLED;
+      row.status     = xout_order_status::CHECKED;
       row.closed_at  = time_point_sec( current_time_point() );
       row.updated_at = time_point_sec( current_time_point() );   
       row.checker    = account;   
