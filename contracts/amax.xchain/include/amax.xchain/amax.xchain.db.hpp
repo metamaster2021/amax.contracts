@@ -33,7 +33,7 @@ typedef set<name> nameset;
 
 #define hash(str) sha256(const_cast<char*>(str.c_str()), str.size())
 
-namespace chain {
+namespace chain1 {
     static constexpr eosio::name BTC         = "btc"_n;
     static constexpr eosio::name ETH         = "eth"_n;
     static constexpr eosio::name AMC         = "amc"_n;
@@ -119,7 +119,7 @@ TBL xin_order_t {
     string          xin_from;
     string          xin_to;
     name            chain;
-    name            coin_name;
+    symbol          coin_name;
     asset           quantity;  //for deposit_quantity
     uint8_t         status; //xin_order_status
 
@@ -160,7 +160,7 @@ TBL xout_order_t {
     string          xout_from; 
     string          xout_to;
     name            chain;
-    name            coin_name;
+    symbol          coin_name;
 
     asset           apply_amount; 
     asset           amount;
@@ -208,12 +208,12 @@ TBL chain_t {
 };
 
 TBL coin_t {
-    name     coin;         //PK
+    symbol          coin;         //PK
 
     coin_t() {};
-    coin_t( const name& c ):coin( c ) {}
+    coin_t( const symbol& c ):coin( c ) {}
 
-    uint64_t primary_key()const { return coin.value; }
+    uint64_t primary_key()const { return coin.raw(); }
 
     typedef eosio::multi_index< "coins"_n,  coin_t > idx_t;
 
@@ -222,16 +222,16 @@ TBL coin_t {
 };
 
 TBL chain_coin_t {
-    name     chain;        //co-PK
-    name     coin;         //co-PK
-    asset    fee;
+    name            chain;        //co-PK
+    symbol          coin;         //co-PK
+    asset           fee;
 
     chain_coin_t() {};
-    chain_coin_t( const name& ch, const name& co ):chain( ch ),coin( co ) {}
+    chain_coin_t( const name& ch, const symbol& co ):chain( ch ),coin( co ) {}
 
-    string to_string() const { return chain.to_string() + "_" + coin.to_string(); } 
+    string to_string() const { return chain.to_string() + "_" + coin.code().to_string(); } 
 
-    uint64_t primary_key()const { return chain.value << 32 | coin.value; }
+    uint64_t primary_key()const { return chain.value << 32 | coin.code().raw(); }
 
     typedef eosio::multi_index< "chaincoins"_n,  chain_coin_t > idx_t;
 

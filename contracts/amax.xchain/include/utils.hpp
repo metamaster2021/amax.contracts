@@ -160,3 +160,11 @@ asset asset_from_string(string_view from)
 
     return asset(amount.value, sym);
 }
+
+/**
+ * EG: "8,ETH" "8,BTC"
+ * */
+symbol to_symbol(const string& str) {
+   auto symbol_parts = split( str, "," );
+   return symbol(symbol_parts[1], stoi(string(symbol_parts[0])));
+}

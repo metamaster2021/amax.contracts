@@ -1,6 +1,7 @@
 #include <amax.xchain/amax.xchain.hpp>
-#include<utils.hpp>
 
+#include<utils.hpp>
+#include<string>
 namespace amax {
 
 static constexpr eosio::name SYS_BANK{"amax.token"_n};
@@ -65,7 +66,7 @@ ACTION xchain::setaddress( const name& applicant, const name& base_chain, const 
 /**
  * maker create xin order
  * */
-ACTION xchain::mkxinorder( const name& to, const name& chain_name, const name& coin_name, 
+ACTION xchain::mkxinorder( const name& to, const name& chain_name, const symbol& coin_name, 
                            const string& txid, const string& xin_from, const string& xin_to,
                            const asset& quantity)
 {
@@ -143,9 +144,11 @@ ACTION xchain::cslxinorder( const uint64_t& id, const string& cancel_reason )
 }
 
 /**
+ * tranfer amtoken(AMBTC/AMETH) event trigger
  * ontransfer, trigger by recipient of transfer()
  * @param quantity - mirrored asset on AMC
- * @param memo - memo format: $addr@$chain@coin_name@order_no@memo
+ * @param memo - memo format: $addr:$chain:coin_name:order_no:memo
+ *                            "$eth_addr:eth:ETH,8:123:xchain's memo
  *               
  */
 [[eosio::on_notify("amax.token::transfer")]] 
@@ -157,12 +160,12 @@ void xchain::ontransfer( name from, name to, asset quantity, string memo )
    if( to != _self ) return;
    if( get_first_receiver() == SYS_BANK ) return;
 
-   auto parts = split( memo, "@" );
+   auto parts = split( memo, ":" );
    check( parts.size() >= 4, "Expected format 'address@chain@coin_name@order_no@memo'" );
-   auto xout_to = parts[0];
-   auto chain_name = name( parts[1] );
-   auto coin_name = name( parts[2] );
-   auto order_no = parts[3];
+   auto xout_to      = parts[0];
+   auto chain_name   = name( parts[1] );
+   auto coin_name    = to_symbol((string)parts[2]);
+   auto order_no     = parts[3];
 
    auto chain_coin = chain_coin_t( chain_name, coin_name );
    check( _db.get(chain_coin), "chain_coin does not exist: " + chain_coin.to_string() );
@@ -292,26 +295,26 @@ void xchain::delchain( const name& chain ) {
    _db.del( chain_info );
 }
 
-void xchain::addcoin( const name& coin ) {
+void xchain::addcoin( const symbol& coin ) {
    require_auth( _self );
 
    auto coin_info = coin_t(coin);
-   check( !_db.get(coin_info), "coin already exists: " + coin.to_string() );
+   check( !_db.get(coin_info), "coin already exists: " + coin.code().to_string() );
 
    coin_info.coin = coin;
    _db.set( coin_info );
 }
 
-void xchain::delcoin( const name& coin ) {
+void xchain::delcoin( const symbol& coin ) {
    require_auth( _self );
 
    auto coin_info = coin_t(coin);
-   check( _db.get(coin_info), "coin already exists: " + coin.to_string() );
+   check( _db.get(coin_info), "coin already exists: " + coin.code().to_string() );
 
    _db.del( coin_info );
 }
 
-void xchain::addchaincoin( const name& chain, const name& coin, const asset& fee ) {
+void xchain::addchaincoin( const name& chain, const symbol& coin, const asset& fee ) {
    require_auth( _self );
 
    auto chain_coin = chain_coin_t(chain, coin);
@@ -321,7 +324,7 @@ void xchain::addchaincoin( const name& chain, const name& coin, const asset& fee
    _db.set( chain_coin );
 }
 
-void xchain::delchaincoin( const name& chain, const name& coin ) {
+void xchain::delchaincoin( const name& chain, const symbol& coin ) {
    require_auth( _self );
 
    auto chain_coin = chain_coin_t(chain, coin);

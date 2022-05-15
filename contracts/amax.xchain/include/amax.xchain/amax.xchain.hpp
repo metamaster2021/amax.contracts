@@ -51,7 +51,7 @@ public:
 
     ACTION setaddress( const name& applicant, const name& base_chain, const string& xin_to );
 
-    ACTION mkxinorder(  const name& to, const name& chain_name, const name& coin_name, 
+    ACTION mkxinorder(  const name& to, const name& chain_name, const symbol& coin_name, 
                         const string& txid, const string& xin_from, const string& xin_to,
                         const asset& quantity);
 
@@ -60,7 +60,7 @@ public:
      */
     ACTION chkxinorder( const uint64_t& id);
 
-    ACTION cslxinorder( const uint64_t& id,const string& cancel_reason );
+    ACTION cslxinorder( const uint64_t& id, const string& cancel_reason );
 
     /**
      * ontransfer, trigger by recipient of transfer()
@@ -86,13 +86,13 @@ public:
 
     ACTION delchain( const name& chain );
 
-    ACTION addcoin( const name& coin );
+    ACTION addcoin( const symbol& coin );
 
-    ACTION delcoin( const name& coin );
+    ACTION delcoin( const symbol& coin );
 
-    ACTION addchaincoin( const name& chain, const name& coin, const asset& fee );
+    ACTION addchaincoin( const name& chain, const symbol& coin, const asset& fee );
 
-    ACTION delchaincoin( const name& chain, const name& coin );
+    ACTION delchaincoin( const name& chain, const symbol& coin );
 
    private:
 
