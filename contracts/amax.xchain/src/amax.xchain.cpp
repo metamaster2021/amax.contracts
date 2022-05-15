@@ -300,8 +300,8 @@ asset xchain::_check_chain_coin(const name& chain, const name& coin) {
    return chain_coin_itr->fee;
 }
 
-void xchain::addchain(const name& account, const name& chain, const bool& base_chain, const string& xin_account ) {
-   require_auth( account );
+void xchain::addchain( const name& chain, const bool& base_chain, const string& xin_account ) {
+   require_auth( _self );
 
    chain_t::idx_t chains( _self, _self.value );
    auto chain_itr = chains.find( chain.value );
@@ -309,14 +309,14 @@ void xchain::addchain(const name& account, const name& chain, const bool& base_c
    check( chain_itr == chains.end(), "chain already found: " + chain.to_string() );
 
    auto chain_info = chain_t();
-   chain_info.chain = account;
+   chain_info.chain = chain;
    chain_info.base_chain = base_chain;
    chain_info.xin_account = xin_account;
    _db.set( chain_info );
 }
 
-void xchain::delchain( const name& account, const name& chain ) {
-   require_auth( account );
+void xchain::delchain( const name& chain ) {
+   require_auth( _self );
 
    chain_t::idx_t chains( _self, _self.value );
    auto chain_itr = chains.find( chain.value );
@@ -325,8 +325,8 @@ void xchain::delchain( const name& account, const name& chain ) {
    chains.erase( chain_itr );
 }
 
-void xchain::addcoin( const name& account, const name& coin ) {
-   require_auth( account );
+void xchain::addcoin( const name& coin ) {
+   require_auth( _self );
 
    coin_t::idx_t coins( _self, _self.value );
    auto itr = coins.find( coin.value );
@@ -338,8 +338,8 @@ void xchain::addcoin( const name& account, const name& coin ) {
    _db.set( coin_info );
 }
 
-void xchain::delcoin( const name& account, const name& coin ) {
-   require_auth( account );
+void xchain::delcoin( const name& coin ) {
+   require_auth( _self );
 
    coin_t::idx_t coins( _self, _self.value );
    auto itr = coins.find( coin.value );
@@ -348,8 +348,8 @@ void xchain::delcoin( const name& account, const name& coin ) {
    coins.erase( itr );
 }
 
-void xchain::addchaincoin(const name& account, const name& chain, const name& coin, const asset& fee) {
-   require_auth( account );
+void xchain::addchaincoin( const name& chain, const name& coin, const asset& fee ) {
+   require_auth( _self );
 
    chain_coin_t::idx_t chain_coins( _self, _self.value );
 
@@ -365,8 +365,8 @@ void xchain::addchaincoin(const name& account, const name& chain, const name& co
    _db.set( chain_coin );
 }
 
-void xchain::delchaincoin( const name& account, const name& chain, const name& coin ) {
-   require_auth( account );
+void xchain::delchaincoin( const name& chain, const name& coin ) {
+   require_auth( _self );
 
    chain_coin_t::idx_t chain_coins( _self, _self.value );
 

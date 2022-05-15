@@ -82,17 +82,17 @@ public:
 
     ACTION cancelxout( const name& account, const uint64_t& id );
 
-    ACTION addchain(const name& account, const name& chain, const bool& base_chain, const string& xin_account );
+    ACTION addchain( const name& chain, const bool& base_chain, const string& xin_account );
 
-    ACTION delchain(const name& account, const name& chain);
+    ACTION delchain( const name& chain );
 
-    ACTION addcoin(const name& account, const name& coin);
+    ACTION addcoin( const name& coin );
 
-    ACTION delcoin(const name& account, const name& coin);
+    ACTION delcoin( const name& coin );
 
-    ACTION addchaincoin(const name& account, const name& chain, const name& coin, const asset& fee);
+    ACTION addchaincoin( const name& chain, const name& coin, const asset& fee );
 
-    ACTION delchaincoin(const name& account, const name& chain, const name& coin);
+    ACTION delchaincoin( const name& chain, const name& coin );
 
    private:
 
