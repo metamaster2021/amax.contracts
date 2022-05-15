@@ -69,6 +69,28 @@ public:
             return return_t::APPENDED;
         }
     }
+
+    template<typename RecordType>
+    return_t set(const name& rampayer, const RecordType& record) {
+        auto scope = code.value;
+
+        typename RecordType::idx_t idx(code, scope);
+        auto itr = idx.find( record.primary_key() );
+        if ( itr != idx.end()) {
+            idx.modify( itr, rampayer, [&]( auto& item ) {
+                item = record;
+            });
+            return return_t::MODIFIED;
+
+        } else {
+            idx.emplace( rampayer, [&]( auto& item ) {
+                item = record;
+            });
+            return return_t::APPENDED;
+        }
+    }
+
+
     template<typename RecordType>
     return_t set(const uint64_t& scope, const RecordType& record) {
         typename RecordType::idx_t idx(code, scope);
