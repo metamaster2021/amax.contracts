@@ -24,7 +24,9 @@ ACTION xchain::reqxintoaddr( const name& applicant, const name& base_chain )
    check( _db.get(chain_info), "chain does not exist: " + base_chain.to_string() );
 
    auto acct_xchain_addr = account_xchain_address_t( applicant, base_chain );
-   auto idx = acct_xchain_addr.by_accout_base_chain();
+
+   auto idx = make128key(applicant.value, base_chain.value);
+   // check(false ,  idx);
    account_xchain_address_t::idx_t xchaddrs( _self, _self.value );
    check( xchaddrs.find(idx) == xchaddrs.end(),  "the record already exists" );
 

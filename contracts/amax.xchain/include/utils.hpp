@@ -168,3 +168,9 @@ symbol to_symbol(const string& str) {
    auto symbol_parts = split( str, "," );
    return symbol(symbol_parts[1], stoi(string(symbol_parts[0])));
 }
+
+uint128_t make128key(uint64_t a, uint64_t b) {
+    uint128_t aa = a;
+    uint128_t bb = b;
+    return (aa << 64) + bb;
+}

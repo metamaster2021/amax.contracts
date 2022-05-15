@@ -95,6 +95,6 @@ public:
     ACTION delchaincoin( const name& chain, const symbol& coin );
 
    private:
-
+    
 };
 } //namespace apollo

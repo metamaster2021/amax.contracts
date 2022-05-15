@@ -5,6 +5,7 @@
 #include <eosio/singleton.hpp>
 #include <eosio/system.hpp>
 #include <eosio/time.hpp>
+#include <utils.hpp>
 
 #include <deque>
 #include <optional>
@@ -33,7 +34,7 @@ typedef set<name> nameset;
 
 #define hash(str) sha256(const_cast<char*>(str.c_str()), str.size())
 
-namespace chain1 {
+namespace chain {
     static constexpr eosio::name BTC         = "btc"_n;
     static constexpr eosio::name ETH         = "eth"_n;
     static constexpr eosio::name AMC         = "amc"_n;
@@ -87,7 +88,7 @@ enum class address_status : uint8_t{
 };
 
 ///cross-chain deposit address
-struct account_xchain_address_t {
+TBL account_xchain_address_t {
     uint64_t        id;
     name            account;
     name            base_chain; 
@@ -99,9 +100,10 @@ struct account_xchain_address_t {
     account_xchain_address_t() {};
     account_xchain_address_t(const name& a, const name& bc) : account(a), base_chain(bc) {};
 
+
     uint64_t    primary_key()const { return id; }
     uint64_t    by_update_time() const { return (uint64_t) updated_at.utc_seconds; }
-    uint128_t   by_accout_base_chain() const { return (uint128_t)account.value << 64 || (uint128_t)base_chain.value; }
+    uint128_t   by_accout_base_chain() const { return make128key( account.value, base_chain.value ); }
     checksum256 by_xin_to() const { return hash(xin_to); }
 
     typedef eosio::multi_index<"xinaddrmap"_n, account_xchain_address_t,
