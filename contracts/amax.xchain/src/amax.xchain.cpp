@@ -26,6 +26,7 @@ ACTION xchain::reqxintoaddr( const name& applicant, const name& base_chain )
    auto acctchain_index 			   = xchaddrs.get_index<"acctchain"_n>();
    const auto& itr 			         = acctchain_index.find( make128key( applicant.value, base_chain.value ) );
    CHECKC( itr == acctchain_index.end(), err::RECORD_EXISTING, "the record already exists" );
+   CHECKC( chain_info.chain == chain_info.base_chain, err::PARAM_INCORRECT, "base chain is incorrect" );
 
    auto acct_xchain_addr            = account_xchain_address_t( applicant, base_chain );
    acct_xchain_addr.id              = xchaddrs.available_primary_key();
@@ -51,7 +52,7 @@ ACTION xchain::setaddress( const name& applicant, const name& base_chain, const 
    account_xchain_address_t::idx_t xchaddrs( _self, _self.value );
    auto acctchain_index 			   = xchaddrs.get_index<"acctchain"_n>();
    const auto& itr 			         = acctchain_index.find( make128key( applicant.value, base_chain.value ) );
-   CHECKC( itr != acctchain_index.end(), err::RECORD_EXISTING, "the record already exists" );
+   CHECKC( itr != acctchain_index.end(), err::RECORD_EXISTING, "xchaddrs already exists" );
 
    xchaddrs.modify( *itr, _self, [&]( auto& row ) {
       row.status     = address_status::PROVISIONED;
@@ -127,7 +128,7 @@ ACTION xchain::checkxinord( const uint64_t& id )
    auto xin_order_itr = xin_orders.find( id );
    CHECKC( xin_order_itr != xin_orders.end(), err::RECORD_NOT_FOUND, "xin order not found: " + to_string(id) );
    auto status = xin_order_itr->status;
-   CHECKC( status == xin_order_status::CREATED, err::STATUS_INCORRECT, "xin order already closed: " + to_string(id) );
+   CHECKC( status == xin_order_status::CREATED, err::STATUS_INCORRECT, "xin order is not created: " + to_string(id) );
 
    xin_orders.modify( xin_order_itr, _self, [&]( auto& row ) {
       row.status         = xin_order_status::CHECKED;
@@ -166,8 +167,8 @@ ACTION xchain::cancelxinord( const uint64_t& id, const string& cancel_reason )
  * tranfer amtoken(AMBTC/AMETH) event trigger
  * ontransfer, trigger by recipient of transfer()
  * @param quantity - mirrored asset on AMC
- * @param memo - memo format: $addr:$chain:coin_name:order_no:memo
- *                            "$eth_addr:eth:ETH,8:123:xchain's memo
+ * @param memo - memo format: $addr:$chain:coin_name:memo
+ *                            "$eth_addr:eth:ETH,8:xchain's memo
  *               
  */
 [[eosio::on_notify("amax.token::transfer")]] 
@@ -179,12 +180,13 @@ void xchain::ontransfer( name from, name to, asset quantity, string memo )
    if( to != _self ) return;
    if( get_first_receiver() != SYS_BANK ) return;
 
+   if ( memo == "refuel" ) return;
+
    auto parts = split( memo, ":" );
    CHECKC( parts.size() >= 4, err::PARAM_INCORRECT, "Expected format 'address:chain:coin_name:order_no:memo'" );
    auto xout_to      = parts[0];
    auto chain_name   = name( parts[1] );
-   auto coin_name    = to_symbol((string)parts[2]);
-   auto order_no     = parts[3];
+   auto coin_name    = to_symbol( (string)parts[2] );
 
    CHECKC( coin_name == quantity.symbol, err::SYMBOL_MISMATCH, "symbol mismatch" );
 
@@ -206,7 +208,7 @@ void xchain::ontransfer( name from, name to, asset quantity, string memo )
       row.maker               = from;
       row.created_at          = time_point_sec( current_time_point() );
       row.updated_at          = time_point_sec( current_time_point() );
-      if( parts.size() == 5 ) row.memo = parts[4];
+      if( parts.size() == 4 ) row.memo = parts[3];
    });
 
    TRANSFER( SYS_BANK, _gstate.fee_collector, chain_coin.fee, to_string(id) );
