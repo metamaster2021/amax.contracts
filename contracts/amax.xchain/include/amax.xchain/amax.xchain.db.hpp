@@ -89,7 +89,7 @@ namespace address_status {
 
 namespace xin_order_status {
     static constexpr eosio::name CREATED            = "created"_n;
-    static constexpr eosio::name FUFILLED           = "fulfilled"_n;
+    static constexpr eosio::name CHECKED            = "checked"_n;
     static constexpr eosio::name CANCELED           = "canceled"_n;
 };
 
@@ -178,8 +178,8 @@ TBL xout_order_t {
     name            chain;
     symbol          coin_name;
 
-    asset           apply_amount; 
-    asset           amount;
+    asset           apply_quantity; 
+    asset           quantity;
     asset           fee;
     name            status;
     string          memo;
@@ -204,7 +204,7 @@ TBL xout_order_t {
     > idx_t;
 
     EOSLIB_SERIALIZE(xout_order_t,  (id)(txid)(account)(xout_from)(xout_to)(chain)(coin_name)
-                                    (apply_amount)(amount)(fee)(status)(memo)
+                                    (apply_quantity)(quantity)(fee)(status)(memo)
                                     (close_reason)(maker)(checker)(created_at)(closed_at)(updated_at) )
                                     
 };
@@ -221,7 +221,7 @@ TBL chain_t {
 
     typedef eosio::multi_index< "chains"_n,  chain_t > idx_t;
 
-     EOSLIB_SERIALIZE(chain_t, (chain)(base_chain)(common_xin_account) );
+    EOSLIB_SERIALIZE(chain_t, (chain)(base_chain)(common_xin_account) );
 };
 
 TBL coin_t {

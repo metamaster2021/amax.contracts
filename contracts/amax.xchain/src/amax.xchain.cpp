@@ -130,7 +130,7 @@ ACTION xchain::checkxinord( const uint64_t& id )
    CHECKC( status == xin_order_status::CREATED, err::STATUS_INCORRECT, "xin order already closed: " + to_string(id) );
 
    xin_orders.modify( xin_order_itr, _self, [&]( auto& row ) {
-      row.status         = xin_order_status::FUFILLED;
+      row.status         = xin_order_status::CHECKED;
       row.checker        = _gstate.checker;
       row.closed_at      = time_point_sec( current_time_point() );
       row.updated_at     = time_point_sec( current_time_point() );
@@ -199,8 +199,8 @@ void xchain::ontransfer( name from, name to, asset quantity, string memo )
       row.xout_to 			   = xout_to;
       row.chain               = chain_name;
       row.coin_name           = coin_name;
-      row.apply_amount		   = quantity;
-      row.amount		         = quantity;
+      row.apply_quantity		= quantity;
+      row.quantity		      = quantity - chain_coin.fee;
       row.fee			         = chain_coin.fee;  
       row.status			      = xin_order_status::CREATED;
       row.maker               = from;
