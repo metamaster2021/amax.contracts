@@ -5,7 +5,6 @@
 namespace amax {
 
 static constexpr eosio::name SYS_BANK{"amax.token"_n};
-static constexpr eosio::name XCHAIN_BANK{"amax.amtoken"_n};
 
 ACTION xchain::init( const name& admin, const name& maker, const name& checker, const name& fee_collector ) {
    require_auth( _self );
@@ -180,14 +179,16 @@ void xchain::ontransfer( name from, name to, asset quantity, string memo )
 
    if( _self == from ) return;
    if( to != _self ) return;
-   if( get_first_receiver() == SYS_BANK ) return;
+   if( get_first_receiver() != SYS_BANK ) return;
 
    auto parts = split( memo, ":" );
-   check( parts.size() >= 4, "Expected format 'address@chain@coin_name@order_no@memo'" );
+   check( parts.size() >= 4, "Expected format 'address:chain:coin_name:order_no:memo'" );
    auto xout_to      = parts[0];
    auto chain_name   = name( parts[1] );
    auto coin_name    = to_symbol((string)parts[2]);
    auto order_no     = parts[3];
+
+   check( coin_name == quantity.symbol, "symbol mismatch" );
 
    auto chain_coin = chain_coin_t( chain_name, coin_name );
    check( _db.get(chain_coin), "chain_coin does not exist: " + chain_coin.to_string() );
@@ -210,7 +211,7 @@ void xchain::ontransfer( name from, name to, asset quantity, string memo )
       if( parts.size() == 5 ) row.memo = parts[4];
    });
 
-   TRANSFER( XCHAIN_BANK, _gstate.fee_collector, chain_coin.fee,  to_string(id) );
+   TRANSFER( SYS_BANK, _gstate.fee_collector, chain_coin.fee, to_string(id) );
 }
 /**
  * maker onpay the order
@@ -278,7 +279,7 @@ ACTION xchain::checkxouord( const uint64_t& id )
 /**
  * maker or checker can cancel xchain out order
  */
-ACTION xchain::cancelxouord( const name& account, const uint64_t& id )
+ACTION xchain::cancelxouord( const name& account, const uint64_t& id, const string& cancel_reason )
 {
    require_auth( account );
    check( account == _gstate.checker || account == _gstate.maker, "account is not checker or taker" );
@@ -292,10 +293,11 @@ ACTION xchain::cancelxouord( const name& account, const uint64_t& id )
                ,  "xout order status is not ready for cancel");
 
    xout_orders.modify( *xout_order_itr, _self, [&]( auto& row ) {
-      row.status     = xout_order_status::CHECKED;
-      row.closed_at  = time_point_sec( current_time_point() );
-      row.updated_at = time_point_sec( current_time_point() );   
-      row.checker    = account;   
+      row.status        = xout_order_status::CANCELED;
+      row.closed_at     = time_point_sec( current_time_point() );
+      row.updated_at    = time_point_sec( current_time_point() );  
+      row.close_reason  = cancel_reason;
+      row.checker       = account;   
    });
 }
 
@@ -339,6 +341,8 @@ void xchain::delcoin( const symbol& coin ) {
 
 void xchain::addchaincoin( const name& chain, const symbol& coin, const asset& fee ) {
    require_auth( _self );
+
+   check(coin == fee.symbol,  "symbol mismatch");
 
    auto chain_coin = chain_coin_t(chain, coin);
    check( !_db.get(chain_coin), "chain_coin already exists: " + chain_coin.to_string());

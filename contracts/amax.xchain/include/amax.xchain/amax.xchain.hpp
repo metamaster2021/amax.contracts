@@ -79,7 +79,7 @@ public:
      * checker to confirm out order
      */
     ACTION checkxouord( const uint64_t& id );
-    ACTION cancelxouord( const name& account, const uint64_t& id );
+    ACTION cancelxouord( const name& account, const uint64_t& id, const string& cancel_reason);
 
     ACTION addchain( const name& chain, const name& base_chain, const string& common_xin_account );
     ACTION delchain( const name& chain );
