@@ -197,7 +197,7 @@ TBL xout_order_t {
 
 TBL chain_t {
     name        chain;         //PK
-    bool        is_basechain;
+    name        base_chain;    //if base_chain is null, the chain is base chain
     string      common_xin_account = "";
 
     chain_t() {};
@@ -207,7 +207,7 @@ TBL chain_t {
 
     typedef eosio::multi_index< "chains"_n,  chain_t > idx_t;
 
-     EOSLIB_SERIALIZE(chain_t, (chain)(is_basechain)(common_xin_account) );
+     EOSLIB_SERIALIZE(chain_t, (chain)(base_chain)(common_xin_account) );
 };
 
 TBL coin_t {

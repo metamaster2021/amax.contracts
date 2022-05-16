@@ -49,9 +49,9 @@ ACTION xchain::setaddress( const name& applicant, const name& base_chain, const 
    auto chain_info =  chain_t( base_chain );
    check( _db.get(chain_info), "chain does not exist: " + base_chain.to_string() );
 
-    account_xchain_address_t::idx_t xchaddrs( _self, _self.value );
+   account_xchain_address_t::idx_t xchaddrs( _self, _self.value );
    auto acctchain_index 			   = xchaddrs.get_index<"acctchain"_n>();
-   const auto& itr 			         = acctchain_index.find( make128key( applicant.value, base_chain.value ));
+   const auto& itr 			         = acctchain_index.find( make128key( applicant.value, base_chain.value ) );
    check( itr != acctchain_index.end(),  "the record already exists" );
 
    xchaddrs.modify( *itr, _self, [&]( auto& row ) {
@@ -72,6 +72,8 @@ ACTION xchain::mkxinorder( const name& to, const name& chain_name, const symbol&
 
    auto chain_coin = chain_coin_t(chain_name, coin_name);
    check( _db.get(chain_coin), "chain_coin does not exist: " + chain_coin.to_string());
+
+   _check_xin_addr( to, chain_name, xin_to );
 
    xin_order_t::idx_t xin_orders( _self, _self.value );
    auto txid_index 			   = xin_orders.get_index<"xintxids"_n>();
@@ -97,6 +99,25 @@ ACTION xchain::mkxinorder( const name& to, const name& chain_name, const symbol&
 
 }
 
+void xchain::_check_xin_addr( const name& to, const name& chain_name, const string& xin_to ) 
+{
+   auto chain_info = chain_t(chain_name);
+   check( _db.get(chain_info), "chain does not exist: " + chain_name.to_string());
+   auto base_chain = chain_info.base_chain;
+
+   if( chain_info.common_xin_account != "" ) {
+      check( chain_info.common_xin_account == xin_to, "common_xin_account is not xin_to address: " + xin_to );
+      return;
+   }
+   
+   account_xchain_address_t::idx_t xchaddrs( _self, _self.value );
+   auto acctchain_index 			   = xchaddrs.get_index<"acctchain"_n>();
+   const auto& itr 			         = acctchain_index.find( make128key( to.value, base_chain.value ) );
+   check( itr != acctchain_index.end(), "xchaddrs: the record does not exist, " + to.to_string() + ", " + chain_name.to_string() );
+
+   check( itr->xin_to == xin_to, "the address does not right: " + itr->xin_to + ", " + xin_to);
+}
+
 /**
  * checker to confirm xin order
  */
@@ -108,7 +129,7 @@ ACTION xchain::checkxinord( const uint64_t& id )
    auto xin_order_itr = xin_orders.find( id );
    check( xin_order_itr != xin_orders.end(), "xin order not found: " + to_string(id) );
    auto status = xin_order_itr->status;
-   check( status != xin_order_status::CREATED, "xin order already closed: " + to_string(id) );
+   check( status == xin_order_status::CREATED, "xin order already closed: " + to_string(id) );
 
    xin_orders.modify( xin_order_itr, _self, [&]( auto& row ) {
       row.status         = xin_order_status::FUFILLED;
@@ -116,6 +137,9 @@ ACTION xchain::checkxinord( const uint64_t& id )
       row.closed_at      = time_point_sec( current_time_point() );
       row.updated_at     = time_point_sec( current_time_point() );
    });
+
+   TRANSFER( XCHAIN_BANK, xin_order_itr->user_amacct, xin_order_itr->quantity, to_string(id) );
+   
 }
 
 
@@ -139,6 +163,7 @@ ACTION xchain::cancelxinord( const uint64_t& id, const string& cancel_reason )
       row.closed_at        = time_point_sec( current_time_point() );
       row.updated_at       = time_point_sec( current_time_point() );
    });
+
 }
 
 /**
@@ -275,13 +300,13 @@ ACTION xchain::cancelxouord( const name& account, const uint64_t& id )
    });
 }
 
-void xchain::addchain( const name& chain, const bool is_basechain, const string& common_xin_account ) {
+void xchain::addchain( const name& chain, const name& base_chain, const string& common_xin_account ) {
    require_auth( _self );
 
    auto chain_info = chain_t(chain);
    check( !_db.get(chain_info), "chain already exists: " + chain.to_string() );
 
-   chain_info.is_basechain       = is_basechain;
+   chain_info.base_chain         = base_chain;
    chain_info.common_xin_account = common_xin_account;
    _db.set( chain_info );
 }
