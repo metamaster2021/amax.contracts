@@ -66,12 +66,13 @@ ACTION xchain::setaddress( const name& applicant, const name& base_chain, const 
  * */
 ACTION xchain::mkxinorder( const name& to, const name& chain_name, const symbol& coin_name, 
                            const string& txid, const string& xin_from, const string& xin_to,
-                           const asset& quantity)
+                           const asset& quantity )
 {
    require_auth( _gstate.maker );
+   check( quantity.symbol == coin_name, "symbol mismatch" );
 
    auto chain_coin = chain_coin_t(chain_name, coin_name);
-   check( _db.get(chain_coin), "chain_coin does not exist: " + chain_coin.to_string());
+   check( _db.get(chain_coin), "chain_coin does not exist: " + chain_coin.to_string() );
 
    _check_xin_addr( to, chain_name, xin_to );
 
@@ -138,10 +139,8 @@ ACTION xchain::checkxinord( const uint64_t& id )
       row.updated_at     = time_point_sec( current_time_point() );
    });
 
-   TRANSFER( XCHAIN_BANK, xin_order_itr->user_amacct, xin_order_itr->quantity, to_string(id) );
-   
+   TRANSFER( SYS_BANK, xin_order_itr->user_amacct, xin_order_itr->quantity, to_string(id) );
 }
-
 
 /**
  * checker cancel the xin order 
