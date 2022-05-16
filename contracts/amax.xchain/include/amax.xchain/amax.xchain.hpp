@@ -22,7 +22,6 @@ using namespace wasm::db;
     {	token::transfer_action act{ bank, { {_self, active_perm} } };\
 			act.send( _self, to, quantity , memo );}
 
-
 class [[eosio::contract("amax.xchain")]] xchain : public contract {
 private:
    dbc                 _db;

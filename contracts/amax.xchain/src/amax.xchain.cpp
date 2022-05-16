@@ -20,12 +20,12 @@ ACTION xchain::reqxintoaddr( const name& applicant, const name& base_chain )
    require_auth( applicant );
 
    auto chain_info  = chain_t(base_chain); 
-   check( _db.get(chain_info), "chain does not exist: " + base_chain.to_string() );
+   CHECKC( _db.get(chain_info), err::RECORD_NOT_FOUND, "chain does not exist: " + base_chain.to_string() );
 
    account_xchain_address_t::idx_t xchaddrs( _self, _self.value );
    auto acctchain_index 			   = xchaddrs.get_index<"acctchain"_n>();
    const auto& itr 			         = acctchain_index.find( make128key( applicant.value, base_chain.value ) );
-   check( itr == acctchain_index.end(),  "the record already exists" );
+   CHECKC( itr == acctchain_index.end(), err::RECORD_EXISTING, "the record already exists" );
 
    auto acct_xchain_addr            = account_xchain_address_t( applicant, base_chain );
    acct_xchain_addr.id              = xchaddrs.available_primary_key();
@@ -43,15 +43,15 @@ ACTION xchain::setaddress( const name& applicant, const name& base_chain, const 
 {
    require_auth( _gstate.maker );
 
-   check( xin_to.length() < max_addr_len, "illegal address" );
+   CHECKC( xin_to.length() < max_addr_len, err::ADDRESS_ILLEGAL, "illegal address" );
 
    auto chain_info =  chain_t( base_chain );
-   check( _db.get(chain_info), "chain does not exist: " + base_chain.to_string() );
+   CHECKC( _db.get(chain_info), err::RECORD_NOT_FOUND, "chain does not found: " + base_chain.to_string() );
 
    account_xchain_address_t::idx_t xchaddrs( _self, _self.value );
    auto acctchain_index 			   = xchaddrs.get_index<"acctchain"_n>();
    const auto& itr 			         = acctchain_index.find( make128key( applicant.value, base_chain.value ) );
-   check( itr != acctchain_index.end(),  "the record already exists" );
+   CHECKC( itr != acctchain_index.end(), err::RECORD_EXISTING, "the record already exists" );
 
    xchaddrs.modify( *itr, _self, [&]( auto& row ) {
       row.status     = address_status::PROVISIONED;
@@ -68,16 +68,16 @@ ACTION xchain::mkxinorder( const name& to, const name& chain_name, const symbol&
                            const asset& quantity )
 {
    require_auth( _gstate.maker );
-   check( quantity.symbol == coin_name, "symbol mismatch" );
+   CHECKC( quantity.symbol == coin_name, err::SYMBOL_MISMATCH, "symbol mismatch" );
 
    auto chain_coin = chain_coin_t(chain_name, coin_name);
-   check( _db.get(chain_coin), "chain_coin does not exist: " + chain_coin.to_string() );
+   CHECKC( _db.get(chain_coin), err::RECORD_NOT_FOUND, "chain_coin does not exist: " + chain_coin.to_string() );
 
    _check_xin_addr( to, chain_name, xin_to );
 
    xin_order_t::idx_t xin_orders( _self, _self.value );
    auto txid_index 			   = xin_orders.get_index<"xintxids"_n>();
-   check( txid_index.find( hash(txid) ) == txid_index.end() , "txid already existing!" );
+   CHECKC( txid_index.find( hash(txid) ) == txid_index.end(), err::RECORD_NOT_FOUND, "txid already existing!" );
 
    auto created_at = time_point_sec( current_time_point() );
    auto xin_order_id = xin_orders.available_primary_key();
@@ -96,26 +96,24 @@ ACTION xchain::mkxinorder( const name& to, const name& chain_name, const symbol&
       row.created_at       = created_at;
       row.updated_at       = created_at;
    });
-
 }
 
 void xchain::_check_xin_addr( const name& to, const name& chain_name, const string& xin_to ) 
 {
    auto chain_info = chain_t(chain_name);
-   check( _db.get(chain_info), "chain does not exist: " + chain_name.to_string());
+   CHECKC( _db.get(chain_info), err::RECORD_NOT_FOUND, "chain does not exist: " + chain_name.to_string());
    auto base_chain = chain_info.base_chain;
 
    if( chain_info.common_xin_account != "" ) {
-      check( chain_info.common_xin_account == xin_to, "common_xin_account is not xin_to address: " + xin_to );
+      CHECKC( chain_info.common_xin_account == xin_to, err::NOT_COMMON_XIN, "xin_to address is not common_xin_account: " + xin_to );
       return;
    }
    
    account_xchain_address_t::idx_t xchaddrs( _self, _self.value );
    auto acctchain_index 			   = xchaddrs.get_index<"acctchain"_n>();
    const auto& itr 			         = acctchain_index.find( make128key( to.value, base_chain.value ) );
-   check( itr != acctchain_index.end(), "xchaddrs: the record does not exist, " + to.to_string() + ", " + chain_name.to_string() );
-
-   check( itr->xin_to == xin_to, "the address does not right: " + itr->xin_to + ", " + xin_to);
+   CHECKC( itr != acctchain_index.end(), err::RECORD_NOT_FOUND, "xchaddrs: the record does not exist, " + to.to_string() + ", " + chain_name.to_string() );
+   CHECKC( itr->xin_to == xin_to, err::ADDRESS_MISMATCH, "incorrect address used: " + itr->xin_to + ", " + xin_to);
 }
 
 /**
@@ -127,9 +125,9 @@ ACTION xchain::checkxinord( const uint64_t& id )
 
    xin_order_t::idx_t xin_orders( _self, _self.value );
    auto xin_order_itr = xin_orders.find( id );
-   check( xin_order_itr != xin_orders.end(), "xin order not found: " + to_string(id) );
+   CHECKC( xin_order_itr != xin_orders.end(), err::RECORD_NOT_FOUND, "xin order not found: " + to_string(id) );
    auto status = xin_order_itr->status;
-   check( status == xin_order_status::CREATED, "xin order already closed: " + to_string(id) );
+   CHECKC( status == xin_order_status::CREATED, err::STATUS_INCORRECT, "xin order already closed: " + to_string(id) );
 
    xin_orders.modify( xin_order_itr, _self, [&]( auto& row ) {
       row.status         = xin_order_status::FUFILLED;
@@ -150,9 +148,9 @@ ACTION xchain::cancelxinord( const uint64_t& id, const string& cancel_reason )
 
    xin_order_t::idx_t xin_orders( _self, _self.value );
    auto xin_order_itr = xin_orders.find( id );
-   check( xin_order_itr != xin_orders.end(), "xin order not found: " + to_string(id) );
+   CHECKC( xin_order_itr != xin_orders.end(), err::RECORD_NOT_FOUND, "xin order not found: " + to_string(id) );
    auto status = xin_order_itr->status;
-   check( status != xin_order_status::CREATED, "xin order already closed: " + to_string(id) );
+   CHECKC( status != xin_order_status::CREATED, err::STATUS_INCORRECT, "xin order already closed: " + to_string(id) );
    
    xin_orders.modify( xin_order_itr, _self, [&]( auto& row ) {
       row.status           = xin_order_status::CANCELED;
@@ -182,16 +180,16 @@ void xchain::ontransfer( name from, name to, asset quantity, string memo )
    if( get_first_receiver() != SYS_BANK ) return;
 
    auto parts = split( memo, ":" );
-   check( parts.size() >= 4, "Expected format 'address:chain:coin_name:order_no:memo'" );
+   CHECKC( parts.size() >= 4, err::PARAM_INCORRECT, "Expected format 'address:chain:coin_name:order_no:memo'" );
    auto xout_to      = parts[0];
    auto chain_name   = name( parts[1] );
    auto coin_name    = to_symbol((string)parts[2]);
    auto order_no     = parts[3];
 
-   check( coin_name == quantity.symbol, "symbol mismatch" );
+   CHECKC( coin_name == quantity.symbol, err::SYMBOL_MISMATCH, "symbol mismatch" );
 
    auto chain_coin = chain_coin_t( chain_name, coin_name );
-   check( _db.get(chain_coin), "chain_coin does not exist: " + chain_coin.to_string() );
+   CHECKC( _db.get(chain_coin), err::RECORD_NOT_FOUND, "chain_coin does not exist: " + chain_coin.to_string() );
 
    auto created_at = time_point_sec( current_time_point() );
    xout_order_t::idx_t xout_orders( _self, _self.value );
@@ -222,9 +220,9 @@ ACTION xchain::setxousent( const uint64_t& id, const string& txid, const string&
 
    xout_order_t::idx_t xout_orders( _self, _self.value );
    auto xout_order_itr = xout_orders.find( id );
-   check( xout_order_itr != xout_orders.end(), "xout order not found: " + to_string(id) );
+   CHECKC( xout_order_itr != xout_orders.end(), err::RECORD_NOT_FOUND, "xout order not found: " + to_string(id) );
    auto status = xout_order_itr->status;
-   check( status == xout_order_status::CREATED,  "xout order status is not created: " + to_string(id));
+   CHECKC( status == xout_order_status::CREATED, err::STATUS_INCORRECT, "xout order status is not created: " + to_string(id));
 
    xout_orders.modify( *xout_order_itr, _self, [&]( auto& row ) {
       row.status     = xout_order_status::SENT;
@@ -244,8 +242,8 @@ ACTION xchain::setxouconfm( const uint64_t& id )
 
    xout_order_t::idx_t xout_orders( _self, _self.value );
    auto xout_order_itr = xout_orders.find(id);
-   check( xout_order_itr != xout_orders.end(), "xout order not found: " + to_string(id) );
-   check( xout_order_itr->status == xout_order_status::SENT,  "xout order status is not paying");
+   CHECKC( xout_order_itr != xout_orders.end(), err::RECORD_NOT_FOUND, "xout order not found: " + to_string(id) );
+   CHECKC( xout_order_itr->status == xout_order_status::SENT, err::STATUS_INCORRECT, "xout order status is not paying");
 
    //check status
    xout_orders.modify( *xout_order_itr, _self, [&]( auto& row ) {
@@ -263,10 +261,10 @@ ACTION xchain::checkxouord( const uint64_t& id )
 
    xout_order_t::idx_t xout_orders( _self, _self.value );
    auto xout_order_itr = xout_orders.find( id );
-   check( xout_order_itr != xout_orders.end(), "xout order not found: " + to_string(id) );
+   CHECKC( xout_order_itr != xout_orders.end(), err::RECORD_NOT_FOUND, "xout order not found: " + to_string(id) );
 
    //check status
-   check( xout_order_itr->status == xout_order_status::CONFIRMED,  "xout order status is not paid" );
+   CHECKC( xout_order_itr->status == xout_order_status::CONFIRMED, err::STATUS_INCORRECT, "xout order status is not paid" );
 
    xout_orders.modify( *xout_order_itr, _self, [&]( auto& row ) {
       row.status     = xout_order_status::CHECKED;
@@ -282,15 +280,15 @@ ACTION xchain::checkxouord( const uint64_t& id )
 ACTION xchain::cancelxouord( const name& account, const uint64_t& id, const string& cancel_reason )
 {
    require_auth( account );
-   check( account == _gstate.checker || account == _gstate.maker, "account is not checker or taker" );
+   CHECKC( account == _gstate.checker || account == _gstate.maker, err::NO_AUTH, "account is not checker or taker" );
 
    xout_order_t::idx_t xout_orders( _self, _self.value );
    auto xout_order_itr = xout_orders.find( id );
-   check( xout_order_itr != xout_orders.end(), "xout order not found: " + to_string(id) );
-   check( xout_order_itr->status == xout_order_status::CONFIRMED||
+   CHECKC( xout_order_itr != xout_orders.end(), err::RECORD_NOT_FOUND, "xout order not found: " + to_string(id) );
+   CHECKC( xout_order_itr->status == xout_order_status::CONFIRMED||
                xout_order_itr->status == xout_order_status::SENT ||
                 xout_order_itr->status == xout_order_status::CREATED  
-               ,  "xout order status is not ready for cancel");
+               , err::STATUS_INCORRECT, "xout order status is not ready for cancel");
 
    xout_orders.modify( *xout_order_itr, _self, [&]( auto& row ) {
       row.status        = xout_order_status::CANCELED;
@@ -305,7 +303,7 @@ void xchain::addchain( const name& chain, const name& base_chain, const string& 
    require_auth( _self );
 
    auto chain_info = chain_t(chain);
-   check( !_db.get(chain_info), "chain already exists: " + chain.to_string() );
+   CHECKC( !_db.get(chain_info), err::RECORD_EXISTING, "chain already exists: " + chain.to_string() );
 
    chain_info.base_chain         = base_chain;
    chain_info.common_xin_account = common_xin_account;
@@ -315,7 +313,7 @@ void xchain::addchain( const name& chain, const name& base_chain, const string& 
 void xchain::delchain( const name& chain ) {
    require_auth( _self );
    auto chain_info = chain_t(chain);
-   check( _db.get(chain_info), "chain does not exists: " + chain.to_string() );
+   CHECKC( _db.get(chain_info), err::RECORD_NOT_FOUND, "chain does not exists: " + chain.to_string() );
 
    _db.del( chain_info );
 }
@@ -324,7 +322,7 @@ void xchain::addcoin( const symbol& coin ) {
    require_auth( _self );
 
    auto coin_info = coin_t(coin);
-   check( !_db.get(coin_info), "coin already exists: " + coin.code().to_string() );
+   CHECKC( !_db.get(coin_info), err::RECORD_EXISTING, "coin already exists: " + coin.code().to_string() );
 
    coin_info.coin = coin;
    _db.set( coin_info );
@@ -334,7 +332,7 @@ void xchain::delcoin( const symbol& coin ) {
    require_auth( _self );
 
    auto coin_info = coin_t(coin);
-   check( _db.get(coin_info), "coin already exists: " + coin.code().to_string() );
+   CHECKC( _db.get(coin_info), err::RECORD_EXISTING, "coin already exists: " + coin.code().to_string() );
 
    _db.del( coin_info );
 }
@@ -342,10 +340,10 @@ void xchain::delcoin( const symbol& coin ) {
 void xchain::addchaincoin( const name& chain, const symbol& coin, const asset& fee ) {
    require_auth( _self );
 
-   check(coin == fee.symbol,  "symbol mismatch");
+   CHECKC(coin == fee.symbol, err::SYMBOL_MISMATCH, "symbol mismatch");
 
    auto chain_coin = chain_coin_t(chain, coin);
-   check( !_db.get(chain_coin), "chain_coin already exists: " + chain_coin.to_string());
+   CHECKC( !_db.get(chain_coin), err::RECORD_EXISTING, "chain_coin already exists: " + chain_coin.to_string());
 
    chain_coin.fee = fee;
    _db.set( chain_coin );
@@ -355,7 +353,7 @@ void xchain::delchaincoin( const name& chain, const symbol& coin ) {
    require_auth( _self );
 
    auto chain_coin = chain_coin_t(chain, coin);
-   check( _db.get(chain_coin), "chain_coin does not exists: " + chain_coin.to_string());
+   CHECKC( _db.get(chain_coin), err::RECORD_NOT_FOUND, "chain_coin does not exists: " + chain_coin.to_string());
 
    _db.del( chain_coin );
 }

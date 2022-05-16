@@ -34,6 +34,20 @@ typedef set<name> nameset;
 
 #define hash(str) sha256(const_cast<char*>(str.c_str()), str.size())
 
+enum class err: uint8_t {
+    NONE                = 0,
+    RECORD_NOT_FOUND    = 1,
+    RECORD_EXISTING     = 2,
+    ADDRESS_ILLEGAL     = 3,
+    SYMBOL_MISMATCH     = 4,
+    ADDRESS_MISMATCH    = 5,
+    NOT_COMMON_XIN      = 6,
+    STATUS_INCORRECT    = 7,
+    PARAM_INCORRECT     = 8,
+    NO_AUTH             = 9,
+
+};
+
 namespace chain {
     static constexpr eosio::name BTC         = "btc"_n;
     static constexpr eosio::name ETH         = "eth"_n;
