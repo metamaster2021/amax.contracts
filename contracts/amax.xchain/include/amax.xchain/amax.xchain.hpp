@@ -22,7 +22,6 @@ using namespace wasm::db;
     {	token::transfer_action act{ bank, { {_self, active_perm} } };\
 			act.send( _self, to, quantity , memo );}
 
-
 class [[eosio::contract("amax.xchain")]] xchain : public contract {
 private:
    dbc                 _db;
@@ -53,7 +52,7 @@ public:
 
     ACTION mkxinorder(  const name& to, const name& chain_name, const symbol& coin_name, 
                         const string& txid, const string& xin_from, const string& xin_to,
-                        const asset& quantity);
+                        const asset& quantity );
 
     /**
      * checker to confirm xin order
@@ -69,19 +68,19 @@ public:
      *               
      */
     [[eosio::on_notify("*::transfer")]] 
-    void ontransfer(name from, name to, asset quantity, string memo);
+    void ontransfer( name from, name to, asset quantity, string memo );
 
     ACTION setxousent( const uint64_t& id, const string& txid, const string& xout_from );
 
-    ACTION setxouconfm(  const uint64_t& id );
+    ACTION setxouconfm( const uint64_t& id );
 
     /**
      * checker to confirm out order
      */
     ACTION checkxouord( const uint64_t& id );
-    ACTION cancelxouord( const name& account, const uint64_t& id );
+    ACTION cancelxouord( const name& account, const uint64_t& id, const string& cancel_reason );
 
-    ACTION addchain( const name& chain, const bool is_basechain, const string& common_xin_account );
+    ACTION addchain( const name& chain, const name& base_chain, const string& common_xin_account );
     ACTION delchain( const name& chain );
 
     ACTION addcoin( const symbol& coin );
@@ -92,6 +91,7 @@ public:
 
     ACTION deltable();
    private:
+    void _check_xin_addr( const name& to, const name& chain_name, const string& xin_to );
     
 };
 } //namespace apollo

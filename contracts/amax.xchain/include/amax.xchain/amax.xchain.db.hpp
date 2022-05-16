@@ -34,6 +34,20 @@ typedef set<name> nameset;
 
 #define hash(str) sha256(const_cast<char*>(str.c_str()), str.size())
 
+enum class err: uint8_t {
+    NONE                = 0,
+    RECORD_NOT_FOUND    = 1,
+    RECORD_EXISTING     = 2,
+    ADDRESS_ILLEGAL     = 3,
+    SYMBOL_MISMATCH     = 4,
+    ADDRESS_MISMATCH    = 5,
+    NOT_COMMON_XIN      = 6,
+    STATUS_INCORRECT    = 7,
+    PARAM_INCORRECT     = 8,
+    NO_AUTH             = 9,
+
+};
+
 namespace chain {
     static constexpr eosio::name BTC         = "btc"_n;
     static constexpr eosio::name ETH         = "eth"_n;
@@ -75,7 +89,7 @@ namespace address_status {
 
 namespace xin_order_status {
     static constexpr eosio::name CREATED            = "created"_n;
-    static constexpr eosio::name FUFILLED           = "fulfilled"_n;
+    static constexpr eosio::name CHECKED            = "checked"_n;
     static constexpr eosio::name CANCELED           = "canceled"_n;
 };
 
@@ -164,8 +178,8 @@ TBL xout_order_t {
     name            chain;
     symbol          coin_name;
 
-    asset           apply_amount; 
-    asset           amount;
+    asset           apply_quantity; 
+    asset           quantity;
     asset           fee;
     name            status;
     string          memo;
@@ -190,14 +204,14 @@ TBL xout_order_t {
     > idx_t;
 
     EOSLIB_SERIALIZE(xout_order_t,  (id)(txid)(account)(xout_from)(xout_to)(chain)(coin_name)
-                                    (apply_amount)(amount)(fee)(status)(memo)
+                                    (apply_quantity)(quantity)(fee)(status)(memo)
                                     (close_reason)(maker)(checker)(created_at)(closed_at)(updated_at) )
                                     
 };
 
 TBL chain_t {
     name        chain;         //PK
-    bool        is_basechain;
+    name        base_chain;    //if base_chain is null, the chain is base chain
     string      common_xin_account = "";
 
     chain_t() {};
@@ -207,7 +221,7 @@ TBL chain_t {
 
     typedef eosio::multi_index< "chains"_n,  chain_t > idx_t;
 
-     EOSLIB_SERIALIZE(chain_t, (chain)(is_basechain)(common_xin_account) );
+    EOSLIB_SERIALIZE(chain_t, (chain)(base_chain)(common_xin_account) );
 };
 
 TBL coin_t {
