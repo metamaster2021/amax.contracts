@@ -299,6 +299,8 @@ ACTION xchain::cancelxouord( const name& account, const uint64_t& id, const stri
       row.close_reason  = cancel_reason;
       row.checker       = account;   
    });
+   TRANSFER( SYS_BANK, xout_order_itr->account, xout_order_itr->apply_quantity, to_string(id) );
+
 }
 
 void xchain::addchain( const name& chain, const name& base_chain, const string& common_xin_account ) {
