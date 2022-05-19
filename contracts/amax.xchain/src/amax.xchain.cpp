@@ -151,7 +151,7 @@ ACTION xchain::cancelxinord( const uint64_t& id, const string& cancel_reason )
    auto xin_order_itr = xin_orders.find( id );
    CHECKC( xin_order_itr != xin_orders.end(), err::RECORD_NOT_FOUND, "xin order not found: " + to_string(id) );
    auto status = xin_order_itr->status;
-   CHECKC( status != xin_order_status::CREATED, err::STATUS_INCORRECT, "xin order already closed: " + to_string(id) );
+   CHECKC( status == xin_order_status::CREATED, err::STATUS_INCORRECT, "xin order already closed: " + to_string(id) );
    
    xin_orders.modify( xin_order_itr, _self, [&]( auto& row ) {
       row.status           = xin_order_status::CANCELED;
@@ -198,6 +198,7 @@ void xchain::ontransfer( name from, name to, asset quantity, string memo )
    auto id = xout_orders.available_primary_key();
    xout_orders.emplace( _self, [&]( auto& row ) {
       row.id 					   = id;
+      row.account             = from;
       row.xout_to 			   = xout_to;
       row.chain               = chain_name;
       row.coin_name           = coin_name;
@@ -205,10 +206,9 @@ void xchain::ontransfer( name from, name to, asset quantity, string memo )
       row.quantity		      = quantity - chain_coin.fee;
       row.fee			         = chain_coin.fee;  
       row.status			      = xin_order_status::CREATED;
-      row.maker               = from;
       row.created_at          = time_point_sec( current_time_point() );
       row.updated_at          = time_point_sec( current_time_point() );
-      if( parts.size() == 4 ) row.memo = parts[3];
+      if( parts.size() == 3 ) row.memo = parts[2];
    });
 
    TRANSFER( SYS_BANK, _gstate.fee_collector, chain_coin.fee, to_string(id) );
@@ -336,7 +336,7 @@ void xchain::delcoin( const symbol& coin ) {
    require_auth( _self );
 
    auto coin_info = coin_t(coin);
-   CHECKC( _db.get(coin_info), err::RECORD_EXISTING, "coin already exists: " + coin.code().to_string() );
+   CHECKC( _db.get(coin_info), err::RECORD_EXISTING, "coin not found: " + coin.code().to_string() );
 
    _db.del( coin_info );
 }
