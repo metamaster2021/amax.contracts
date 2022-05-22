@@ -1,0 +1,51 @@
+<h1 class="contract">createmsign</h1>
+
+---
+spec_version: "0.1.0"
+title: create a new multisign wallet
+summary: 'create a multisgin wallet for issuer'
+icon: @ICON_BASE_URL@/@TOKEN_ICON_URI@
+---
+
+one can create a multisign wallet and set m/n signature requirement
+
+
+<h1 class="contract">setmulsigner</h1>
+---
+spec_version: "0.1.0"
+title: set a multisigner to a multisign wallet
+summary: 'set a multisigner to a multisgin wallet that has been created'
+icon: @ICON_BASE_URL@/@TOKEN_ICON_URI@
+---
+
+a multisign wallet owner can add or update a multisigner to his or her wallet according to the limit of n co-signer;
+
+<h1 class="contract">delmulsigner</h1>
+---
+spec_version: "0.1.0"
+title: delete a multisigner
+summary: 'delete a multisginer from a multisign wallet'
+icon: @ICON_BASE_URL@/@TOKEN_ICON_URI@
+---
+
+a multisign wallet owner can choose to delete a multisigner from his or her wallet
+
+<h1 class="contract">propose</h1>
+---
+spec_version: "0.1.0"
+title: propose to move funds/assets
+summary: 'propose to move funds/assets that belong to a multisgin wallet'
+icon: @ICON_BASE_URL@/@TOKEN_ICON_URI@
+---
+
+anyone can propose to move funds that reside in a multisign wallet
+
+<h1 class="contract">approve</h1>
+---
+spec_version: "0.1.0"
+title: approve a multisign wallet proposal
+summary: 'approve a multisgin wallet proposal to move funds'
+icon: @ICON_BASE_URL@/@TOKEN_ICON_URI@
+---
+
+Only multisign wallet co-signers can vote to approve the proposal
