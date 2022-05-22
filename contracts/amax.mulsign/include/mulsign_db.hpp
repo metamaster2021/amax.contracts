@@ -44,7 +44,7 @@ TBL wallet_t {
                                 (creator)(created_at)(updated_at) )
 
     typedef eosio::multi_index
-    < "msignwallets"_n,  wallet_t,
+    < "wallets"_n,  wallet_t,
         indexed_by<"creatoridx"_n, const_mem_fun<wallet_t, uint64_t, &wallet_t::by_creator> >
     > idx_t;
 };
