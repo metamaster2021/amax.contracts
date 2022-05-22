@@ -52,7 +52,7 @@ ACTION xchain::setaddress( const name& applicant, const name& base_chain, const 
    account_xchain_address_t::idx_t xchaddrs( _self, _self.value );
    auto acctchain_index 			   = xchaddrs.get_index<"acctchain"_n>();
    const auto& itr 			         = acctchain_index.find( make128key( applicant.value, base_chain.value ) );
-   CHECKC( itr != acctchain_index.end(), err::RECORD_EXISTING, "xchaddrs already exists" );
+   CHECKC( itr != acctchain_index.end(), err::RECORD_EXISTING, "xchaddrs not found" );
 
    xchaddrs.modify( *itr, _self, [&]( auto& row ) {
       row.status     = address_status::PROVISIONED;
@@ -70,9 +70,15 @@ ACTION xchain::mkxinorder( const name& to, const name& chain_name, const symbol&
 {
    require_auth( _gstate.maker );
    CHECKC( quantity.symbol == coin_name, err::SYMBOL_MISMATCH, "symbol mismatch" );
+   CHECKC( is_account( to ), err::PARAM_INCORRECT, "to account does not exist");
+   CHECKC( quantity.is_valid(), err::PARAM_INCORRECT,  "invalid quantity" );
+   CHECKC( quantity.amount > 0, err::PARAM_INCORRECT, "must transfer positive quantity" );
+
 
    auto chain_coin = chain_coin_t(chain_name, coin_name);
    CHECKC( _db.get(chain_coin), err::RECORD_NOT_FOUND, "chain_coin does not exist: " + chain_coin.to_string() );
+
+   CHECKC(!xin_from.empty(), err::ADDRESS_ILLEGAL, "xin_from addess is not null")
 
    _check_xin_addr( to, chain_name, xin_to );
 
@@ -174,6 +180,8 @@ ACTION xchain::cancelxinord( const uint64_t& id, const string& cancel_reason )
 [[eosio::on_notify("amax.token::transfer")]] 
 void xchain::ontransfer( name from, name to, asset quantity, string memo ) 
 {
+   CHECK(memo.size() <= 256, "memo has more than 256 bytes");
+
    eosio::print( "from: ", from, ", to:", to, ", quantity:" , quantity, ", memo:" , memo );
 
    if( _self == from ) return;
@@ -183,16 +191,18 @@ void xchain::ontransfer( name from, name to, asset quantity, string memo )
    if ( memo == "refuel" ) return;
 
    auto parts = split( memo, ":" );
-   CHECKC( parts.size() >= 4, err::PARAM_INCORRECT, "Expected format 'address:chain:coin_name:order_no:memo'" );
+   CHECKC( parts.size() >= 4, err::PARAM_INCORRECT, "Expected format 'address:chain:coin_name:memo'" );
    auto xout_to      = parts[0];
+   CHECKC( !xout_to.empty(), err::PARAM_INCORRECT, "xin_out address must not be null" );
+
    auto chain_name   = name( parts[1] );
    auto coin_name    = to_symbol( (string)parts[2] );
-
    CHECKC( coin_name == quantity.symbol, err::SYMBOL_MISMATCH, "symbol mismatch" );
 
    auto chain_coin = chain_coin_t( chain_name, coin_name );
    CHECKC( _db.get(chain_coin), err::RECORD_NOT_FOUND, "chain_coin does not exist: " + chain_coin.to_string() );
 
+   auto user_memo = parts[3];
    auto created_at = time_point_sec( current_time_point() );
    xout_order_t::idx_t xout_orders( _self, _self.value );
    auto id = xout_orders.available_primary_key();
@@ -208,10 +218,9 @@ void xchain::ontransfer( name from, name to, asset quantity, string memo )
       row.status			      = xin_order_status::CREATED;
       row.created_at          = time_point_sec( current_time_point() );
       row.updated_at          = time_point_sec( current_time_point() );
-      if( parts.size() == 3 ) row.memo = parts[2];
+      row.memo                = user_memo;
    });
 
-   TRANSFER( SYS_BANK, _gstate.fee_collector, chain_coin.fee, to_string(id) );
 }
 /**
  * maker onpay the order
@@ -225,6 +234,10 @@ ACTION xchain::setxousent( const uint64_t& id, const string& txid, const string&
    CHECKC( xout_order_itr != xout_orders.end(), err::RECORD_NOT_FOUND, "xout order not found: " + to_string(id) );
    auto status = xout_order_itr->status;
    CHECKC( status == xout_order_status::CREATED, err::STATUS_INCORRECT, "xout order status is not created: " + to_string(id));
+
+   //check txid
+   auto xout_orders_xintxids_itr    = xout_orders.get_index<"xouttxids"_n>();
+   CHECKC( xout_orders_xintxids_itr.find( hash(txid) ) == xout_orders_xintxids_itr.end(), err::RECORD_EXISTING, "txid already exists" );
 
    xout_orders.modify( *xout_order_itr, _self, [&]( auto& row ) {
       row.status     = xout_order_status::SENT;
@@ -274,6 +287,8 @@ ACTION xchain::checkxouord( const uint64_t& id )
       row.updated_at = time_point_sec( current_time_point() );
       row.checker    = _gstate.checker;
    });
+
+   TRANSFER( SYS_BANK, _gstate.fee_collector, xout_order_itr->fee, to_string(id) );
 }
 
 /**
