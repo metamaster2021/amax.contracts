@@ -51,24 +51,39 @@ public:
     }
 
     template<typename RecordType>
-    return_t set(const RecordType& record) {
+    return_t set(const RecordType& record, const name& payer) {
         auto scope = code.value;
 
         typename RecordType::idx_t idx(code, scope);
         auto itr = idx.find( record.primary_key() );
         if ( itr != idx.end()) {
-            idx.modify( itr, code, [&]( auto& item ) {
+            idx.modify( itr, same_payer, [&]( auto& item ) {
                 item = record;
             });
             return return_t::MODIFIED;
 
         } else {
-            idx.emplace( code, [&]( auto& item ) {
+            idx.emplace( payer, [&]( auto& item ) {
                 item = record;
             });
             return return_t::APPENDED;
         }
     }
+
+    template<typename RecordType>
+    return_t set(const RecordType& record) {
+        auto scope = code.value;
+
+        typename RecordType::idx_t idx(code, scope);
+        auto itr = idx.find( record.primary_key() );
+        check( itr == idx.end(), "record not found" );
+
+        idx.modify( itr, same_payer, [&]( auto& item ) {
+            item = record;
+        });
+        return return_t::MODIFIED;
+    }
+
     template<typename RecordType>
     return_t set(const uint64_t& scope, const RecordType& record, const bool& isModify = true) {
         typename RecordType::idx_t idx(code, scope);

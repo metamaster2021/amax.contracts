@@ -83,7 +83,7 @@ public:
       wallet.mulsigners[issuer] = 1;   //default weight as 1, can be modified in future
       wallet.creator = issuer;
       wallet.created_at = time_point_sec(current_time_point());
-      _db.set( wallet );
+      _db.set( wallet, issuer );
    }
 
    /**
@@ -106,7 +106,7 @@ public:
       
       wallet.mulsigners[mulsigner] = weight;
       wallet.updated_at = time_point_sec( current_time_point() );
-      _db.set( wallet );
+      _db.set( wallet, issuer );
 
    }
 
@@ -134,7 +134,7 @@ public:
 
       wallet.mulsigners.erase(mulsigner);
       wallet.updated_at = time_point_sec( current_time_point() );
-      _db.set( wallet );
+      _db.set( wallet, issuer );
    
    }
 
@@ -197,7 +197,7 @@ ACTION propose(const name& issuer, const uint64_t& wallet_id, const extended_ass
    proposal.created_at = current_time_point();
    proposal.expired_at = proposal.created_at + seconds_per_day;
 
-   _db.set(proposal);
+   _db.set(proposal, issuer);
 }
 
 /**
