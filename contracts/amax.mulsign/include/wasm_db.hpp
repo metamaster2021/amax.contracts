@@ -76,7 +76,7 @@ public:
 
         typename RecordType::idx_t idx(code, scope);
         auto itr = idx.find( record.primary_key() );
-        check( itr == idx.end(), "record not found" );
+        check( itr != idx.end(), "record not found" );
 
         idx.modify( itr, same_payer, [&]( auto& item ) {
             item = record;
