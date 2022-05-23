@@ -78,7 +78,7 @@ public:
       require_auth( issuer );
 
       auto mwallets = wallet_t::idx_t(_self, _self.value);
-      auto wallet_id = mwallets.available_primary_key(); 
+      auto wallet_id = mwallets.available_primary_key(); if (wallet_id == 0) wallet_id = 1;  
       auto wallet = wallet_t(wallet_id, mulsign_m, mulsign_n);
       wallet.mulsigners[issuer] = 1;   //default weight as 1, can be modified in future
       wallet.creator = issuer;
