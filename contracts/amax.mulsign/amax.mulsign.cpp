@@ -211,20 +211,17 @@ ACTION approve(const name& issuer, const uint64_t& proposal_id) {
    auto proposal = proposal_t(proposal_id);
    CHECKC( _db.get( proposal ), err::RECORD_NOT_FOUND, "proposal not found: " + to_string(proposal_id) )
    CHECKC( proposal.executed_at != time_point_sec(), err::ACTION_REDUNDANT, "proposal already executed: " + to_string(proposal_id) )
+   CHECKC( proposal.expired_at >= current_time_point(), err::TIME_EXPIRED, "the proposal already expired" )
+   CHECKC( !proposal.approvers.count(issuer), err::ACTION_REDUNDANT, "issuer (" + issuer.to_string() +") already approved" )
 
    auto wallet = wallet_t(proposal.wallet_id);
    CHECKC( _db.get( wallet ), err::RECORD_NOT_FOUND, "wallet not found: " + to_string(proposal.wallet_id) )
    CHECKC( wallet.mulsigners.count(issuer), err::NO_AUTH, "issuer (" + issuer.to_string() +") not allowed to approve" )
-   CHECKC( !proposal.approvers.count(issuer), err::ACTION_REDUNDANT, "issuer (" + issuer.to_string() +") already approved" )
-   CHECKC( proposal.expired_at >= current_time_point(), err::TIME_EXPIRED, "the proposal already expired" )
    
-   auto m = wallet.mulsign_m;
-   auto appove_cnt = proposal.approvers.size();
-   CHECKC( m > appove_cnt, err::ACTION_REDUNDANT, "already approved by m (" + to_string(m) + ") signers" )
    proposal.approvers.insert(issuer);
    proposal.recv_votes += wallet.mulsigners[issuer]; 
 
-   if (proposal.recv_votes == appove_cnt)
+   if (proposal.recv_votes >=  wallet.mulsign_m)
       execute_proposal(wallet, proposal);
 
     _db.set(proposal);
