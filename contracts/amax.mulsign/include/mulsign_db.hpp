@@ -31,11 +31,11 @@ static constexpr uint64_t   seconds_per_day       = 24 * 3600;
 
 struct [[eosio::table("global"), eosio::contract("amax.mulsign")]] global_t {
     name admin;                 // default is contract self
-    uint64_t daodev_wallet_id = 0;
+    name fee_collector;         // who creates fee wallet (id = 0)
     asset wallet_fee;
     bool active = false;
 
-    EOSLIB_SERIALIZE( global_t, (admin)(daodev_wallet_id)(wallet_fee)(active) )
+    EOSLIB_SERIALIZE( global_t, (admin)(fee_collector)(wallet_fee)(active) )
 };
 typedef eosio::singleton< "global"_n, global_t > global_singleton;
 

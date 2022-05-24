@@ -61,7 +61,9 @@ public:
    ACTION init() {
       require_auth( _self );
 
+      _gstate.fee_collector = "amax.daodev"_n;
       _gstate.wallet_fee = asset_from_string("0.10000000 AMAX");
+
       // CHECKC(false, err::NONE, "init disallowed!")
 
       // auto proposals = proposal_t::idx_t(_self, _self.value);
@@ -183,10 +185,9 @@ public:
          uint64_t n = stoi(string(memo_params[2]));
          CHECKC( bank_contract == SYS_BANK && quantity.symbol == SYS_SYMBOL, err::PARAM_ERROR, "non-sys-symbol" )
 
-         if (from != _self) {
+         if (from != _gstate.fee_collector) {
             CHECKC( quantity >= _gstate.wallet_fee, err::FEE_INSUFFICIENT, "insufficient wallet fee: " + quantity.to_string() )
-            auto memo = "lock:" + to_string(_gstate.daodev_wallet_id);
-            TRANSFER( SYS_BANK, _self, quantity, memo )
+            TRANSFER( SYS_BANK, _self, quantity, "lock:0" )
          }
 
          create_wallet(from, m, n);
@@ -277,7 +278,8 @@ private:
    void create_wallet(const name& creator, const uint64_t& m, const uint64_t& n) {
       auto mwallets = wallet_t::idx_t(_self, _self.value);
       auto wallet_id = mwallets.available_primary_key(); 
-      if (wallet_id == 0) wallet_id = 1;  //starts from 1
+      if (wallet_id == 0 && creator != _gstate.fee_collector)
+         wallet_id = 1;  //starts from 1
 
       auto wallet = wallet_t(wallet_id);
       wallet.mulsign_m = m;
