@@ -357,7 +357,8 @@ void xchain::addcoin(const name& account, const symbol& coin ) {
 }
 
 void xchain::delcoin(const name& account, const symbol& coin ) {
-   require_auth( _self );
+   require_auth( account );
+   CHECKC(account == _self || account == _gstate.admin , err::NO_AUTH, "no auth for operate");
 
    auto coin_info = coin_t(coin);
    CHECKC( _db.get(coin_info), err::RECORD_EXISTING, "coin not found: " + coin.code().to_string() );
@@ -367,7 +368,6 @@ void xchain::delcoin(const name& account, const symbol& coin ) {
 
 void xchain::addchaincoin( const name& account, const name& chain, const symbol& coin, const asset& fee ) {
    require_auth( account );
-
    CHECKC(account == _self || account == _gstate.admin , err::NO_AUTH, "no auth for operate");
 
    CHECKC(coin == fee.symbol, err::SYMBOL_MISMATCH, "symbol mismatch");
