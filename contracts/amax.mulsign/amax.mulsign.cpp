@@ -61,7 +61,7 @@ public:
    ACTION init() {
       require_auth( _self );
 
-      CHECKC(false, err::NONE, "init disallowed!")
+      // CHECKC(false, err::NONE, "init disallowed!")
 
       // auto proposals = proposal_t::idx_t(_self, _self.value);
       // auto itr = proposals.begin();

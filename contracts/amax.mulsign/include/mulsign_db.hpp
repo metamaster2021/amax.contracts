@@ -29,7 +29,7 @@ static constexpr name       SYS_BANK              = "amax.token"_n;
 static constexpr symbol     SYS_SYMBOL            = symbol(symbol_code("AMAX"), 8);
 static constexpr uint64_t   seconds_per_day       = 24 * 3600;
 
-struct [[eosio::table("global"), eosio::contract("apollo.token")]] global_t {
+struct [[eosio::table("global"), eosio::contract("amax.mulsign")]] global_t {
     name admin;                 // default is contract self
     uint64_t daodev_wallet_id;
     asset wallet_fee = asset_from_string("0.1 AMAX");
