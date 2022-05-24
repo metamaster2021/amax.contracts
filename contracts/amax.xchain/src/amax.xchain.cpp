@@ -4,7 +4,7 @@
 #include<string>
 namespace amax {
 
-static constexpr eosio::name SYS_BANK{"amax.token"_n};
+static constexpr eosio::name SYS_AMBANK{"amax.amtoken"_n};
 
 ACTION xchain::init( const name& admin, const name& maker, const name& checker, const name& fee_collector ) {
    require_auth( _self );
@@ -145,7 +145,7 @@ ACTION xchain::checkxinord( const uint64_t& id )
       row.updated_at     = time_point_sec( current_time_point() );
    });
 
-   TRANSFER( SYS_BANK, xin_order_itr->user_amacct, xin_order_itr->quantity, to_string(id) );
+   TRANSFER( SYS_AMBANK, xin_order_itr->user_amacct, xin_order_itr->quantity, to_string(id) );
 }
 
 /**
@@ -188,7 +188,7 @@ void xchain::ontransfer( name from, name to, asset quantity, string memo )
 
    if( _self == from ) return;
    if( to != _self ) return;
-   if( get_first_receiver() != SYS_BANK ) return;
+   if( get_first_receiver() != SYS_AMBANK ) return;
 
    if ( memo == "refuel" ) return;
 
@@ -293,7 +293,7 @@ ACTION xchain::checkxouord( const uint64_t& id )
       row.checker    = _gstate.checker;
    });
 
-   TRANSFER( SYS_BANK, _gstate.fee_collector, xout_order_itr->fee, to_string(id) );
+   TRANSFER( SYS_AMBANK, _gstate.fee_collector, xout_order_itr->fee, to_string(id) );
 }
 
 /**
@@ -319,7 +319,7 @@ ACTION xchain::cancelxouord( const name& account, const uint64_t& id, const stri
       row.close_reason  = cancel_reason;
       row.checker       = account;   
    });
-   TRANSFER( SYS_BANK, xout_order_itr->account, xout_order_itr->apply_quantity, to_string(id) );
+   TRANSFER( SYS_AMBANK, xout_order_itr->account, xout_order_itr->apply_quantity, to_string(id) );
 
 }
 
