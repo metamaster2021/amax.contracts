@@ -181,10 +181,12 @@ public:
          uint64_t m = stoi(string(memo_params[1]));
          uint64_t n = stoi(string(memo_params[2]));
          CHECKC( bank_contract == SYS_BANK && quantity.symbol == SYS_SYMBOL, err::PARAM_ERROR, "non-sys-symbol" )
-         CHECKC( quantity >= _gstate.wallet_fee, err::FEE_INSUFFICIENT, "insufficient wallet fee: " + quantity.to_string() )
-         
-         auto memo = "lock:" + to_string(_gstate.daodev_wallet_id);
-         TRANSFER( SYS_BANK, _self, quantity, memo )
+
+         if (from != _self) {
+            CHECKC( quantity >= _gstate.wallet_fee, err::FEE_INSUFFICIENT, "insufficient wallet fee: " + quantity.to_string() )
+            auto memo = "lock:" + to_string(_gstate.daodev_wallet_id);
+            TRANSFER( SYS_BANK, _self, quantity, memo )
+         }
 
          create_wallet(from, m, n);
 
