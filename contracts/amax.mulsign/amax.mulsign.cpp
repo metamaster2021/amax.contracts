@@ -61,6 +61,7 @@ public:
    ACTION init() {
       require_auth( _self );
 
+      _gstate.wallet_fee = asset_from_string("0.10000000 AMAX");
       // CHECKC(false, err::NONE, "init disallowed!")
 
       // auto proposals = proposal_t::idx_t(_self, _self.value);
