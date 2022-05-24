@@ -318,8 +318,9 @@ ACTION xchain::cancelxouord( const name& account, const uint64_t& id, const stri
 
 }
 
-void xchain::addchain( const name& chain, const name& base_chain, const string& common_xin_account ) {
-   require_auth( _self );
+void xchain::addchain( const name& account, const name& chain, const name& base_chain, const string& common_xin_account ) {
+   require_auth( account );
+   CHECKC(account == _self || account == _gstate.admin , err::NO_AUTH, "no auth for operate");
 
    auto chain_info = chain_t(chain);
    CHECKC( !_db.get(chain_info), err::RECORD_EXISTING, "chain already exists: " + chain.to_string() );
@@ -329,16 +330,19 @@ void xchain::addchain( const name& chain, const name& base_chain, const string& 
    _db.set( chain_info );
 }
 
-void xchain::delchain( const name& chain ) {
-   require_auth( _self );
+void xchain::delchain(const name& account, const name& chain ) {
+   require_auth( account );
+   CHECKC(account == _self || account == _gstate.admin , err::NO_AUTH, "no auth for operate");
+
    auto chain_info = chain_t(chain);
    CHECKC( _db.get(chain_info), err::RECORD_NOT_FOUND, "chain does not exists: " + chain.to_string() );
 
    _db.del( chain_info );
 }
 
-void xchain::addcoin( const symbol& coin ) {
-   require_auth( _self );
+void xchain::addcoin(const name& account, const symbol& coin ) {
+   require_auth( account );
+   CHECKC(account == _self || account == _gstate.admin , err::NO_AUTH, "no auth for operate");
 
    auto coin_info = coin_t(coin);
    CHECKC( !_db.get(coin_info), err::RECORD_EXISTING, "coin already exists: " + coin.code().to_string() );
@@ -347,7 +351,7 @@ void xchain::addcoin( const symbol& coin ) {
    _db.set( coin_info );
 }
 
-void xchain::delcoin( const symbol& coin ) {
+void xchain::delcoin(const name& account, const symbol& coin ) {
    require_auth( _self );
 
    auto coin_info = coin_t(coin);
@@ -356,8 +360,10 @@ void xchain::delcoin( const symbol& coin ) {
    _db.del( coin_info );
 }
 
-void xchain::addchaincoin( const name& chain, const symbol& coin, const asset& fee ) {
-   require_auth( _self );
+void xchain::addchaincoin( const name& account, const name& chain, const symbol& coin, const asset& fee ) {
+   require_auth( account );
+
+   CHECKC(account == _self || account == _gstate.admin , err::NO_AUTH, "no auth for operate");
 
    CHECKC(coin == fee.symbol, err::SYMBOL_MISMATCH, "symbol mismatch");
 
@@ -368,21 +374,15 @@ void xchain::addchaincoin( const name& chain, const symbol& coin, const asset& f
    _db.set( chain_coin );
 }
 
-void xchain::delchaincoin( const name& chain, const symbol& coin ) {
-   require_auth( _self );
+void xchain::delchaincoin( const name& account, const name& chain, const symbol& coin ) {
+   require_auth( account );
+
+   CHECKC(account == _self || account == _gstate.admin , err::NO_AUTH, "no auth for operate");
 
    auto chain_coin = chain_coin_t(chain, coin);
    CHECKC( _db.get(chain_coin), err::RECORD_NOT_FOUND, "chain_coin does not exists: " + chain_coin.to_string());
 
    _db.del( chain_coin );
-}
-
-void xchain::deltable() {
-    account_xchain_address_t::idx_t addrs( _self, _self.value );
-    auto itr = addrs.begin();
-    while( itr != addrs.end() ){
-      itr = addrs.erase( itr );
-    }
 }
 
 } /// namespace xchain

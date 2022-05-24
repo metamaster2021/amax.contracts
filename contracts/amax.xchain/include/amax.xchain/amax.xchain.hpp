@@ -80,16 +80,15 @@ public:
     ACTION checkxouord( const uint64_t& id );
     ACTION cancelxouord( const name& account, const uint64_t& id, const string& cancel_reason );
 
-    ACTION addchain( const name& chain, const name& base_chain, const string& common_xin_account );
-    ACTION delchain( const name& chain );
+    ACTION addchain( const name& account, const name& chain, const name& base_chain, const string& common_xin_account );
+    ACTION delchain( const name& account, const name& chain );
 
-    ACTION addcoin( const symbol& coin );
-    ACTION delcoin( const symbol& coin );
+    ACTION addcoin( const name& account, const symbol& coin );
+    ACTION delcoin( const name& account, const symbol& coin );
 
-    ACTION addchaincoin( const name& chain, const symbol& coin, const asset& fee );
-    ACTION delchaincoin( const name& chain, const symbol& coin );
+    ACTION addchaincoin( const name& account, const name& chain, const symbol& coin, const asset& fee );
+    ACTION delchaincoin( const name& account, const name& chain, const symbol& coin );
 
-    ACTION deltable();
    private:
     void _check_xin_addr( const name& to, const name& chain_name, const string& xin_to );
     
