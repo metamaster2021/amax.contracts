@@ -385,7 +385,6 @@ void xchain::addchaincoin( const name& account, const name& chain, const symbol&
 
 void xchain::delchaincoin( const name& account, const name& chain, const symbol& coin ) {
    require_auth( account );
-
    CHECKC(account == _self || account == _gstate.admin , err::NO_AUTH, "no auth for operate");
 
    chain_coin_t::idx_t chain_coins (_self, _self.value);
