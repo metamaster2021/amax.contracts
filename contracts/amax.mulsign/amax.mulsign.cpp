@@ -64,8 +64,8 @@ public:
    ACTION init() {
       require_auth( _self );
 
-      // _gstate.fee_collector = "amax.daodev"_n;
-      // _gstate.wallet_fee = asset_from_string("0.10000000 AMAX");
+      _gstate.fee_collector = "amax.daodev"_n;
+      _gstate.wallet_fee = asset_from_string("0.10000000 AMAX");
 
       // CHECKC(false, err::NONE, "init disallowed!")
 
@@ -73,9 +73,9 @@ public:
       // auto itr = proposals.begin();
       // proposals.erase(itr);
 
-      auto wallets = wallet_t::idx_t(_self, _self.value);
-      auto itr = wallets.begin();
-      wallets.erase(itr);
+      // auto wallets = wallet_t::idx_t(_self, _self.value);
+      // auto itr = wallets.begin();
+      // wallets.erase(itr);
    }
 
    // /**
@@ -175,7 +175,7 @@ public:
     * @param from
     * @param to
     * @param quantity
-    * @param memo: 1) create:$m:$n; 2) lock:$wallet_id
+    * @param memo: 1) create:$m:$n:$title; 2) lock:$wallet_id
     */
    [[eosio::on_notify("*::transfer")]]
    void ontransfer(const name& from, const name& to, const asset& quantity, const string& memo) {
@@ -186,18 +186,19 @@ public:
       auto bank_contract = get_first_receiver();
 
       vector<string_view> memo_params = split(memo, ":");
-      if (memo_params[0] == "create" && memo_params.size() == 3) {
+      if (memo_params[0] == "create" && memo_params.size() == 4) {
          uint64_t m = stoi(string(memo_params[1]));
          uint64_t n = stoi(string(memo_params[2]));
+         string title = string(memo_params[3]);
+         CHECKC( title.length() < 1024, err::OVERSIZED, "wallet title too long" )
          CHECKC( bank_contract == SYS_BANK && quantity.symbol == SYS_SYMBOL, err::PARAM_ERROR, "non-sys-symbol" )
+         CHECKC( quantity >= _gstate.wallet_fee, err::FEE_INSUFFICIENT, "insufficient wallet fee: " + quantity.to_string() )
 
-         if (from != _gstate.fee_collector) {
-            CHECKC( quantity >= _gstate.wallet_fee, err::FEE_INSUFFICIENT, "insufficient wallet fee: " + quantity.to_string() )
+         if (from != _gstate.fee_collector)
             COLLECTFEE( from, _gstate.fee_collector, quantity )
-            lock_funds(0, bank_contract, quantity);
-         }
 
-         create_wallet(from, m, n);
+         lock_funds(0, bank_contract, quantity);
+         create_wallet(from, m, n, title);
 
       } else if (memo_params[0] == "lock" && memo_params.size() == 2) {
          auto wallet_id = (uint64_t) stoi(string(memo_params[1]));
@@ -315,13 +316,14 @@ ACTION execute(const name& issuer, const uint64_t& proposal_id) {
 
 private:
 
-   void create_wallet(const name& creator, const uint64_t& m, const uint64_t& n) {
+   void create_wallet(const name& creator, const uint64_t& m, const uint64_t& n, const string& title) {
       auto mwallets = wallet_t::idx_t(_self, _self.value);
       auto wallet_id = mwallets.available_primary_key(); 
       if (wallet_id == 0 && creator != _gstate.fee_collector)
          wallet_id = 1;  //starts from 1
 
       auto wallet = wallet_t(wallet_id);
+      wallet.title = title;
       wallet.mulsign_m = m;
       wallet.mulsign_n = n;
       wallet.creator = creator;
