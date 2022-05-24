@@ -57,7 +57,7 @@ public:
         typename RecordType::idx_t idx(code, scope);
         auto itr = idx.find( record.primary_key() );
         if ( itr != idx.end()) {
-            idx.modify( itr, same_payer, [&]( auto& item ) {
+            idx.modify( itr, payer, [&]( auto& item ) {
                 item = record;
             });
             return return_t::MODIFIED;

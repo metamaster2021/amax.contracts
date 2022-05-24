@@ -59,12 +59,17 @@ public:
 
    // ~mulsign() { _global.set( _gstate, get_self() ); }
 
-   // ACTION init() {
-   //    require_auth( _self );
+   ACTION init() {
+      require_auth( _self );
 
-   //    CHECKC(false, err::NONE, "init disabled!")
+      // CHECKC(false, err::NONE, "init disabled!")
 
-   // }
+      auto proposals = proposal_t::idx_t(_self, _self.value);
+      auto itr = proposals.begin();
+      proposals.erase(itr);
+
+
+   }
 
    /**
     * @brief create a multisign wallet, returns a unqiued wallet_id
@@ -166,7 +171,7 @@ public:
          wallet.assets[ext_symb] = curr_amount + quantity.amount;
       }
 
-      _db.set( wallet );
+      _db.set( wallet, _self );
    }
 
 /**
@@ -194,8 +199,8 @@ ACTION propose(const name& issuer, const uint64_t& wallet_id, const extended_ass
    proposal.wallet_id = wallet_id;
    proposal.quantity = ex_asset;
    proposal.recipient = recipient;
-   proposal.created_at = current_time_point();
-   proposal.expired_at = proposal.created_at + seconds_per_day;
+   proposal.created_at = time_point_sec(current_time_point());
+   proposal.expired_at = time_point_sec(proposal.created_at + seconds_per_day);
 
    _db.set(proposal, issuer);
 }
