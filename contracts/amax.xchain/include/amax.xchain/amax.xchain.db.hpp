@@ -239,8 +239,9 @@ TBL coin_t {
 };
 
 TBL chain_coin_t {
-    name            chain;        //co-PK
-    symbol          coin;         //co-PK
+    uint64_t        id;             //PK
+    name            chain;          //co-PK
+    symbol          coin;           //co-PK
     asset           fee;
 
     chain_coin_t() {};
@@ -248,11 +249,14 @@ TBL chain_coin_t {
 
     string to_string() const { return chain.to_string() + "_" + coin.code().to_string(); } 
 
-    uint64_t primary_key()const { return chain.value << 32 | coin.code().raw(); }
+    uint64_t primary_key()const { return id; }
+    uint128_t by_chaincoin()const { return (uint128_t) chain.value << 64 | (uint128_t)coin.code().raw();  }
 
-    typedef eosio::multi_index< "chaincoins"_n,  chain_coin_t > idx_t;
+    typedef eosio::multi_index< "chaincoins"_n,  chain_coin_t ,
+        indexed_by<"chaincoin"_n, const_mem_fun<chain_coin_t, uint128_t, &chain_coin_t::by_chaincoin> >
+     > idx_t;
 
-    EOSLIB_SERIALIZE( chain_coin_t, (chain)(coin)(fee) );
+    EOSLIB_SERIALIZE( chain_coin_t, (id)(chain)(coin)(fee) );
 
 };
 

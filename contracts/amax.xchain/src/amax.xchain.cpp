@@ -75,8 +75,10 @@ ACTION xchain::mkxinorder( const name& to, const name& chain_name, const symbol&
    CHECKC( quantity.amount > 0, err::PARAM_INCORRECT, "must transfer positive quantity" );
 
 
-   auto chain_coin = chain_coin_t(chain_name, coin_name);
-   CHECKC( _db.get(chain_coin), err::RECORD_NOT_FOUND, "chain_coin does not exist: " + chain_coin.to_string() );
+   chain_coin_t::idx_t chain_coins (_self, _self.value);
+   auto chain_coins_idx = chain_coins.get_index<"chaincoin"_n>();
+   CHECKC( chain_coins_idx.find((uint128_t) chain_name.value << 64 | (uint128_t)coin_name.code().raw()) != chain_coins_idx.end(),
+                   err::RECORD_NOT_FOUND, "chain_coin does not exist. ");
 
    CHECKC(!xin_from.empty(), err::ADDRESS_ILLEGAL, "xin_from addess is not null")
 
@@ -177,7 +179,7 @@ ACTION xchain::cancelxinord( const uint64_t& id, const string& cancel_reason )
  *                            "$eth_addr:eth:ETH,8:xchain's memo
  *               
  */
-[[eosio::on_notify("amax.token::transfer")]] 
+[[eosio::on_notify("amax.amtoken::transfer")]] 
 void xchain::ontransfer( name from, name to, asset quantity, string memo ) 
 {
    CHECK(memo.size() <= 256, "memo has more than 256 bytes");
@@ -199,8 +201,11 @@ void xchain::ontransfer( name from, name to, asset quantity, string memo )
    auto coin_name    = to_symbol( (string)parts[2] );
    CHECKC( coin_name == quantity.symbol, err::SYMBOL_MISMATCH, "symbol mismatch" );
 
-   auto chain_coin = chain_coin_t( chain_name, coin_name );
-   CHECKC( _db.get(chain_coin), err::RECORD_NOT_FOUND, "chain_coin does not exist: " + chain_coin.to_string() );
+
+   chain_coin_t::idx_t chain_coins (_self, _self.value);
+   auto chain_coins_idx = chain_coins.get_index<"chaincoin"_n>();
+   auto chain_coin_ptr = chain_coins_idx.find((uint128_t) chain_name.value << 64 | (uint128_t)coin_name.code().raw());
+   CHECKC( chain_coin_ptr!= chain_coins_idx.end(), err::RECORD_NOT_FOUND, "chain_coin does not exist. ");
 
    auto user_memo = parts[3];
    auto created_at = time_point_sec( current_time_point() );
@@ -213,8 +218,8 @@ void xchain::ontransfer( name from, name to, asset quantity, string memo )
       row.chain               = chain_name;
       row.coin_name           = coin_name;
       row.apply_quantity		= quantity;
-      row.quantity		      = quantity - chain_coin.fee;
-      row.fee			         = chain_coin.fee;  
+      row.quantity		      = quantity - chain_coin_ptr->fee;
+      row.fee			         = chain_coin_ptr->fee;  
       row.status			      = xin_order_status::CREATED;
       row.created_at          = time_point_sec( current_time_point() );
       row.updated_at          = time_point_sec( current_time_point() );
@@ -367,9 +372,13 @@ void xchain::addchaincoin( const name& account, const name& chain, const symbol&
 
    CHECKC(coin == fee.symbol, err::SYMBOL_MISMATCH, "symbol mismatch");
 
-   auto chain_coin = chain_coin_t(chain, coin);
-   CHECKC( !_db.get(chain_coin), err::RECORD_EXISTING, "chain_coin already exists: " + chain_coin.to_string());
+   chain_coin_t::idx_t chain_coins (_self, _self.value);
+   auto chain_coins_idx = chain_coins.get_index<"chaincoin"_n>();
+   auto chain_coin_ptr = chain_coins_idx.find((uint128_t) chain.value << 64 | (uint128_t)coin.code().raw());
+   CHECKC( chain_coin_ptr == chain_coins_idx.end(), err::RECORD_NOT_FOUND, "chain_coin already exists. ");
 
+   auto chain_coin = chain_coin_t(chain, coin);
+   chain_coin.id  = chain_coins.available_primary_key();
    chain_coin.fee = fee;
    _db.set( chain_coin );
 }
@@ -379,10 +388,12 @@ void xchain::delchaincoin( const name& account, const name& chain, const symbol&
 
    CHECKC(account == _self || account == _gstate.admin , err::NO_AUTH, "no auth for operate");
 
-   auto chain_coin = chain_coin_t(chain, coin);
-   CHECKC( _db.get(chain_coin), err::RECORD_NOT_FOUND, "chain_coin does not exists: " + chain_coin.to_string());
+   chain_coin_t::idx_t chain_coins (_self, _self.value);
+   auto chain_coins_idx = chain_coins.get_index<"chaincoin"_n>();
+   auto chain_coin_ptr = chain_coins_idx.find((uint128_t) chain.value << 64 | (uint128_t)coin.code().raw());
+   CHECKC( chain_coin_ptr != chain_coins_idx.end(), err::RECORD_NOT_FOUND,  "chain_coin does not exists" );
+   chain_coins.erase(*chain_coin_ptr);
 
-   _db.del( chain_coin );
 }
 
 } /// namespace xchain
