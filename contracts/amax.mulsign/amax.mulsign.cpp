@@ -17,8 +17,6 @@ using std::string;
 using namespace eosio;
 using namespace wasm::db;
 
-static constexpr uint64_t seconds_per_day       = 24 * 3600;
-
 enum class err: uint8_t {
    NONE                 = 0,
    RECORD_NOT_FOUND     = 1,
@@ -34,62 +32,63 @@ enum class err: uint8_t {
    NOTIFY_UNRELATED     = 12,
    ACTION_REDUNDANT     = 13,
    ACCOUNT_INVALID      = 14,
+   FEE_INSUFFICIENT     = 15,
 
 };
 
 class [[eosio::contract("amax.mulsign")]] mulsign : public contract {
 private:
    dbc                 _db;
-   // global_singleton    _global;
-   // global_t            _gstate;
+   global_singleton    _global;
+   global_t            _gstate;
 
 public:
    using contract::contract;
 
    mulsign(eosio::name receiver, eosio::name code, datastream<const char*> ds):
-        _db(_self), contract(receiver, code, ds) {} //, _global(_self, _self.value) {
-      //   if (_global.exists()) {
-      //       _gstate = _global.get();
+      _db(_self), contract(receiver, code, ds), _global(_self, _self.value) {
+      if (_global.exists()) {
+         _gstate = _global.get();
 
-      //   } else { // first init
-      //       _gstate = global_t{};
-      //       _gstate.admin = _self;
-      //   }
-   // }
+      } else { // first init
+         _gstate = global_t{};
+         _gstate.admin = _self;
+      }
+   }
 
-   // ~mulsign() { _global.set( _gstate, get_self() ); }
+   ~mulsign() { _global.set( _gstate, get_self() ); }
 
    ACTION init() {
       require_auth( _self );
 
-      // CHECKC(false, err::NONE, "init disabled!")
+      CHECKC(false, err::NONE, "init disallowed!")
 
-      auto proposals = proposal_t::idx_t(_self, _self.value);
-      auto itr = proposals.begin();
-      proposals.erase(itr);
-
+      // auto proposals = proposal_t::idx_t(_self, _self.value);
+      // auto itr = proposals.begin();
+      // proposals.erase(itr);
 
    }
 
-   /**
-    * @brief create a multisign wallet, returns a unqiued wallet_id
-    * 
-    * @param issuer 
-    * @param mulsign_m 
-    * @param mulsign_n 
-    * @return * create, 
-    */
-   ACTION createmsign(const name& issuer, const uint8_t& mulsign_m, const uint8_t& mulsign_n) {
-      require_auth( issuer );
+   // /**
+   //  * @brief create a multisign wallet, returns a unqiued wallet_id
+   //  * 
+   //  * @param issuer 
+   //  * @param mulsign_m 
+   //  * @param mulsign_n 
+   //  * @return * create, 
+   //  */
+   // ACTION createmsign(const name& issuer, const uint8_t& mulsign_m, const uint8_t& mulsign_n) {
+   //    require_auth( issuer );
 
-      auto mwallets = wallet_t::idx_t(_self, _self.value);
-      auto wallet_id = mwallets.available_primary_key(); if (wallet_id == 0) wallet_id = 1;  
-      auto wallet = wallet_t(wallet_id, mulsign_m, mulsign_n);
-      // wallet.mulsigners[issuer] = 1;   //default weight as 1, can be modified in future
-      wallet.creator = issuer;
-      wallet.created_at = time_point_sec(current_time_point());
-      _db.set( wallet, issuer );
-   }
+   //    auto mwallets = wallet_t::idx_t(_self, _self.value);
+   //    auto wallet_id = mwallets.available_primary_key(); if (wallet_id == 0) wallet_id = 1;  
+   //    auto wallet = wallet_t(wallet_id);
+   //    wallet.mulsign_m = mulsign_m;
+   //    wallet.mulsign_n = mulsign_n;
+   //    wallet.creator = issuer;
+   //    wallet.created_at = time_point_sec(current_time_point());
+   //    _db.set( wallet, issuer );
+   // }
 
    /**
     * @brief add a mulsinger into a target wallet, must add all mulsigners within 24 hours upon creation
@@ -113,6 +112,24 @@ public:
       wallet.updated_at = time_point_sec( current_time_point() );
       _db.set( wallet, issuer );
 
+   }
+
+   /**
+    * @brief set proposal expiry time in seconds for a given wallet
+    * @param issuer - wallet owner only
+    * @param wallet_id 
+    * @param expiry_sec - expiry time in seconds for wallet proposals
+    * 
+    */
+   ACTION setwapexpiry(const name& issuer, const uint64_t wallet_id, const uint64_t& expiry_sec) {
+      require_auth( issuer );
+
+      auto wallet = wallet_t(wallet_id);
+      CHECKC( _db.get(wallet), err::RECORD_NOT_FOUND, "wallet not found: " + to_string(wallet_id) )
+      CHECKC( wallet.creator == issuer, err::NO_AUTH, "only creator allowed to add cosinger: " + wallet.creator.to_string() )
+
+      wallet.proposal_expiry_sec = expiry_sec;
+      _db.set( wallet, issuer );
    }
 
    /**
@@ -149,29 +166,36 @@ public:
     * @param from
     * @param to
     * @param quantity
-    * @param memo
+    * @param memo: 1) create:$m:$n; 2) lock:$wallet_id
     */
    [[eosio::on_notify("*::transfer")]]
-   void transfer(const name& from, const name& to, const asset& quantity, const string& memo) {
+   void ontransfer(const name& from, const name& to, const asset& quantity, const string& memo) {
       CHECKC( to == _self, err::NOTIFY_UNRELATED, "notified but not a recipient" )
       CHECKC( quantity.amount > 0, err::PARAM_ERROR, "non-positive quantity not allowed" )
-      CHECKC( memo != "", err::PARAM_ERROR, "memo contains no wallet_id" )
-
-      auto wallet_id = (uint64_t) atoi(memo.c_str());
-      auto wallet = wallet_t(wallet_id);
-      CHECKC( _db.get( wallet ), err::RECORD_NOT_FOUND, "wallet not found: " + to_string(wallet_id) )
+      CHECKC( memo != "", err::PARAM_ERROR, "empty memo!" )
 
       auto bank_contract = get_first_receiver();
-      auto ext_symb = extended_symbol(quantity.symbol, bank_contract);
-      if ( !wallet.assets.count(ext_symb) ) {
-         wallet.assets[ext_symb] = quantity.amount;
+
+      vector<string_view> memo_params = split(memo, ":");
+      if (memo_params[0] == "create" && memo_params.size() == 3) {
+         uint64_t m = stoi(string(memo_params[1]));
+         uint64_t n = stoi(string(memo_params[2]));
+         CHECKC( bank_contract == SYS_BANK && quantity.symbol == SYS_SYMBOL, err::PARAM_ERROR, "non-sys-symbol" )
+         CHECKC( quantity >= _gstate.wallet_fee, err::FEE_INSUFFICIENT, "insufficient wallet fee: " + quantity.to_string() )
+         
+         auto memo = "lock:" + to_string(_gstate.daodev_wallet_id);
+         TRANSFER( SYS_BANK, _self, quantity, memo )
+
+         create_wallet(from, m, n);
+
+      } else if (memo_params[0] == "lock" && memo_params.size() == 2) {
+         auto wallet_id = (uint64_t) stoi(string(memo_params[1]));
+         
+         lock_funds(wallet_id, bank_contract, quantity);
 
       } else {
-         auto curr_amount = wallet.assets[ext_symb];
-         wallet.assets[ext_symb] = curr_amount + quantity.amount;
+         CHECKC(false, err::PARAM_ERROR, "invalid memo" )
       }
-
-      _db.set( wallet, _self );
    }
 
 /**
@@ -200,7 +224,7 @@ ACTION propose(const name& issuer, const uint64_t& wallet_id, const extended_ass
    proposal.quantity = ex_asset;
    proposal.recipient = recipient;
    proposal.created_at = time_point_sec(current_time_point());
-   proposal.expired_at = time_point_sec(proposal.created_at + seconds_per_day);
+   proposal.expired_at = time_point_sec(proposal.created_at + wallet.proposal_expiry_sec);
 
    _db.set(proposal, issuer);
 }
@@ -210,7 +234,7 @@ ACTION propose(const name& issuer, const uint64_t& wallet_id, const extended_ass
  * @param issuer
  * @param  
  */
-ACTION approve(const name& issuer, const uint64_t& proposal_id) {
+ACTION approve(const name& issuer, const uint64_t& proposal_id, const bool approved) {
    require_auth( issuer );
 
    auto proposal = proposal_t(proposal_id);
@@ -226,13 +250,57 @@ ACTION approve(const name& issuer, const uint64_t& proposal_id) {
    proposal.approvers.insert(issuer);
    proposal.recv_votes += wallet.mulsigners[issuer]; 
 
-   if (proposal.recv_votes >=  wallet.mulsign_m)
-      execute_proposal(wallet, proposal);
+   _db.set(proposal);
+}
 
-    _db.set(proposal);
+ACTION execute(const name& issuer, const uint64_t& proposal_id) {
+   require_auth( issuer );
+
+   auto proposal = proposal_t(proposal_id);
+   CHECKC( _db.get( proposal ), err::RECORD_NOT_FOUND, "proposal not found: " + to_string(proposal_id) )
+   CHECKC( proposal.executed_at != time_point_sec(), err::ACTION_REDUNDANT, "proposal already executed: " + to_string(proposal_id) )
+   CHECKC( proposal.expired_at >= current_time_point(), err::TIME_EXPIRED, "the proposal already expired" )
+   
+   auto wallet = wallet_t(proposal.wallet_id);
+   CHECKC( _db.get( wallet ), err::RECORD_NOT_FOUND, "wallet not found: " + to_string(proposal.wallet_id) )
+   CHECKC( proposal.recv_votes >= wallet.mulsign_m, err::NO_AUTH, "insufficient votes" )
+
+   execute_proposal(wallet, proposal);
+   _db.set(proposal);
 }
 
 private:
+
+   void create_wallet(const name& creator, const uint64_t& m, const uint64_t& n) {
+      auto mwallets = wallet_t::idx_t(_self, _self.value);
+      auto wallet_id = mwallets.available_primary_key(); 
+      if (wallet_id == 0) wallet_id = 1;  //starts from 1
+
+      auto wallet = wallet_t(wallet_id);
+      wallet.mulsign_m = m;
+      wallet.mulsign_n = n;
+      wallet.creator = creator;
+      wallet.created_at = time_point_sec(current_time_point());
+
+      _db.set( wallet, creator );
+
+   }
+
+   void lock_funds(const uint64_t& wallet_id, const name& bank_contract, const asset& quantity) {
+      auto wallet = wallet_t(wallet_id);
+      CHECKC( _db.get( wallet ), err::RECORD_NOT_FOUND, "wallet not found: " + to_string(wallet_id) )
+
+      auto ext_symb = extended_symbol(quantity.symbol, bank_contract);
+      if ( !wallet.assets.count(ext_symb) ) {
+         wallet.assets[ext_symb] = quantity.amount;
+
+      } else {
+         auto curr_amount = wallet.assets[ext_symb];
+         wallet.assets[ext_symb] = curr_amount + quantity.amount;
+      }
+
+      _db.set( wallet, _self );
+   }
 
    void execute_proposal(wallet_t& wallet, proposal_t &proposal) {   
       auto avail_quant = wallet.assets[proposal.quantity.get_extended_symbol()];

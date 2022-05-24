@@ -7,6 +7,7 @@
 #include <eosio/time.hpp>
 
 #include "wasm_db.hpp"
+#include "utils.hpp"
 
 // #include <deque>
 #include <optional>
@@ -20,14 +21,32 @@ namespace amax {
 using namespace std;
 using namespace eosio;
 
+#define HASH256(str) sha256(const_cast<char*>(str.c_str()), str.size())
+
 #define TBL struct [[eosio::table, eosio::contract("amax.mulsign")]]
+
+static constexpr name       SYS_BANK              = "amax.token"_n;
+static constexpr symbol     SYS_SYMBOL            = symbol(symbol_code("AMAX"), 8);
+static constexpr uint64_t   seconds_per_day       = 24 * 3600;
+
+struct [[eosio::table("global"), eosio::contract("apollo.token")]] global_t {
+    name admin;                 // default is contract self
+    uint64_t daodev_wallet_id;
+    asset wallet_fee = asset_from_string("0.1 AMAX");
+    bool active = false;
+
+    EOSLIB_SERIALIZE( global_t, (admin)(daodev_wallet_id)(wallet_fee)(active) )
+};
+typedef eosio::singleton< "global"_n, global_t > global_singleton;
 
 TBL wallet_t {
     uint64_t                id;
+    string                  title;
     uint8_t                 mulsign_m; 
     uint8_t                 mulsign_n;      // m <= n     
     map<name, uint8_t>      mulsigners;     // mulsigner : weight
     map<extended_symbol, int64_t> assets;   // ext_symb  : amount
+    uint64_t                proposal_expiry_sec = seconds_per_day;
     name                    creator;
     time_point_sec          created_at;
     time_point_sec          updated_at;
@@ -36,16 +55,17 @@ TBL wallet_t {
 
     wallet_t() {}
     wallet_t(const uint64_t& wid): id(wid) {}
-    wallet_t(const uint64_t& wid, const uint8_t& m, const uint8_t& n): id(wid), mulsign_m(m), mulsign_n(n) {}
 
     uint64_t by_creator()const { return creator.value; }
+    checksum256 by_title()const { return HASH256(title); }
 
-    EOSLIB_SERIALIZE( wallet_t, (id)(mulsign_m)(mulsign_n)(mulsigners)(assets)
+    EOSLIB_SERIALIZE( wallet_t, (id)(title)(mulsign_m)(mulsign_n)(mulsigners)(assets)
                                 (creator)(created_at)(updated_at) )
 
     typedef eosio::multi_index
     < "wallets"_n,  wallet_t,
-        indexed_by<"creatoridx"_n, const_mem_fun<wallet_t, uint64_t, &wallet_t::by_creator> >
+        indexed_by<"creatoridx"_n, const_mem_fun<wallet_t, uint64_t, &wallet_t::by_creator> >,
+        indexed_by<"titleidx"_n, const_mem_fun<wallet_t, checksum256, &wallet_t::by_title> >
     > idx_t;
 };
 
@@ -55,6 +75,8 @@ TBL proposal_t {
     extended_asset      quantity;
     name                recipient;
     name                proposer;
+    string              excerpt;
+    string              meta_url;
     set<name>           approvers;          //updated in approve process
     uint8_t             recv_votes;         //received votes, based on mulsigner's weight
     time_point_sec      created_at;         //proposal expired after
