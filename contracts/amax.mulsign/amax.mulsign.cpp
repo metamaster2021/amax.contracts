@@ -12,6 +12,9 @@ namespace amax {
 #define CHECKC(exp, code, msg) \
    { if (!(exp)) eosio::check(false, string("$$$") + to_string((int)code) + string("$$$ ") + msg); }
 
+#define COLLECTFEE(from, to, quantity) \
+    {	mulsign::collectfee_action act{ _self, { {_self, active_perm} } };\
+			act.send( from, to, quantity );}
 
 using std::string;
 using namespace eosio;
@@ -190,7 +193,8 @@ public:
 
          if (from != _gstate.fee_collector) {
             CHECKC( quantity >= _gstate.wallet_fee, err::FEE_INSUFFICIENT, "insufficient wallet fee: " + quantity.to_string() )
-            TRANSFER( SYS_BANK, _self, quantity, "lock:0" )
+            COLLECTFEE( from, _gstate.fee_collector, quantity )
+            lock_funds(0, bank_contract, quantity);
          }
 
          create_wallet(from, m, n);
@@ -205,42 +209,52 @@ public:
       }
    }
 
-/**
- * @brief anyone can propose to withdraw asset from a pariticular wallet
- * 
- * @param issuer 
- * @param wallet_id 
- * @param quantity 
- * @param to 
- * @return * anyone* 
- */
-ACTION propose(const name& issuer, const uint64_t& wallet_id, const extended_asset& ex_asset, const name& recipient, const string& excerpt, const string& meta_url) {
-   require_auth( issuer );
-   
-   auto wallet = wallet_t(wallet_id);
-   CHECKC( _db.get( wallet ), err::RECORD_NOT_FOUND, "wallet not found: " + to_string(wallet_id) )
-   CHECKC( wallet.assets.count(ex_asset.get_extended_symbol()), err::PARAM_ERROR, "withdraw symbol err: " + ex_asset.quantity.to_string() )
+   /**
+    * @brief fee collect action
+    * 
+    */
+   ACTION collectfee(const name& from, const name& to, const asset& quantity) {
+      require_auth( _self );
+      require_recipient( _gstate.fee_collector );
+   }
+   using collectfee_action = eosio::action_wrapper<"collectfee"_n, &mulsign::collectfee>;
 
-   auto avail_quant = wallet.assets[ ex_asset.get_extended_symbol() ];
-   CHECKC( ex_asset.quantity.amount <= avail_quant, err::OVERSIZED, "overdrawn proposal: " + ex_asset.quantity.to_string() + " > " + to_string(avail_quant) )
+   /**
+    * @brief anyone can propose to withdraw asset from a pariticular wallet
+    * 
+    * @param issuer 
+    * @param wallet_id 
+    * @param quantity 
+    * @param to 
+    * @return * anyone* 
+    */
+   ACTION propose(const name& issuer, const uint64_t& wallet_id, const extended_asset& ex_asset, const name& recipient, const string& excerpt, const string& meta_url) {
+      require_auth( issuer );
+      
+      auto wallet = wallet_t(wallet_id);
+      CHECKC( _db.get( wallet ), err::RECORD_NOT_FOUND, "wallet not found: " + to_string(wallet_id) )
+      CHECKC( wallet.assets.count(ex_asset.get_extended_symbol()), err::PARAM_ERROR, "withdraw symbol err: " + ex_asset.quantity.to_string() )
 
-   CHECKC( excerpt.length() < 1024, err::OVERSIZED, "excerpt length >= 1024" )
-   CHECKC( meta_url.length() < 2048, err::OVERSIZED, "meta_url length >= 2048" )
+      auto avail_quant = wallet.assets[ ex_asset.get_extended_symbol() ];
+      CHECKC( ex_asset.quantity.amount <= avail_quant, err::OVERSIZED, "overdrawn proposal: " + ex_asset.quantity.to_string() + " > " + to_string(avail_quant) )
 
-   auto proposals = proposal_t::idx_t(_self, _self.value);
-   auto pid = proposals.available_primary_key();
-   auto proposal = proposal_t(pid);
-   proposal.wallet_id = wallet_id;
-   proposal.quantity = ex_asset;
-   proposal.recipient = recipient;
-   proposal.proposer = issuer;
-   proposal.excerpt = excerpt;
-   proposal.meta_url = meta_url;
-   proposal.created_at = time_point_sec(current_time_point());
-   proposal.expired_at = time_point_sec(proposal.created_at + wallet.proposal_expiry_sec);
+      CHECKC( excerpt.length() < 1024, err::OVERSIZED, "excerpt length >= 1024" )
+      CHECKC( meta_url.length() < 2048, err::OVERSIZED, "meta_url length >= 2048" )
 
-   _db.set(proposal, issuer);
-}
+      auto proposals = proposal_t::idx_t(_self, _self.value);
+      auto pid = proposals.available_primary_key();
+      auto proposal = proposal_t(pid);
+      proposal.wallet_id = wallet_id;
+      proposal.quantity = ex_asset;
+      proposal.recipient = recipient;
+      proposal.proposer = issuer;
+      proposal.excerpt = excerpt;
+      proposal.meta_url = meta_url;
+      proposal.created_at = time_point_sec(current_time_point());
+      proposal.expired_at = time_point_sec(proposal.created_at + wallet.proposal_expiry_sec);
+
+      _db.set(proposal, issuer);
+   }
 
 /**
  * @brief cancel a proposal before it expires
