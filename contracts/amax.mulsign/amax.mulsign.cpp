@@ -214,7 +214,7 @@ public:
  * @param to 
  * @return * anyone* 
  */
-ACTION propose(const name& issuer, const uint64_t& wallet_id, const extended_asset& ex_asset, const name& recipient) {
+ACTION propose(const name& issuer, const uint64_t& wallet_id, const extended_asset& ex_asset, const name& recipient, const string& excerpt, const string& meta_url) {
    require_auth( issuer );
    
    auto wallet = wallet_t(wallet_id);
@@ -224,12 +224,18 @@ ACTION propose(const name& issuer, const uint64_t& wallet_id, const extended_ass
    auto avail_quant = wallet.assets[ ex_asset.get_extended_symbol() ];
    CHECKC( ex_asset.quantity.amount <= avail_quant, err::OVERSIZED, "overdrawn proposal: " + ex_asset.quantity.to_string() + " > " + to_string(avail_quant) )
 
+   CHECKC( excerpt.length() < 1024, err::OVERSIZED, "excerpt length >= 1024" )
+   CHECKC( meta_url.length() < 2048, err::OVERSIZED, "meta_url length >= 2048" )
+
    auto proposals = proposal_t::idx_t(_self, _self.value);
    auto pid = proposals.available_primary_key();
    auto proposal = proposal_t(pid);
    proposal.wallet_id = wallet_id;
    proposal.quantity = ex_asset;
    proposal.recipient = recipient;
+   proposal.proposer = issuer;
+   proposal.excerpt = excerpt;
+   proposal.meta_url = meta_url;
    proposal.created_at = time_point_sec(current_time_point());
    proposal.expired_at = time_point_sec(proposal.created_at + wallet.proposal_expiry_sec);
 
