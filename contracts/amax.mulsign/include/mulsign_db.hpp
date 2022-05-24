@@ -59,7 +59,7 @@ TBL wallet_t {
     uint64_t by_creator()const { return creator.value; }
     checksum256 by_title()const { return HASH256(title); }
 
-    EOSLIB_SERIALIZE( wallet_t, (id)(title)(mulsign_m)(mulsign_n)(mulsigners)(assets)
+    EOSLIB_SERIALIZE( wallet_t, (id)(title)(mulsign_m)(mulsign_n)(mulsigners)(assets)(proposal_expiry_sec)
                                 (creator)(created_at)(updated_at) )
 
     typedef eosio::multi_index
@@ -90,7 +90,7 @@ TBL proposal_t {
 
     uint64_t by_wallet_id()const { return wallet_id; }
 
-    EOSLIB_SERIALIZE( proposal_t,   (id)(wallet_id)(quantity)(recipient)(proposer)(approvers)
+    EOSLIB_SERIALIZE( proposal_t,   (id)(wallet_id)(quantity)(recipient)(proposer)(excerpt)(meta_url)(approvers)
                                     (recv_votes)(created_at)(expired_at)(executed_at) )
 
     typedef eosio::multi_index

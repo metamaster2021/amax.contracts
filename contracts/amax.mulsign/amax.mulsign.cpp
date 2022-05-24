@@ -61,8 +61,8 @@ public:
    ACTION init() {
       require_auth( _self );
 
-      _gstate.fee_collector = "amax.daodev"_n;
-      _gstate.wallet_fee = asset_from_string("0.10000000 AMAX");
+      // _gstate.fee_collector = "amax.daodev"_n;
+      // _gstate.wallet_fee = asset_from_string("0.10000000 AMAX");
 
       // CHECKC(false, err::NONE, "init disallowed!")
 
@@ -70,6 +70,9 @@ public:
       // auto itr = proposals.begin();
       // proposals.erase(itr);
 
+      auto wallets = wallet_t::idx_t(_self, _self.value);
+      auto itr = wallets.begin();
+      wallets.erase(itr);
    }
 
    // /**
@@ -234,6 +237,22 @@ ACTION propose(const name& issuer, const uint64_t& wallet_id, const extended_ass
 }
 
 /**
+ * @brief cancel a proposal before it expires
+ * 
+ */
+ACTION cancel(const name& issuer, const uint64_t& proposal_id) {
+   require_auth( issuer );
+
+   auto proposal = proposal_t(proposal_id);
+   CHECKC( _db.get( proposal ), err::RECORD_NOT_FOUND, "proposal not found: " + to_string(proposal_id) )
+   CHECKC( proposal.proposer == issuer, err::NO_AUTH, "issuer is not proposer" )
+   CHECKC( proposal.approvers.size() == 0, err::NO_AUTH, "proposal already appoved" )
+   CHECKC( proposal.expired_at > current_time_point(), err::NO_AUTH, "proposal already expired" )
+      
+   _db.del( proposal );
+}
+
+/**
  * @brief only mulsigner can approve the proposal: the m-th of n mulsigner will trigger its execution
  * @param issuer
  * @param  
@@ -287,7 +306,7 @@ private:
       wallet.creator = creator;
       wallet.created_at = time_point_sec(current_time_point());
 
-      _db.set( wallet, creator );
+      _db.set( wallet, _self );
 
    }
 
