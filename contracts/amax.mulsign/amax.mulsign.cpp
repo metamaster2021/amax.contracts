@@ -232,10 +232,11 @@ public:
       require_auth( issuer );
       
       auto wallet = wallet_t(wallet_id);
+      auto ext_symb_str = ext_to_string(ex_asset);
       CHECKC( _db.get( wallet ), err::RECORD_NOT_FOUND, "wallet not found: " + to_string(wallet_id) )
-      CHECKC( wallet.assets.count(ex_asset.get_extended_symbol()), err::PARAM_ERROR, "withdraw symbol err: " + ex_asset.quantity.to_string() )
+      CHECKC( wallet.assets.find(ext_symb_str) != wallet.assets.end(), err::PARAM_ERROR, "withdraw symbol err: " + ext_symb_str )
 
-      auto avail_quant = wallet.assets[ ex_asset.get_extended_symbol() ];
+      auto avail_quant = wallet.assets[ ext_symb_str ];
       CHECKC( ex_asset.quantity.amount <= avail_quant, err::OVERSIZED, "overdrawn proposal: " + ex_asset.quantity.to_string() + " > " + to_string(avail_quant) )
 
       CHECKC( excerpt.length() < 1024, err::OVERSIZED, "excerpt length >= 1024" )
@@ -330,27 +331,36 @@ private:
 
    }
 
+   inline string ext_to_string(const extended_asset& ext_asset) {
+      return ext_asset.get_extended_symbol().get_symbol().code().to_string() + "@" +  ext_asset.contract.to_string();
+   }
+
+   inline string ext_to_string(const name& bank_contract, const symbol& symb) {
+      return symb.code().to_string() + "@" +  bank_contract.to_string();
+   }
+
    void lock_funds(const uint64_t& wallet_id, const name& bank_contract, const asset& quantity) {
       auto wallet = wallet_t(wallet_id);
       CHECKC( _db.get( wallet ), err::RECORD_NOT_FOUND, "wallet not found: " + to_string(wallet_id) )
 
-      auto ext_symb = extended_symbol(quantity.symbol, bank_contract);
-      if ( !wallet.assets.count(ext_symb) ) {
-         wallet.assets[ext_symb] = quantity.amount;
+      auto ext_symb_str = ext_to_string(bank_contract, quantity.symbol);
+      if ( wallet.assets.find(ext_symb_str) != wallet.assets.end() ) {
+         wallet.assets[ ext_symb_str ] = quantity.amount;
 
       } else {
-         auto curr_amount = wallet.assets[ext_symb];
-         wallet.assets[ext_symb] = curr_amount + quantity.amount;
+         auto curr_amount = wallet.assets[ ext_symb_str ];
+         wallet.assets[ ext_symb_str ] = curr_amount + quantity.amount;
       }
 
       _db.set( wallet, _self );
    }
 
    void execute_proposal(wallet_t& wallet, proposal_t &proposal) {   
-      auto avail_quant = wallet.assets[proposal.quantity.get_extended_symbol()];
+      auto ext_symb_str = ext_to_string(proposal.quantity);
+      auto avail_quant = wallet.assets[ ext_symb_str ];
       CHECKC( proposal.quantity.quantity.amount <= avail_quant, err::OVERSIZED, "Overdrawn not allowed: " + proposal.quantity.quantity.to_string() + " > " + to_string(avail_quant) );
-     
-      wallet.assets[proposal.quantity.get_extended_symbol()] -= proposal.quantity.quantity.amount;
+      
+      wallet.assets[ ext_symb_str ] -= proposal.quantity.quantity.amount;
       _db.set(wallet);
 
       auto asset_bank = proposal.quantity.contract;
