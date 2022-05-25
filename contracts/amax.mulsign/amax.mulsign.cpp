@@ -179,7 +179,7 @@ public:
     */
    [[eosio::on_notify("*::transfer")]]
    void ontransfer(const name& from, const name& to, const asset& quantity, const string& memo) {
-      CHECKC( to == _self, err::NOTIFY_UNRELATED, "notified but not a recipient" )
+      CHECKC( from != to, err::ACCOUNT_INVALID,"cannot transfer to self" );
       CHECKC( quantity.amount > 0, err::PARAM_ERROR, "non-positive quantity not allowed" )
       CHECKC( memo != "", err::PARAM_ERROR, "empty memo!" )
 
@@ -197,7 +197,7 @@ public:
          if (from != _gstate.fee_collector)
             COLLECTFEE( from, _gstate.fee_collector, quantity )
 
-         lock_funds(0, bank_contract, quantity);
+         // lock_funds(0, bank_contract, quantity);
          create_wallet(from, m, n, title);
 
       } else if (memo_params[0] == "lock" && memo_params.size() == 2) {
@@ -284,7 +284,7 @@ ACTION approve(const name& issuer, const uint64_t& proposal_id, const bool appro
 
    auto proposal = proposal_t(proposal_id);
    CHECKC( _db.get( proposal ), err::RECORD_NOT_FOUND, "proposal not found: " + to_string(proposal_id) )
-   CHECKC( proposal.executed_at != time_point_sec(), err::ACTION_REDUNDANT, "proposal already executed: " + to_string(proposal_id) )
+   CHECKC( proposal.executed_at == time_point_sec(), err::ACTION_REDUNDANT, "proposal already executed: " + to_string(proposal_id) )
    CHECKC( proposal.expired_at >= current_time_point(), err::TIME_EXPIRED, "the proposal already expired" )
    CHECKC( !proposal.approvers.count(issuer), err::ACTION_REDUNDANT, "issuer (" + issuer.to_string() +") already approved" )
 
@@ -295,7 +295,7 @@ ACTION approve(const name& issuer, const uint64_t& proposal_id, const bool appro
    proposal.approvers.insert(issuer);
    proposal.recv_votes += wallet.mulsigners[issuer]; 
 
-   _db.set(proposal);
+   _db.set(proposal, issuer);
 }
 
 ACTION execute(const name& issuer, const uint64_t& proposal_id) {
