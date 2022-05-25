@@ -197,7 +197,7 @@ public:
          if (from != _gstate.fee_collector)
             COLLECTFEE( from, _gstate.fee_collector, quantity )
 
-         // lock_funds(0, bank_contract, quantity);
+         lock_funds(0, bank_contract, quantity);
          create_wallet(from, m, n, title);
 
       } else if (memo_params[0] == "lock" && memo_params.size() == 2) {
