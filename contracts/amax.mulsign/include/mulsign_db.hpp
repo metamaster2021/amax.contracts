@@ -42,8 +42,8 @@ typedef eosio::singleton< "global"_n, global_t > global_singleton;
 TBL wallet_t {
     uint64_t                id;
     string                  title;
-    uint8_t                 mulsign_m; 
-    uint8_t                 mulsign_n;      // m <= n     
+    uint8_t                 mulsign_m;
+    uint8_t                 mulsign_n;      // m <= n
     map<name, uint8_t>      mulsigners;     // mulsigner : weight
     map<string, int64_t>    assets;         // symb@bank_contract  : amount
     uint64_t                proposal_expiry_sec = seconds_per_day;
