@@ -257,6 +257,7 @@ public:
       CHECKC( wallet.assets.count(symb), err::PARAM_ERROR,
          "symbol does not found in wallet: " + to_string(ex_asset) )
       CHECKC( ex_asset.quantity.amount > 0, err::PARAM_ERROR, "withdraw quantity must be positive" )
+      CHECKC( is_account(recipient), err::ACCOUNT_INVALID, "recipient account does not exist" );
 
       auto avail_quant = wallet.assets[ symb ];
       CHECKC( ex_asset.quantity.amount <= avail_quant, err::OVERSIZED, "overdrawn proposal: " + ex_asset.quantity.to_string() + " > " + to_string(avail_quant) )
