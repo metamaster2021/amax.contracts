@@ -322,17 +322,18 @@ ACTION approve(const name& issuer, const uint64_t& proposal_id) {
 
 ACTION execute(const name& issuer, const uint64_t& proposal_id) {
    require_auth( issuer );
-
+   const auto& now = current_time_point();
    auto proposal = proposal_t(proposal_id);
    CHECKC( _db.get( proposal ), err::RECORD_NOT_FOUND, "proposal not found: " + to_string(proposal_id) )
-   CHECKC( proposal.executed_at != time_point_sec(), err::ACTION_REDUNDANT, "proposal already executed: " + to_string(proposal_id) )
-   CHECKC( proposal.expired_at >= current_time_point(), err::TIME_EXPIRED, "the proposal already expired" )
+   CHECKC( proposal.executed_at == time_point_sec(), err::ACTION_REDUNDANT, "proposal already executed: " + to_string(proposal_id) )
+   CHECKC( proposal.expired_at >= now, err::TIME_EXPIRED, "the proposal already expired" )
 
    auto wallet = wallet_t(proposal.wallet_id);
    CHECKC( _db.get( wallet ), err::RECORD_NOT_FOUND, "wallet not found: " + to_string(proposal.wallet_id) )
    CHECKC( proposal.recv_votes >= wallet.mulsign_m, err::NO_AUTH, "insufficient votes" )
 
    execute_proposal(wallet, proposal);
+   proposal.executed_at = time_point_sec(now);
    _db.set(proposal);
 }
 
