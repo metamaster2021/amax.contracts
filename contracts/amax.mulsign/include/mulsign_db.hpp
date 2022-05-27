@@ -44,7 +44,7 @@ TBL wallet_t {
     string                  title;
     uint32_t                mulsign_m;
     uint32_t                mulsign_n;      // m <= n
-    map<name, uint8_t>      mulsigners;     // mulsigner : weight
+    map<name, uint32_t>     mulsigners;     // mulsigner : weight
     map<string, int64_t>    assets;         // symb@bank_contract  : amount
     uint64_t                proposal_expiry_sec = seconds_per_day;
     name                    creator;
@@ -78,7 +78,7 @@ TBL proposal_t {
     string              excerpt;
     string              meta_url;
     set<name>           approvers;          //updated in approve process
-    uint8_t             recv_votes;         //received votes, based on mulsigner's weight
+    uint32_t            recv_votes;         //received votes, based on mulsigner's weight
     time_point_sec      created_at;         //proposal expired after
     time_point_sec      expired_at;         //proposal expired after
     time_point_sec      executed_at;        //proposal executed after m/n approval

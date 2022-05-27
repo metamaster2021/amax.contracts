@@ -107,7 +107,7 @@ public:
     * @param mulsigner
     *
     */
-   ACTION setmulsigner(const name& issuer, const uint64_t& wallet_id, const name& mulsigner, const uint8_t& weight) {
+   ACTION setmulsigner(const name& issuer, const uint64_t& wallet_id, const name& mulsigner, const uint32_t& weight) {
       require_auth( issuer );
 
       auto wallet = wallet_t(wallet_id);
@@ -116,7 +116,14 @@ public:
       int64_t elapsed =  current_time_point().sec_since_epoch() - wallet.created_at.sec_since_epoch();
       CHECKC( elapsed < seconds_per_day, err::TIME_EXPIRED, "setmulsigner exceeded 24-hour time window" )
       CHECKC( is_account(mulsigner), err::ACCOUNT_INVALID, "invlid mulsigner: " + mulsigner.to_string() )
-      CHECKC( wallet.mulsigners.size() < wallet.mulsign_n, err::OVERSIZED, "wallet.mulsign_n has been reached: " + to_string(wallet.mulsign_n) );
+      CHECKC( is_account(mulsigner), err::ACCOUNT_INVALID, "invlid mulsigner: " + mulsigner.to_string() )
+
+
+      uint32_t total_weight = weight;
+      for (const auto& mulsigner : wallet.mulsigners) {
+         total_weight += mulsigner.second;
+      }
+      CHECKC( total_weight < wallet.mulsign_n, err::OVERSIZED, "total weight is oversize than n: " + to_string(wallet.mulsign_n) );
 
       wallet.mulsigners[mulsigner] = weight;
       wallet.updated_at = time_point_sec( current_time_point() );
