@@ -280,7 +280,7 @@ ACTION cancel(const name& issuer, const uint64_t& proposal_id) {
  * @param issuer
  * @param
  */
-ACTION approve(const name& issuer, const uint64_t& proposal_id, const bool approved) {
+ACTION approve(const name& issuer, const uint64_t& proposal_id) {
    require_auth( issuer );
 
    auto proposal = proposal_t(proposal_id);
