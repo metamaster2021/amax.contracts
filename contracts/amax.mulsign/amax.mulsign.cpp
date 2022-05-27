@@ -5,6 +5,15 @@
 #include "mulsign_db.hpp"
 #include "amax.token.hpp"
 
+namespace eosio {
+   inline string to_string(const extended_symbol& symb) {
+      return symb.get_symbol().code().to_string() + "@" +  symb.get_contract().to_string();
+   }
+
+   inline string to_string(const extended_asset& ext_asset) {
+      return to_string(ext_asset.get_extended_symbol());
+   }
+}
 
 namespace amax {
 
@@ -242,12 +251,13 @@ public:
       require_auth( issuer );
 
       auto wallet = wallet_t(wallet_id);
-      auto ext_symb_str = ext_to_string(ex_asset);
+      const auto& symb = ex_asset.get_extended_symbol();
       CHECKC( _db.get( wallet ), err::RECORD_NOT_FOUND, "wallet not found: " + to_string(wallet_id) )
-      CHECKC( wallet.assets.count(ext_symb_str), err::PARAM_ERROR, "withdraw symbol err: " + ext_symb_str )
+      CHECKC( wallet.assets.count(symb), err::PARAM_ERROR,
+         "symbol does not found in wallet: " + to_string(ex_asset) )
       CHECKC( ex_asset.quantity.amount > 0, err::PARAM_ERROR, "withdraw quantity must be positive" )
 
-      auto avail_quant = wallet.assets[ ext_symb_str ];
+      auto avail_quant = wallet.assets[ symb ];
       CHECKC( ex_asset.quantity.amount <= avail_quant, err::OVERSIZED, "overdrawn proposal: " + ex_asset.quantity.to_string() + " > " + to_string(avail_quant) )
 
       CHECKC( excerpt.length() < 1024, err::OVERSIZED, "excerpt length >= 1024" )
@@ -344,29 +354,21 @@ private:
 
    }
 
-   inline string ext_to_string(const extended_asset& ext_asset) {
-      return ext_asset.get_extended_symbol().get_symbol().code().to_string() + "@" +  ext_asset.contract.to_string();
-   }
-
-   inline string ext_to_string(const name& bank_contract, const symbol& symb) {
-      return symb.code().to_string() + "@" +  bank_contract.to_string();
-   }
-
    void lock_funds(const uint64_t& wallet_id, const name& bank_contract, const asset& quantity) {
       auto wallet = wallet_t(wallet_id);
       CHECKC( _db.get( wallet ), err::RECORD_NOT_FOUND, "wallet not found: " + to_string(wallet_id) )
 
-      auto ext_symb_str = ext_to_string(bank_contract, quantity.symbol);
-      wallet.assets[ ext_symb_str ] += quantity.amount;
+      const auto& symb = extended_symbol(quantity.symbol, bank_contract);
+      wallet.assets[ symb ] += quantity.amount;
       _db.set( wallet, _self );
    }
 
    void execute_proposal(wallet_t& wallet, proposal_t &proposal) {
-      auto ext_symb_str = ext_to_string(proposal.quantity);
-      auto avail_quant = wallet.assets[ ext_symb_str ];
+      const auto& symb = proposal.quantity.get_extended_symbol();
+      auto avail_quant = wallet.assets[ symb ];
       CHECKC( proposal.quantity.quantity.amount <= avail_quant, err::OVERSIZED, "Overdrawn not allowed: " + proposal.quantity.quantity.to_string() + " > " + to_string(avail_quant) );
 
-      wallet.assets[ ext_symb_str ] -= proposal.quantity.quantity.amount;
+      wallet.assets[ symb ] -= proposal.quantity.quantity.amount;
       _db.set(wallet);
 
       auto asset_bank = proposal.quantity.contract;

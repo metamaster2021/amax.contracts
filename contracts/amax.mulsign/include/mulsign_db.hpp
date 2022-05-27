@@ -45,7 +45,7 @@ TBL wallet_t {
     uint32_t                mulsign_m;
     uint32_t                mulsign_n;      // m <= n
     map<name, uint32_t>     mulsigners;     // mulsigner : weight
-    map<string, int64_t>    assets;         // symb@bank_contract  : amount
+    map<extended_symbol, int64_t>    assets;         // symb@bank_contract  : amount
     uint64_t                proposal_expiry_sec = seconds_per_day;
     name                    creator;
     time_point_sec          created_at;
