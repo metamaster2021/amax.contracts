@@ -369,7 +369,12 @@ private:
       auto avail_quant = wallet.assets[ symb ];
       CHECKC( proposal.quantity.quantity.amount <= avail_quant, err::OVERSIZED, "Overdrawn not allowed: " + proposal.quantity.quantity.to_string() + " > " + to_string(avail_quant) );
 
-      wallet.assets[ symb ] -= proposal.quantity.quantity.amount;
+      if (proposal.quantity.quantity.amount == avail_quant) {
+         wallet.assets.erase(symb);
+      } else {
+         wallet.assets[ symb ] -= proposal.quantity.quantity.amount;
+      }
+
       _db.set(wallet);
 
       auto asset_bank = proposal.quantity.contract;
