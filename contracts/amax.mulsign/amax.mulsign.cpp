@@ -129,16 +129,16 @@ public:
       CHECKC( is_account(mulsigner), err::ACCOUNT_INVALID, "invlid mulsigner: " + mulsigner.to_string() )
 
 
-      uint32_t total_weight = weight;
-      for (const auto& mulsigner : wallet.mulsigners) {
-         total_weight += mulsigner.second;
-      }
-      CHECKC( total_weight < wallet.mulsign_n, err::OVERSIZED, "total weight is oversize than n: " + to_string(wallet.mulsign_n) );
-
       wallet.mulsigners[mulsigner] = weight;
+
+      uint32_t total_weight = 0;
+      for (const auto& item : wallet.mulsigners) {
+         total_weight += item.second;
+      }
+      CHECKC( total_weight <= wallet.mulsign_n, err::OVERSIZED, "total weight is oversize than n: " + to_string(wallet.mulsign_n) );
+
       wallet.updated_at = time_point_sec( current_time_point() );
       _db.set( wallet, issuer );
-
    }
 
    /**
