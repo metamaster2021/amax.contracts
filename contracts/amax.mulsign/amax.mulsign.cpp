@@ -245,6 +245,7 @@ public:
       auto ext_symb_str = ext_to_string(ex_asset);
       CHECKC( _db.get( wallet ), err::RECORD_NOT_FOUND, "wallet not found: " + to_string(wallet_id) )
       CHECKC( wallet.assets.count(ext_symb_str), err::PARAM_ERROR, "withdraw symbol err: " + ext_symb_str )
+      CHECKC( ex_asset.quantity.amount > 0, err::PARAM_ERROR, "withdraw quantity must be positive" )
 
       auto avail_quant = wallet.assets[ ext_symb_str ];
       CHECKC( ex_asset.quantity.amount <= avail_quant, err::OVERSIZED, "overdrawn proposal: " + ex_asset.quantity.to_string() + " > " + to_string(avail_quant) )
