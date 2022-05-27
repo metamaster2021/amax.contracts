@@ -188,9 +188,10 @@ public:
 
       vector<string_view> memo_params = split(memo, ":");
       if (memo_params[0] == "create" && memo_params.size() == 4) {
-         uint64_t m = stoi(string(memo_params[1]));
-         uint64_t n = stoi(string(memo_params[2]));
+         uint32_t m = to_uint32(string(memo_params[1]), "m");
+         uint32_t n = to_uint32(string(memo_params[2]), "n");
          string title = string(memo_params[3]);
+         CHECKC( m <= n,  err::PARAM_ERROR, "m can not be large than n");
          CHECKC( title.length() < 1024, err::OVERSIZED, "wallet title too long" )
          CHECKC( bank_contract == SYS_BANK && quantity.symbol == SYS_SYMBOL, err::PARAM_ERROR, "non-sys-symbol" )
          CHECKC( quantity >= _gstate.wallet_fee, err::FEE_INSUFFICIENT, "insufficient wallet fee: " + quantity.to_string() )
@@ -317,7 +318,7 @@ ACTION execute(const name& issuer, const uint64_t& proposal_id) {
 
 private:
 
-   void create_wallet(const name& creator, const uint64_t& m, const uint64_t& n, const string& title) {
+   void create_wallet(const name& creator, const uint32_t& m, const uint32_t& n, const string& title) {
       auto mwallets = wallet_t::idx_t(_self, _self.value);
       auto wallet_id = mwallets.available_primary_key();
       if (wallet_id == 0) {
