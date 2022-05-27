@@ -198,7 +198,7 @@ public:
          uint32_t m = to_uint32(string(memo_params[1]), "m");
          uint32_t n = to_uint32(string(memo_params[2]), "n");
          string title = string(memo_params[3]);
-         CHECKC( m <= n,  err::PARAM_ERROR, "m can not be large than n");
+         CHECKC( m <= n,  err::PARAM_ERROR, "m can not be larger than n");
          CHECKC( title.length() < 1024, err::OVERSIZED, "wallet title too long" )
          CHECKC( bank_contract == SYS_BANK && quantity.symbol == SYS_SYMBOL, err::PARAM_ERROR, "non-sys-symbol" )
          CHECKC( quantity >= _gstate.wallet_fee, err::FEE_INSUFFICIENT, "insufficient wallet fee: " + quantity.to_string() )
