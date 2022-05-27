@@ -71,10 +71,11 @@ public:
 
    ~mulsign() { _global.set( _gstate, get_self() ); }
 
-   ACTION init() {
+   ACTION init(const name& fee_collector) {
       require_auth( _self );
 
-      _gstate.fee_collector = "amax.daodev"_n;
+      CHECKC(_gstate.fee_collector == name(), err::RECORD_EXISTING, "contract is initialized");
+      _gstate.fee_collector = fee_collector;
       _gstate.wallet_fee = asset_from_string("0.10000000 AMAX");
 
       // CHECKC(false, err::NONE, "init disallowed!")
