@@ -46,9 +46,9 @@ public:
    
     ACTION init( const name& admin, const name& maker, const name& checker, const name& fee_collector );
 
-    ACTION reqxintoaddr( const name& account, const name& base_chain );
+    ACTION reqxintoaddr( const name& account, const name& base_chain, const uint32_t& mulsign_wallet_id);
 
-    ACTION setaddress( const name& applicant, const name& base_chain, const string& xin_to );
+    ACTION setaddress( const name& applicant, const name& base_chain, const uint32_t& mulsign_wallet_id, const string& xin_to );
 
     ACTION mkxinorder(  const name& to, const name& chain_name, const symbol& coin_name, 
                         const string& txid, const string& xin_from, const string& xin_to,
@@ -80,18 +80,17 @@ public:
     ACTION checkxouord( const uint64_t& id );
     ACTION cancelxouord( const name& account, const uint64_t& id, const string& cancel_reason );
 
-    ACTION addchain( const name& chain, const name& base_chain, const string& common_xin_account );
-    ACTION delchain( const name& chain );
+    ACTION addchain( const name& account, const name& chain, const name& base_chain, const string& common_xin_account );
+    ACTION delchain( const name& account, const name& chain );
 
-    ACTION addcoin( const symbol& coin );
-    ACTION delcoin( const symbol& coin );
+    ACTION addcoin( const name& account, const symbol& coin );
+    ACTION delcoin( const name& account, const symbol& coin );
 
-    ACTION addchaincoin( const name& chain, const symbol& coin, const asset& fee );
-    ACTION delchaincoin( const name& chain, const symbol& coin );
+    ACTION addchaincoin( const name& account, const name& chain, const symbol& coin, const asset& fee );
+    ACTION delchaincoin( const name& account, const name& chain, const symbol& coin );
 
-    ACTION deltable();
    private:
-    void _check_xin_addr( const name& to, const name& chain_name, const string& xin_to );
+    void _check_xin_addr( const name& to, const name& chain_name, const string& xin_to, uint32_t& mulsign_wallet_id );
     
 };
 } //namespace apollo
