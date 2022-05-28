@@ -134,15 +134,15 @@ void xchain::_check_xin_addr( const name& to, const name& chain_name, const stri
 /**
  * checker to confirm xin order
  */
-ACTION xchain::checkxinord( const uint64_t& id )
+ACTION xchain::checkxinord( const uint64_t& order_id )
 {
    require_auth( _gstate.checker );
 
    xin_order_t::idx_t xin_orders( _self, _self.value );
-   auto xin_order_itr = xin_orders.find( id );
-   CHECKC( xin_order_itr != xin_orders.end(), err::RECORD_NOT_FOUND, "xin order not found: " + to_string(id) );
+   auto xin_order_itr = xin_orders.find( order_id );
+   CHECKC( xin_order_itr != xin_orders.end(), err::RECORD_NOT_FOUND, "xin order not found: " + to_string(order_id) );
    auto status = xin_order_itr->status;
-   CHECKC( status == xin_order_status::CREATED, err::STATUS_INCORRECT, "xin order is not created: " + to_string(id) );
+   CHECKC( status == xin_order_status::CREATED, err::STATUS_INCORRECT, "xin order is not created: " + to_string(order_id) );
 
    xin_orders.modify( xin_order_itr, _self, [&]( auto& row ) {
       row.status         = xin_order_status::CHECKED;
@@ -151,7 +151,7 @@ ACTION xchain::checkxinord( const uint64_t& id )
       row.updated_at     = time_point_sec( current_time_point() );
    });
 
-   auto memo = to_string(id);
+   auto memo = to_string(order_id);
    if(xin_order_itr->mulsign_wallet_id > 0) 
       memo = "lock:" + to_string(xin_order_itr->mulsign_wallet_id); //mulsign transfer
 
@@ -161,15 +161,15 @@ ACTION xchain::checkxinord( const uint64_t& id )
 /**
  * checker cancel the xin order 
  * */
-ACTION xchain::cancelxinord( const uint64_t& id, const string& cancel_reason )
+ACTION xchain::cancelxinord( const uint64_t& order_id, const string& cancel_reason )
 {
    require_auth( _gstate.checker );
 
    xin_order_t::idx_t xin_orders( _self, _self.value );
-   auto xin_order_itr = xin_orders.find( id );
-   CHECKC( xin_order_itr != xin_orders.end(), err::RECORD_NOT_FOUND, "xin order not found: " + to_string(id) );
+   auto xin_order_itr = xin_orders.find( order_id );
+   CHECKC( xin_order_itr != xin_orders.end(), err::RECORD_NOT_FOUND, "xin order not found: " + to_string(order_id) );
    auto status = xin_order_itr->status;
-   CHECKC( status == xin_order_status::CREATED, err::STATUS_INCORRECT, "xin order already closed: " + to_string(id) );
+   CHECKC( status == xin_order_status::CREATED, err::STATUS_INCORRECT, "xin order already closed: " + to_string(order_id) );
    
    xin_orders.modify( xin_order_itr, _self, [&]( auto& row ) {
       row.status           = xin_order_status::CANCELED;
@@ -186,15 +186,13 @@ ACTION xchain::cancelxinord( const uint64_t& id, const string& cancel_reason )
  * ontransfer, trigger by recipient of transfer()
  * @param quantity - mirrored asset on AMC
  * @param memo - memo format: $addr:$chain:coin_name:memo
- *                            "$eth_addr:eth:ETH,8:xchain's memo
+ *                            "$eth_addr:eth:ETH,8:mulsign_wallet_id:xchain's memo
  *               
  */
 [[eosio::on_notify("amax.amtoken::transfer")]] 
 void xchain::ontransfer( name from, name to, asset quantity, string memo ) 
 {
    CHECK(memo.size() <= 256, "memo has more than 256 bytes");
-
-   eosio::print( "from: ", from, ", to:", to, ", quantity:" , quantity, ", memo:" , memo );
 
    if( _self == from ) return;
    if( to != _self ) return;
@@ -203,7 +201,7 @@ void xchain::ontransfer( name from, name to, asset quantity, string memo )
    if ( memo == "refuel" ) return;
 
    auto parts = split( memo, ":" );
-   CHECKC( parts.size() >= 4, err::PARAM_INCORRECT, "Expected format 'address:chain:coin_name:memo'" );
+   CHECKC( parts.size() >= 5, err::PARAM_INCORRECT, "Expected format 'address:chain:coin_name:mulsign_wallet_id:memo'" );
    auto xout_to      = parts[0];
    CHECKC( !xout_to.empty(), err::PARAM_INCORRECT, "xin_out address must not be null" );
 
@@ -217,13 +215,15 @@ void xchain::ontransfer( name from, name to, asset quantity, string memo )
    auto chain_coin_ptr = chain_coins_idx.find((uint128_t) chain_name.value << 64 | (uint128_t)coin_name.code().raw());
    CHECKC( chain_coin_ptr!= chain_coins_idx.end(), err::RECORD_NOT_FOUND, "chain_coin does not exist. ");
 
-   auto user_memo = parts[3];
+   auto mulsign_wallet_id = stoi( string( parts[3] ));
+   auto user_memo = parts[4];
    auto created_at = time_point_sec( current_time_point() );
    xout_order_t::idx_t xout_orders( _self, _self.value );
    auto id = xout_orders.available_primary_key();
    xout_orders.emplace( _self, [&]( auto& row ) {
       row.id 					   = id;
       row.account             = from;
+      row.mulsign_wallet_id   = mulsign_wallet_id;
       row.xout_to 			   = xout_to;
       row.chain               = chain_name;
       row.coin_name           = coin_name;
@@ -240,15 +240,15 @@ void xchain::ontransfer( name from, name to, asset quantity, string memo )
 /**
  * maker onpay the order
  * */
-ACTION xchain::setxousent( const uint64_t& id, const string& txid, const string& xout_from )
+ACTION xchain::setxousent( const uint64_t& order_id, const string& txid, const string& xout_from )
 {
    require_auth( _gstate.maker );
 
    xout_order_t::idx_t xout_orders( _self, _self.value );
-   auto xout_order_itr = xout_orders.find( id );
-   CHECKC( xout_order_itr != xout_orders.end(), err::RECORD_NOT_FOUND, "xout order not found: " + to_string(id) );
+   auto xout_order_itr = xout_orders.find( order_id );
+   CHECKC( xout_order_itr != xout_orders.end(), err::RECORD_NOT_FOUND, "xout order not found: " + to_string(order_id) );
    auto status = xout_order_itr->status;
-   CHECKC( status == xout_order_status::CREATED, err::STATUS_INCORRECT, "xout order status is not created: " + to_string(id));
+   CHECKC( status == xout_order_status::CREATED, err::STATUS_INCORRECT, "xout order status is not created: " + to_string(order_id));
 
    //check txid
    auto xout_orders_xintxids_itr    = xout_orders.get_index<"xouttxids"_n>();
@@ -266,13 +266,13 @@ ACTION xchain::setxousent( const uint64_t& id, const string& txid, const string&
 /**
  * maker onpay the order
  * */
-ACTION xchain::setxouconfm( const uint64_t& id )
+ACTION xchain::setxouconfm( const uint64_t& order_id )
 {
    require_auth( _gstate.maker );
 
    xout_order_t::idx_t xout_orders( _self, _self.value );
-   auto xout_order_itr = xout_orders.find(id);
-   CHECKC( xout_order_itr != xout_orders.end(), err::RECORD_NOT_FOUND, "xout order not found: " + to_string(id) );
+   auto xout_order_itr = xout_orders.find(order_id);
+   CHECKC( xout_order_itr != xout_orders.end(), err::RECORD_NOT_FOUND, "xout order not found: " + to_string(order_id) );
    CHECKC( xout_order_itr->status == xout_order_status::SENT, err::STATUS_INCORRECT, "xout order status is not paying");
 
    //check status
@@ -285,13 +285,13 @@ ACTION xchain::setxouconfm( const uint64_t& id )
 /**
  * checker to confirm out order
  */
-ACTION xchain::checkxouord( const uint64_t& id )
+ACTION xchain::checkxouord( const uint64_t& order_id )
 {
    require_auth( _gstate.checker );
 
    xout_order_t::idx_t xout_orders( _self, _self.value );
-   auto xout_order_itr = xout_orders.find( id );
-   CHECKC( xout_order_itr != xout_orders.end(), err::RECORD_NOT_FOUND, "xout order not found: " + to_string(id) );
+   auto xout_order_itr = xout_orders.find( order_id );
+   CHECKC( xout_order_itr != xout_orders.end(), err::RECORD_NOT_FOUND, "xout order not found: " + to_string(order_id) );
 
    //check status
    CHECKC( xout_order_itr->status == xout_order_status::CONFIRMED, err::STATUS_INCORRECT, "xout order status is not paid" );
@@ -303,20 +303,20 @@ ACTION xchain::checkxouord( const uint64_t& id )
       row.checker    = _gstate.checker;
    });
 
-   TRANSFER( SYS_AMBANK, _gstate.fee_collector, xout_order_itr->fee, to_string(id) );
+   TRANSFER( SYS_AMBANK, _gstate.fee_collector, xout_order_itr->fee, to_string(order_id) );
 }
 
 /**
  * maker or checker can cancel xchain out order
  */
-ACTION xchain::cancelxouord( const name& account, const uint64_t& id, const string& cancel_reason )
+ACTION xchain::cancelxouord( const name& account, const uint64_t& order_id, const string& cancel_reason )
 {
    require_auth( account );
    CHECKC( account == _gstate.checker || account == _gstate.maker, err::NO_AUTH, "account is not checker or taker" );
 
    xout_order_t::idx_t xout_orders( _self, _self.value );
-   auto xout_order_itr = xout_orders.find( id );
-   CHECKC( xout_order_itr != xout_orders.end(), err::RECORD_NOT_FOUND, "xout order not found: " + to_string(id) );
+   auto xout_order_itr = xout_orders.find( order_id );
+   CHECKC( xout_order_itr != xout_orders.end(), err::RECORD_NOT_FOUND, "xout order not found: " + to_string(order_id) );
    CHECKC( xout_order_itr->status == xout_order_status::CONFIRMED||
                xout_order_itr->status == xout_order_status::SENT ||
                 xout_order_itr->status == xout_order_status::CREATED  
@@ -329,7 +329,12 @@ ACTION xchain::cancelxouord( const name& account, const uint64_t& id, const stri
       row.close_reason  = cancel_reason;
       row.checker       = account;   
    });
-   TRANSFER( SYS_AMBANK, xout_order_itr->account, xout_order_itr->apply_quantity, to_string(id) );
+
+   auto memo = to_string(order_id);
+   if(xout_order_itr->mulsign_wallet_id > 0) 
+      memo = "lock:" + to_string(xout_order_itr->mulsign_wallet_id); //mulsign transfer
+
+   TRANSFER( SYS_AMBANK, xout_order_itr->account, xout_order_itr->apply_quantity, memo );
 
 }
 
