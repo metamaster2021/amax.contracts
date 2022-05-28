@@ -329,7 +329,12 @@ ACTION xchain::cancelxouord( const name& account, const uint64_t& order_id, cons
       row.close_reason  = cancel_reason;
       row.checker       = account;   
    });
-   TRANSFER( SYS_AMBANK, xout_order_itr->account, xout_order_itr->apply_quantity, to_string(order_id) );
+
+   auto memo = to_string(order_id);
+   if(xout_order_itr->mulsign_wallet_id > 0) 
+      memo = "lock:" + to_string(xout_order_itr->mulsign_wallet_id); //mulsign transfer
+
+   TRANSFER( SYS_AMBANK, xout_order_itr->account, xout_order_itr->apply_quantity, memo );
 
 }
 
