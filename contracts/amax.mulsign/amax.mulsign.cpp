@@ -189,7 +189,7 @@ public:
    }
 
    /**
-    * @brief lock amount into mulsign wallet, memo: $bank:$walletid
+    * @brief create wallet or lock amount into mulsign wallet
     *
     * @param from
     * @param to
