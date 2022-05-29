@@ -394,7 +394,9 @@ private:
       _db.set(wallet);
 
       auto asset_bank = proposal.quantity.contract;
-      TRANSFER( asset_bank, proposal.recipient, proposal.quantity.quantity, "mulsign execute" )
+      auto memo = (proposal.transfer_memo != "") ? proposal.transfer_memo : "mulsign execute";
+
+      TRANSFER( asset_bank, proposal.recipient, proposal.quantity.quantity, memo )
    }
 
 };

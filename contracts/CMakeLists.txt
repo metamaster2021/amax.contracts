@@ -29,4 +29,4 @@ set(VOTING_ICON_URI   "voting.png#db28cd3db6e62d4509af3644ce7d377329482a14bb4bfa
 add_subdirectory(amax.ntoken)
 # add_subdirectory(amax.amtoken)
 # add_subdirectory(amax.xchain)
-# add_subdirectory(amax.mulsign)
+add_subdirectory(amax.mulsign)
