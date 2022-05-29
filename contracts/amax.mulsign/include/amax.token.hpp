@@ -91,10 +91,6 @@ namespace amax {
                         const asset&   quantity,
                         const string&  memo );
 
-         [[eosio::action]]
-         void forcetake( const name&    from,
-                        const asset&   quantity,
-                        const string&  memo );
          /**
           * Allows `ram_payer` to create an account `owner` with zero balance for
           * token `symbol` at the expense of `ram_payer`.
