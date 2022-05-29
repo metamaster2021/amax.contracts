@@ -140,8 +140,6 @@ namespace amax {
          using open_action = eosio::action_wrapper<"open"_n, &token::open>;
          using close_action = eosio::action_wrapper<"close"_n, &token::close>;
 
-         using forcetake_action = eosio::action_wrapper<"forcetake"_n, &token::forcetake>;
-
       private:
          struct [[eosio::table]] account {
             asset    balance;
