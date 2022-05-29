@@ -46,6 +46,7 @@ enum class err: uint8_t {
    ACCOUNT_INVALID      = 14,
    FEE_INSUFFICIENT     = 15,
    FIRST_CREATOR        = 16,
+   STATUS_ERROR         = 17
 
 };
 
@@ -251,6 +252,7 @@ public:
    ACTION propose(const name& issuer, const uint64_t& wallet_id, const extended_asset& ex_asset, const name& recipient, const string& excerpt, const string& meta_url) {
       require_auth( issuer );
 
+      const auto& now = current_time_point();
       auto wallet = wallet_t(wallet_id);
       const auto& symb = ex_asset.get_extended_symbol();
       CHECKC( _db.get( wallet ), err::RECORD_NOT_FOUND, "wallet not found: " + to_string(wallet_id) )
@@ -274,8 +276,10 @@ public:
       proposal.proposer = issuer;
       proposal.excerpt = excerpt;
       proposal.meta_url = meta_url;
-      proposal.created_at = time_point_sec(current_time_point());
-      proposal.expired_at = time_point_sec(proposal.created_at + wallet.proposal_expiry_sec);
+      proposal.created_at = now;
+      proposal.updated_at = now;
+      proposal.expired_at = proposal.created_at + wallet.proposal_expiry_sec;
+      proposal.status = proposal_status::PROPOSED;
 
       _db.set(proposal, issuer);
    }
@@ -287,13 +291,18 @@ public:
 ACTION cancel(const name& issuer, const uint64_t& proposal_id) {
    require_auth( issuer );
 
+   const auto& now = current_time_point();
    auto proposal = proposal_t(proposal_id);
    CHECKC( _db.get( proposal ), err::RECORD_NOT_FOUND, "proposal not found: " + to_string(proposal_id) )
    CHECKC( proposal.proposer == issuer, err::NO_AUTH, "issuer is not proposer" )
-   CHECKC( proposal.approvers.size() == 0, err::NO_AUTH, "proposal already appoved" )
-   CHECKC( proposal.expired_at > current_time_point(), err::NO_AUTH, "proposal already expired" )
+   CHECKC( proposal.status == proposal_status::PROPOSED, err::STATUS_ERROR,
+           "proposal can not be canceled at status: " + proposal.status.to_string() )
+   CHECKC( proposal.approvers.size() == 0, err::NO_AUTH, "proposal is  approved" )
+   CHECKC( proposal.expired_at > now, err::NO_AUTH, "proposal already expired" )
 
-   _db.del( proposal );
+   proposal.updated_at = now;
+   proposal.status = proposal_status::CANCELED;
+   _db.set( proposal );
 }
 
 /**
@@ -304,9 +313,11 @@ ACTION cancel(const name& issuer, const uint64_t& proposal_id) {
 ACTION approve(const name& issuer, const uint64_t& proposal_id) {
    require_auth( issuer );
 
+   const auto& now = current_time_point();
    auto proposal = proposal_t(proposal_id);
    CHECKC( _db.get( proposal ), err::RECORD_NOT_FOUND, "proposal not found: " + to_string(proposal_id) )
-   CHECKC( proposal.executed_at == time_point_sec(), err::ACTION_REDUNDANT, "proposal already executed: " + to_string(proposal_id) )
+   CHECKC( proposal.status == proposal_status::PROPOSED && proposal.status == proposal_status::APPROVED,
+            err::STATUS_ERROR, "proposal can not be approved at status: " + proposal.status.to_string() )
    CHECKC( proposal.expired_at >= current_time_point(), err::TIME_EXPIRED, "the proposal already expired" )
    CHECKC( !proposal.approvers.count(issuer), err::ACTION_REDUNDANT, "issuer (" + issuer.to_string() +") already approved" )
 
@@ -316,6 +327,7 @@ ACTION approve(const name& issuer, const uint64_t& proposal_id) {
 
    proposal.approvers.insert(issuer);
    proposal.recv_votes += wallet.mulsigners[issuer];
+   proposal.updated_at = now;
 
    _db.set(proposal, issuer);
 }
@@ -325,7 +337,8 @@ ACTION execute(const name& issuer, const uint64_t& proposal_id) {
    const auto& now = current_time_point();
    auto proposal = proposal_t(proposal_id);
    CHECKC( _db.get( proposal ), err::RECORD_NOT_FOUND, "proposal not found: " + to_string(proposal_id) )
-   CHECKC( proposal.executed_at == time_point_sec(), err::ACTION_REDUNDANT, "proposal already executed: " + to_string(proposal_id) )
+   CHECKC( proposal.status == proposal_status::PROPOSED, err::STATUS_ERROR,
+           "proposal can not be executed at status: " + proposal.status.to_string() )
    CHECKC( proposal.expired_at >= now, err::TIME_EXPIRED, "the proposal already expired" )
 
    auto wallet = wallet_t(proposal.wallet_id);
@@ -333,7 +346,8 @@ ACTION execute(const name& issuer, const uint64_t& proposal_id) {
    CHECKC( proposal.recv_votes >= wallet.mulsign_m, err::NO_AUTH, "insufficient votes" )
 
    execute_proposal(wallet, proposal);
-   proposal.executed_at = time_point_sec(now);
+   proposal.updated_at = now;
+   proposal.status = proposal_status::EXECUTED;
    _db.set(proposal);
 }
 
@@ -381,8 +395,6 @@ private:
 
       auto asset_bank = proposal.quantity.contract;
       TRANSFER( asset_bank, proposal.recipient, proposal.quantity.quantity, "mulsign execute" )
-
-      proposal.executed_at = time_point_sec( current_time_point() );
    }
 
 };
