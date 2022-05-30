@@ -178,5 +178,5 @@ uint128_t make128key(uint64_t a, uint64_t b) {
 
 
 uint128_t make64key(uint64_t a, uint64_t b) {
-    return (a << 32) + b;
+    return a + b;
 }
