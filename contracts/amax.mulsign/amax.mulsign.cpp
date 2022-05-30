@@ -198,7 +198,8 @@ public:
     */
    [[eosio::on_notify("*::transfer")]]
    void ontransfer(const name& from, const name& to, const asset& quantity, const string& memo) {
-      CHECKC( from != to, err::ACCOUNT_INVALID,"cannot transfer to self" );
+      if (from == get_self() || to != get_self()) return;
+
       CHECKC( quantity.amount > 0, err::PARAM_ERROR, "non-positive quantity not allowed" )
       CHECKC( memo != "", err::PARAM_ERROR, "empty memo!" )
 
@@ -249,7 +250,7 @@ public:
     * @param to
     * @return * anyone*
     */
-   ACTION propose(const name& issuer, const uint64_t& wallet_id, const extended_asset& ex_asset, const name& recipient, 
+   ACTION propose(const name& issuer, const uint64_t& wallet_id, const extended_asset& ex_asset, const name& recipient,
                   const string& transfer_memo, const string& excerpt, const string& meta_url) {
       require_auth( issuer );
 
