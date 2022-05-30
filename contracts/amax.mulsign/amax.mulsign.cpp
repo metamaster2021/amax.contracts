@@ -126,8 +126,8 @@ public:
       CHECKC( wallet.creator == issuer, err::NO_AUTH, "only creator allowed to add cosinger: " + wallet.creator.to_string() )
       int64_t elapsed =  current_time_point().sec_since_epoch() - wallet.created_at.sec_since_epoch();
       CHECKC( elapsed < seconds_per_day, err::TIME_EXPIRED, "setmulsigner exceeded 24-hour time window" )
-      CHECKC( is_account(mulsigner), err::ACCOUNT_INVALID, "invlid mulsigner: " + mulsigner.to_string() )
-      CHECKC( is_account(mulsigner), err::ACCOUNT_INVALID, "invlid mulsigner: " + mulsigner.to_string() )
+      CHECKC( is_account(mulsigner), err::ACCOUNT_INVALID, "invalid mulsigner: " + mulsigner.to_string() )
+      CHECKC( weight > 0, err::PARAM_ERROR, "weight must be positive")
 
 
       wallet.mulsigners[mulsigner] = weight;
@@ -210,6 +210,7 @@ public:
          uint32_t m = to_uint32(string(memo_params[1]), "m");
          uint32_t n = to_uint32(string(memo_params[2]), "n");
          string title = string(memo_params[3]);
+         CHECKC( m > 0,  err::PARAM_ERROR, "m must be positive");
          CHECKC( m <= n,  err::PARAM_ERROR, "m can not be larger than n");
          CHECKC( title.length() < 1024, err::OVERSIZED, "wallet title too long" )
          CHECKC( bank_contract == SYS_BANK && quantity.symbol == SYS_SYMBOL, err::PARAM_ERROR, "non-sys-symbol" )
@@ -301,7 +302,7 @@ ACTION cancel(const name& issuer, const uint64_t& proposal_id) {
    CHECKC( proposal.proposer == issuer, err::NO_AUTH, "issuer is not proposer" )
    CHECKC( proposal.status == proposal_status::PROPOSED, err::STATUS_ERROR,
            "proposal can not be canceled at status: " + proposal.status.to_string() )
-   CHECKC( proposal.approvers.size() == 0, err::NO_AUTH, "proposal is  approved" )
+   CHECKC( proposal.approvers.size() == 0, err::NO_AUTH, "proposal is approved" )
    CHECKC( proposal.expired_at > now, err::NO_AUTH, "proposal already expired" )
 
    proposal.updated_at = now;
@@ -320,7 +321,7 @@ ACTION approve(const name& issuer, const uint64_t& proposal_id) {
    const auto& now = current_time_point();
    auto proposal = proposal_t(proposal_id);
    CHECKC( _db.get( proposal ), err::RECORD_NOT_FOUND, "proposal not found: " + to_string(proposal_id) )
-   CHECKC( proposal.status == proposal_status::PROPOSED && proposal.status == proposal_status::APPROVED,
+   CHECKC( proposal.status == proposal_status::PROPOSED || proposal.status == proposal_status::APPROVED,
             err::STATUS_ERROR, "proposal can not be approved at status: " + proposal.status.to_string() )
    CHECKC( proposal.expired_at >= current_time_point(), err::TIME_EXPIRED, "the proposal already expired" )
    CHECKC( !proposal.approvers.count(issuer), err::ACTION_REDUNDANT, "issuer (" + issuer.to_string() +") already approved" )
@@ -332,6 +333,7 @@ ACTION approve(const name& issuer, const uint64_t& proposal_id) {
    proposal.approvers.insert(issuer);
    proposal.recv_votes += wallet.mulsigners[issuer];
    proposal.updated_at = now;
+   proposal.status = proposal_status::APPROVED;
 
    _db.set(proposal, issuer);
 }
