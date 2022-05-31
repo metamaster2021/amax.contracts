@@ -46,7 +46,7 @@ public:
    
     ACTION init( const name& admin, const name& maker, const name& checker, const name& fee_collector );
 
-    ACTION reqxintoaddr( const name& account, const name& base_chain, const uint32_t& mulsign_wallet_id);
+    ACTION reqxintoaddr( const name& applicant, const name& applicant_account, const name& base_chain, const uint32_t& mulsign_wallet_id);
 
     ACTION setaddress( const name& applicant, const name& base_chain, const uint32_t& mulsign_wallet_id, const string& xin_to );
 

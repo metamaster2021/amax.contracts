@@ -15,7 +15,7 @@ ACTION xchain::init( const name& admin, const name& maker, const name& checker, 
    _gstate.fee_collector   = fee_collector;
 }
 
-ACTION xchain::reqxintoaddr( const name& applicant, const name& base_chain, const uint32_t& mulsign_wallet_id )
+ACTION xchain::reqxintoaddr( const name& applicant, const name& applicant_account, const name& base_chain, const uint32_t& mulsign_wallet_id )
 {
    require_auth( applicant );
 
@@ -24,12 +24,12 @@ ACTION xchain::reqxintoaddr( const name& applicant, const name& base_chain, cons
 
    account_xchain_address_t::idx_t xchaddrs( _self, _self.value);
    auto acctchain_index 			   = xchaddrs.get_index<"acctchain"_n>();
-   const auto& itr 			         = acctchain_index.find( make128key( applicant.value, make64key( base_chain.value, mulsign_wallet_id ) ) );
+   const auto& itr 			         = acctchain_index.find( make128key( applicant_account.value, make64key( base_chain.value, mulsign_wallet_id ) ) );
    CHECKC( itr == acctchain_index.end(), err::RECORD_EXISTING, "the record already exists" );
    CHECKC( chain_info.chain == chain_info.base_chain, err::PARAM_INCORRECT, "base chain is incorrect" );
    CHECKC( mulsign_wallet_id < numeric_limits<uint32_t>::max() , err::PARAM_INCORRECT, "mulsign_wallet_id overflow" );
 
-   auto acct_xchain_addr            = account_xchain_address_t( applicant, base_chain, mulsign_wallet_id);
+   auto acct_xchain_addr            = account_xchain_address_t( applicant_account, base_chain, mulsign_wallet_id);
    acct_xchain_addr.id              = xchaddrs.available_primary_key();
    acct_xchain_addr.created_at      = time_point_sec( current_time_point() );
    acct_xchain_addr.updated_at      = acct_xchain_addr.created_at;   
