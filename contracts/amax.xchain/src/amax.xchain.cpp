@@ -122,11 +122,11 @@ void xchain::_check_xin_addr( const name& to, const name& chain_name, const stri
    }
    
    account_xchain_address_t::idx_t xchaddrs( _self, _self.value );
-   auto acctchain_index 			   = xchaddrs.get_index<"acctchain"_n>();
-   const auto& itr 			         = acctchain_index.find( make128key( to.value, base_chain.value ) );
+   auto xinto_index 			         = xchaddrs.get_index<"xinto"_n>();
+   const auto& itr 			         = xinto_index.find( hash(xin_to) );
 
-   CHECKC( itr != acctchain_index.end(), err::RECORD_NOT_FOUND, "xchaddrs: the record does not exist, " + to.to_string() + ", " + chain_name.to_string() );
-   CHECKC( itr->xin_to == xin_to, err::ADDRESS_MISMATCH, "incorrect address used: " + itr->xin_to + ", " + xin_to);
+   CHECKC( itr != xinto_index.end(), err::RECORD_NOT_FOUND, "xchaddrs: the record does not exist, " + to.to_string() + ", " + chain_name.to_string() );
+   CHECKC( itr->base_chain == base_chain, err::ADDRESS_MISMATCH, "incorrect base_chain used: " + itr->base_chain.to_string() + ", " + base_chain.to_string());
    if(itr->mulsign_wallet_id > 0)
       mulsign_wallet_id = itr->mulsign_wallet_id;
 }
