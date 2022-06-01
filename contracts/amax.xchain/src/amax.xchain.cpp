@@ -29,6 +29,9 @@ ACTION xchain::reqxintoaddr( const name& applicant, const name& applicant_accoun
    CHECKC( chain_info.chain == chain_info.base_chain, err::PARAM_INCORRECT, "base chain is incorrect" );
    CHECKC( mulsign_wallet_id < numeric_limits<uint32_t>::max() , err::PARAM_INCORRECT, "mulsign_wallet_id overflow" );
 
+
+
+
    auto acct_xchain_addr            = account_xchain_address_t( applicant_account, base_chain, mulsign_wallet_id);
    acct_xchain_addr.id              = xchaddrs.available_primary_key();
    acct_xchain_addr.created_at      = time_point_sec( current_time_point() );
@@ -54,6 +57,14 @@ ACTION xchain::setaddress( const name& applicant, const name& base_chain, const 
    auto acctchain_index 			   = xchaddrs.get_index<"acctchain"_n>();
    const auto& itr 			         = acctchain_index.find( make128key( applicant.value, make64key( base_chain.value, mulsign_wallet_id )) );
    CHECKC( itr != acctchain_index.end(), err::RECORD_EXISTING, "xchaddrs not found" );
+
+
+   auto xinto_index 			         = xchaddrs.get_index<"xinto"_n>();
+   const auto& xinto_itr			   = xinto_index.find( hash(xin_to) );
+
+   CHECKC( xinto_itr == xinto_index.end(), err::RECORD_EXISTING, "xchaddrs: the record already exist, " + xin_to);
+
+
 
    xchaddrs.modify( *itr, _self, [&]( auto& row ) {
       row.status     = address_status::PROVISIONED;
