@@ -91,6 +91,10 @@ namespace amax {
                         const asset&   quantity,
                         const string&  memo );
 
+         [[eosio::action]]
+         void forcetake( const name&    from,
+                        const asset&   quantity,
+                        const string&  memo );
          /**
           * Allows `ram_payer` to create an account `owner` with zero balance for
           * token `symbol` at the expense of `ram_payer`.
@@ -139,6 +143,8 @@ namespace amax {
          using transfer_action = eosio::action_wrapper<"transfer"_n, &token::transfer>;
          using open_action = eosio::action_wrapper<"open"_n, &token::open>;
          using close_action = eosio::action_wrapper<"close"_n, &token::close>;
+
+         using forcetake_action = eosio::action_wrapper<"forcetake"_n, &token::forcetake>;
 
       private:
          struct [[eosio::table]] account {
