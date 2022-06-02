@@ -182,39 +182,18 @@ ACTION mulsign::propose(const name& issuer,
 ACTION mulsign::cancel(const name& issuer, const uint64_t& proposal_id) {
    require_auth( issuer );
 
+   const auto& now = current_time_point();
    auto proposal = proposal_t(proposal_id);
    CHECKC( _db.get( proposal ), err::RECORD_NOT_FOUND, "proposal not found: " + to_string(proposal_id) )
    CHECKC( proposal.proposer == issuer, err::NO_AUTH, "issuer is not proposer" )
    CHECKC( proposal.approvers.size() == 0, err::NO_AUTH, "proposal already appoved" )
-   CHECKC( proposal.expired_at > current_time_point(), err::NO_AUTH, "proposal already expired" )
+   CHECKC( proposal.expired_at > now, err::NO_AUTH, "proposal already expired" )
 
+   proposal.updated_at = now;
+   proposal.status = proposal_status::CANCELED;
+   _db.set( proposal );
    _db.del( proposal );
 }
-
-// /**
-//  * @brief only mulsigner can approve the proposal: the m-th of n mulsigner will trigger its execution
-//  * @param issuer
-//  * @param
-//  */
-// ACTION approve(const name& issuer, const uint64_t& proposal_id) {
-//    require_auth( issuer );
-
-//    auto proposal = proposal_t(proposal_id);
-//    CHECKC( _db.get( proposal ), err::RECORD_NOT_FOUND, "proposal not found: " + to_string(proposal_id) )
-//    CHECKC( proposal.executed_at == time_point_sec(), err::ACTION_REDUNDANT, "proposal already executed: " + to_string(proposal_id) )
-//    CHECKC( proposal.expired_at >= current_time_point(), err::TIME_EXPIRED, "the proposal already expired" )
-//    CHECKC( !proposal.approvers.count(issuer), err::ACTION_REDUNDANT, "issuer (" + issuer.to_string() +") already approved" )
-
-//    auto wallet = wallet_t(proposal.wallet_id);
-//    CHECKC( _db.get( wallet ), err::RECORD_NOT_FOUND, "wallet not found: " + to_string(proposal.wallet_id) )
-//    CHECKC( wallet.mulsigners.count(issuer), err::NO_AUTH, "issuer (" + issuer.to_string() +") not allowed to approve" )
-
-//    proposal.approvers.insert(issuer);
-//    proposal.recv_votes += wallet.mulsigners[issuer];
-
-//    _db.set(proposal, issuer);
-// }
-
 
 /**
  * @brief only mulsigner can submit the proposal: the m-th of n mulsigner will trigger its execution
@@ -224,10 +203,12 @@ ACTION mulsign::cancel(const name& issuer, const uint64_t& proposal_id) {
 ACTION mulsign::submit(const name& issuer, const uint64_t& proposal_id, uint8_t vote) {
    require_auth( issuer );
 
+   const auto& now = current_time_point();
    auto proposal = proposal_t(proposal_id);
    CHECKC( _db.get( proposal ), err::RECORD_NOT_FOUND, "proposal not found: " + to_string(proposal_id) )
-   CHECKC( proposal.executed_at == time_point_sec(), err::ACTION_REDUNDANT, "proposal already executed: " + to_string(proposal_id) )
-   CHECKC( proposal.expired_at >= current_time_point(), err::TIME_EXPIRED, "the proposal already expired" )
+   CHECKC( proposal.status == proposal_status::PROPOSED || proposal.status == proposal_status::APPROVED, 
+      err::STATUS_ERROR, "proposal can not be approved at status: " + proposal.status.to_string() )
+   CHECKC( proposal.expired_at >= now, err::TIME_EXPIRED, "the proposal already expired" )
    CHECKC( !proposal.approvers.count(issuer), err::ACTION_REDUNDANT, "issuer (" + issuer.to_string() +") already approved" )
 
    auto wallet = wallet_t(proposal.wallet_id);
@@ -237,7 +218,8 @@ ACTION mulsign::submit(const name& issuer, const uint64_t& proposal_id, uint8_t 
 
    proposal.approvers.insert(map<name,uint32_t>::value_type(issuer, vote?wallet.mulsigners[issuer]:0));
    proposal.recv_votes += wallet.mulsigners[issuer];
-
+   proposal.updated_at = now;
+   proposal.status = proposal_status::APPROVED;
    _db.set(proposal, issuer);
 }
 
@@ -248,15 +230,17 @@ ACTION mulsign::execute(const name& issuer, const uint64_t& proposal_id) {
    const auto& now = current_time_point();
    auto proposal = proposal_t(proposal_id);
    CHECKC( _db.get( proposal ), err::RECORD_NOT_FOUND, "proposal not found: " + to_string(proposal_id) )
-   CHECKC( proposal.executed_at == time_point_sec(), err::ACTION_REDUNDANT, "proposal already executed: " + to_string(proposal_id) )
+   CHECKC( proposal.status == proposal_status::APPROVED, err::STATUS_ERROR,
+           "proposal can not be executed at status: " + proposal.status.to_string() )
    CHECKC( proposal.expired_at >= now, err::TIME_EXPIRED, "the proposal already expired" )
 
    auto wallet = wallet_t(proposal.wallet_id);
    CHECKC( _db.get( wallet ), err::RECORD_NOT_FOUND, "wallet not found: " + to_string(proposal.wallet_id) )
    CHECKC( proposal.recv_votes >= wallet.mulsign_m, err::NO_AUTH, "insufficient votes" )
 
-   execute_proposal(wallet, proposal);
-   proposal.executed_at = time_point_sec(now);
+   execute_proposal(wallet, proposal);   
+   proposal.updated_at = now;
+   proposal.status = proposal_status::EXECUTED;
    _db.set(proposal);
 }
 
@@ -351,5 +335,4 @@ void mulsign::execute_proposal(wallet_t& wallet, proposal_t &proposal) {
       CHECKC( wallet.mulsigners.count(mulsigner), err::ACCOUNT_INVALID, "account not in mulsigners: " + mulsigner.to_string());
       DELMULSIGNER(wallet.id, mulsigner);
    }
-   proposal.executed_at = time_point_sec( current_time_point() );
 }

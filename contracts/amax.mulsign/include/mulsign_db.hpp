@@ -29,6 +29,13 @@ static constexpr name       SYS_BANK              = "amax.token"_n;
 static constexpr symbol     SYS_SYMBOL            = symbol(symbol_code("AMAX"), 8);
 static constexpr uint64_t   seconds_per_day       = 24 * 3600;
 
+namespace proposal_status {
+    static constexpr name PROPOSED = "proposed"_n;
+    static constexpr name APPROVED = "approved"_n;
+    static constexpr name EXECUTED = "executed"_n;
+    static constexpr name CANCELED = "canceled"_n;
+}
+
 namespace proposal_type {
     static constexpr eosio::name transfer         = "transfer"_n;
     static constexpr eosio::name setmulsignm         = "setmulsignm"_n;
@@ -93,7 +100,8 @@ TBL proposal_t {
     uint32_t            recv_votes;         //received votes, based on mulsigner's weight
     time_point_sec      created_at;         //proposal expired after
     time_point_sec      expired_at;         //proposal expired after
-    time_point_sec      executed_at;        //proposal executed after m/n approval
+    time_point_sec      updated_at;        //proposal executed after m/n approval
+    name                status;
 
     uint64_t            primary_key()const { return id; }
 
@@ -103,7 +111,7 @@ TBL proposal_t {
     uint64_t by_wallet_id()const { return wallet_id; }
 
     EOSLIB_SERIALIZE( proposal_t,   (id)(wallet_id)(proposer)(type)(params)(excerpt)(meta_url)(approvers)
-                                    (recv_votes)(created_at)(expired_at)(executed_at) )
+                                    (recv_votes)(created_at)(expired_at)(updated_at)(status) )
 
     typedef eosio::multi_index
     < "proposals"_n,  proposal_t,

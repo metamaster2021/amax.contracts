@@ -63,6 +63,7 @@ enum class err: uint8_t {
     ACCOUNT_INVALID      = 14,
     FEE_INSUFFICIENT     = 15,
     FIRST_CREATOR        = 16,
+    STATUS_ERROR         = 17
 
 };
 
