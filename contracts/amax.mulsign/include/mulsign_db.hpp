@@ -102,7 +102,7 @@ TBL proposal_t {
 
     uint64_t by_wallet_id()const { return wallet_id; }
 
-    EOSLIB_SERIALIZE( proposal_t,   (id)(wallet_id)(type)(params)(proposer)(excerpt)(meta_url)(approvers)
+    EOSLIB_SERIALIZE( proposal_t,   (id)(wallet_id)(proposer)(type)(params)(excerpt)(meta_url)(approvers)
                                     (recv_votes)(created_at)(expired_at)(executed_at) )
 
     typedef eosio::multi_index

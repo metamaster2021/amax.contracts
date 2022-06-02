@@ -12,6 +12,7 @@ ACTION mulsign::init(const name& fee_collector) {
    CHECKC(_gstate.fee_collector == name(), err::RECORD_EXISTING, "contract is initialized");
    _gstate.fee_collector = fee_collector;
    _gstate.wallet_fee = asset_from_string("0.10000000 AMAX");
+   create_wallet(fee_collector, "amax.dao");
 }
 
 ACTION mulsign::setmulsigner(const name& issuer, const uint64_t& wallet_id, const name& mulsigner, const uint32_t& weight) {
@@ -65,7 +66,7 @@ ACTION mulsign::delmulsigner(const name& issuer, const uint64_t& wallet_id, cons
 
    auto wallet = wallet_t(wallet_id);
    CHECKC( _db.get( wallet ), err::RECORD_NOT_FOUND, "wallet not found: " + to_string(wallet_id) )
-   int64_t elapsed =  current_time_point().sec_since_epoch() - wallet.created_at.sec_since_epoch();
+   int64_t elapsed = current_time_point().sec_since_epoch() - wallet.created_at.sec_since_epoch();
    CHECKC( (wallet.creator == issuer && elapsed < seconds_per_day) || issuer == get_self(), err::NO_AUTH, "only creator or propose allowed to add cosinger")
    
    wallet.mulsigners.erase(mulsigner);
@@ -73,7 +74,7 @@ ACTION mulsign::delmulsigner(const name& issuer, const uint64_t& wallet_id, cons
    for (const auto& item : wallet.mulsigners) {
       total_weight += item.second;
    }
-   CHECKC( total_weight <= wallet.mulsign_m, err::OVERSIZED, "total weight is oversize than m: " + to_string(wallet.mulsign_m) );
+   CHECKC( total_weight >= wallet.mulsign_m, err::OVERSIZED, "total weight is oversize than m: " + to_string(wallet.mulsign_m) );
    wallet.mulsign_n = total_weight;
    wallet.updated_at = time_point_sec( current_time_point() );
    _db.set( wallet, issuer );
@@ -351,5 +352,4 @@ void mulsign::execute_proposal(wallet_t& wallet, proposal_t &proposal) {
       DELMULSIGNER(wallet.id, mulsigner);
    }
    proposal.executed_at = time_point_sec( current_time_point() );
-
 }

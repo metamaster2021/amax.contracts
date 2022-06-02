@@ -130,7 +130,7 @@ public:
      * @param from
      * @param to
      * @param quantity
-     * @param memo: 1) create:$m:$n:$title; 2) lock:$wallet_id
+     * @param memo: 1) create:$title; 2) lock:$wallet_id
      */
     [[eosio::on_notify("*::transfer")]]
     void ontransfer(const name& from, const name& to, const asset& quantity, const string& memo) ;
@@ -174,7 +174,8 @@ public:
      /**
       * @brief only mulsigner can submit the proposal: the m-th of n mulsigner will trigger its execution
       * @param issuer
-      * @param
+      * @param proposal_id
+      * @param vote 0, against; 1, approve
       */
     ACTION submit(const name& issuer, const uint64_t& proposal_id, uint8_t vote);
 
