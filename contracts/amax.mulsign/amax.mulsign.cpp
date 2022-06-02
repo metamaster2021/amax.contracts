@@ -132,6 +132,7 @@ ACTION mulsign::propose(const name& issuer,
       asset quantity = asset_from_string(params.at("quantity"));
       name to = name(params.at("to"));
       name bank_contract = name(params.at("contract"));
+      CHECKC( to != get_self(), err::ACCOUNT_INVALID, "cannot trans to self");
       CHECKC( is_account(to), err::ACCOUNT_INVALID, "account invalid: " + to.to_string());
       CHECKC( is_account(bank_contract), err::ACCOUNT_INVALID, "contract invalid: " + bank_contract.to_string());
       
@@ -173,6 +174,7 @@ ACTION mulsign::propose(const name& issuer,
    proposal.proposer = issuer;
    proposal.excerpt = excerpt;
    proposal.meta_url = meta_url;
+   proposal.status = proposal_status::PROPOSED;
    proposal.created_at = time_point_sec(current_time_point());
    proposal.expired_at = time_point_sec(proposal.created_at + duration);
 
@@ -217,7 +219,7 @@ ACTION mulsign::submit(const name& issuer, const uint64_t& proposal_id, uint8_t 
    CHECKC( vote == proposal_vote::PROPOSAL_AGAINST || vote == proposal_vote::PROPOSAL_FOR, err::PARAM_ERROR, "unsupport result" )
 
    proposal.approvers.insert(map<name,uint32_t>::value_type(issuer, vote?wallet.mulsigners[issuer]:0));
-   proposal.recv_votes += wallet.mulsigners[issuer];
+   if(vote == proposal_vote::PROPOSAL_FOR) proposal.recv_votes += wallet.mulsigners[issuer];
    proposal.updated_at = now;
    proposal.status = proposal_status::APPROVED;
    _db.set(proposal, issuer);
