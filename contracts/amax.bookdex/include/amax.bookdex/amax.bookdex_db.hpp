@@ -72,13 +72,13 @@ TBL offer_t {
     EOSLIB_SERIALIZE( offer_t, (id)(price)(amount)(maker)(created_at)(updated_at) )
 };
 
-//below is meant for buyers
+//below is meant for buyers to match with
 typedef eosio::multi_index
 < "baseoffers"_n,  offer_t,
         indexed_by<"priceidx"_n,  const_mem_fun<offer_t, uint64_t, &offer_t::by_small_price_first> >
 > baseoffer_idx;
 
-//below is meant for sellers
+//below is meant for sellers to match with
 typedef eosio::multi_index
 < "quoteoffers"_n,  offer_t,
         indexed_by<"priceidx"_n,  const_mem_fun<offer_t, uint64_t, &offer_t::by_large_price_first> >
