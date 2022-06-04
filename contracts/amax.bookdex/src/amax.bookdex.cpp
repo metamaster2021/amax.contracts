@@ -9,12 +9,6 @@ using namespace std;
 #define CHECKC(exp, code, msg) \
    { if (!(exp)) eosio::check(false, string("$$$") + to_string((int)code) + string("$$$ ") + msg); }
 
-// transfer out from contract self
-#define TRANSFER(token_contract, to, quantity, memo) token::transfer_action(                                \
-                                                             token_contract, {{get_self(), "active"_n}}) \
-                                                             .send(                                             \
-                                                                 get_self(), to, quantity, memo);
-
    /**
     * @brief create wallet or lock amount into mulsign wallet
     *
@@ -93,14 +87,17 @@ using namespace std;
 
    }
 
+   //TODO add cancel order
+
    // limit order buy
    //TODO add max step conrol
    void bookdex::process_limit_buy( const trade_pair_t& trade_pair, baseoffer_idx& offers, 
             const price_s& bid_price, const name& to, asset& quantity ){
 
-      auto bank = trade_pair.base_symb.get_contract();
-      auto bought = asset(0, trade_pair.base_symb.get_symbol()); 
-      
+      auto bank   = trade_pair.base_symb.get_contract();
+      auto earned = asset(0, trade_pair.quote_symb.get_symbol());
+      auto bought = asset(0, trade_pair.base_symb.get_symbol());
+
       auto idx = offers.get_index<"priceidx"_n>();
       for (auto itr = idx.begin(); itr != idx.end(); itr++) {
          auto price_diff = itr->price.amount - bid_price.amount;
@@ -111,23 +108,33 @@ using namespace std;
          if (offer_cost >= quantity.amount) {
             auto offer_buy_amount = quantity.amount / itr->price.amount;
             bought.amount += offer_buy_amount;
-            offers.modify(itr, same_payer, [&]( auto& row ) {
+
+            idx.modify(itr, same_payer, [&]( auto& row ) {
                row.amount -= offer_buy_amount;
+               row.updated_at = current_time_point();
             });
             
-            TRANSFER( bank, to, bought, "bookdex buy:" + to_string(itr->id) )
+            //send to buyer for base tokens
+            TRANSFER( bank, to, bought, "dex buy:" + to_string(itr->id) )
+
+            //send to seller for quote tokens
+            earned.amount = quantity.amount;
+            TRANSFER( bank, itr->maker, earned, "dex sell:" + to_string(itr->id) )
             return;
 
-         } else {// will buy the current offer wholely
-            bought.amount += itr->amount;
+         } else {// will buy the current offer wholely and continue
+            bought.amount += itr->amount / itr->price.amount;
             quantity.amount -= offer_cost;
 
-            offers.erase( itr );
+            idx.erase( itr );
+
+            earned.amount = itr->amount;
+            TRANSFER( bank, itr->maker, earned, "dex earn:" + to_string(itr->id) )
          }
       }
 
       if (bought.amount > 0)
-         TRANSFER( bank, to, bought, "bookdex buy" )
+         TRANSFER( bank, to, bought, "dex buy" )
 
       if (quantity.amount > 0) { //unsatisified remaining quantity will be placed as limit buy order
          auto quoteoffers = quoteoffer_idx( _self, trade_pair.primary_key() );
@@ -145,13 +152,14 @@ using namespace std;
    void bookdex::process_market_buy( const trade_pair_t& trade_pair, baseoffer_idx& offers, 
             const float& slippage, const name& to, asset& quantity ){
 
-      auto bank = trade_pair.base_symb.get_contract();
-      auto bought = asset(0, trade_pair.base_symb.get_symbol() );
+      auto bank   = trade_pair.base_symb.get_contract();
+      auto earned = asset(0, trade_pair.quote_symb.get_symbol());
+      auto bought = asset(0, trade_pair.base_symb.get_symbol());
       
-      auto itr = offers.begin();
+      auto idx = offers.get_index<"priceidx"_n>();
+      auto itr = idx.begin();
       auto init_price = itr->price.amount;
 
-      auto idx = offers.get_index<"priceidx"_n>();
       for (; itr != idx.end(); itr++) {
          auto price_diff = itr->price.amount - init_price;
          if (price_diff > 0 && price_diff * 100 / init_price > slippage )
@@ -161,18 +169,28 @@ using namespace std;
          if (offer_cost >= quantity.amount) {
             auto offer_buy_amount = quantity.amount / itr->price.amount;
             bought.amount += offer_buy_amount;
-            offers.modify(itr, same_payer, [&]( auto& row ) {
+
+            idx.modify(itr, same_payer, [&]( auto& row ) {
                row.amount -= offer_buy_amount;
             });
             
-            TRANSFER( bank, to, bought, "bookdex:" + to_string(itr->id) )
+            //send to buyer for base tokens
+            TRANSFER( bank, to, bought, "dex buy:" + to_string(itr->id) )
+
+            //send to seller for quote tokens
+            earned.amount = quantity.amount;
+            TRANSFER( bank, itr->maker, earned, "dex sell:" + to_string(itr->id) )
             return;
 
          } else {// will buy the current offer wholely
             bought.amount += itr->amount;
             quantity.amount -= offer_cost;
 
-            offers.erase( itr );
+            //send to seller for quote tokens
+            earned.amount = itr->amount;
+            TRANSFER( bank, itr->maker, earned, "dex earn:" + to_string(itr->id) )
+
+            idx.erase( itr );
          }
       }
 
@@ -186,8 +204,9 @@ using namespace std;
    void bookdex::process_limit_sell( const trade_pair_t& trade_pair, quoteoffer_idx& offers, 
             const price_s& ask_price, const name& to, asset& quantity ){
     
-      auto bank = trade_pair.quote_symb.get_contract();
-      auto earned = asset( 0, symbol(trade_pair.quote_symb.get_symbol()) );
+      auto bank   = trade_pair.quote_symb.get_contract();
+      auto earned = asset(0, trade_pair.quote_symb.get_symbol());
+      auto bought = asset(0, trade_pair.base_symb.get_symbol());
       
       auto idx = offers.get_index<"priceidx"_n>();
       for (auto itr = idx.begin(); itr != idx.end(); itr++) {
@@ -198,18 +217,27 @@ using namespace std;
          auto sell_amount = quantity.amount * itr->price.amount;
          if (offer_amount >= sell_amount) {
             earned.amount += sell_amount;
-            offers.modify(itr, same_payer, [&]( auto& row ) {
+            idx.modify(itr, same_payer, [&]( auto& row ) {
                row.amount -= sell_amount;
             });
             
+            //send to seller for quote tokens
             TRANSFER( bank, to, earned, "bookdex market buy:" + to_string(itr->id) )
+
+            //send to buyer for base tokens
+            bought.amount = quantity.amount;
+            TRANSFER( bank, to, bought, "dex sell:" + to_string(itr->id) )
             return;
 
          } else {// will buy the current offer wholely
             earned.amount += itr->amount;
             quantity.amount -= offer_amount;
 
-            offers.erase( itr );
+            //send to buyer for base tokens
+            bought.amount = itr->amount;
+            TRANSFER( bank, itr->maker, bought, "dex buy:" + to_string(itr->id) )
+
+            idx.erase( itr );
          }
       }
 
@@ -232,13 +260,13 @@ using namespace std;
    void bookdex::process_market_sell( const trade_pair_t& trade_pair, quoteoffer_idx& offers, 
             const float& slippage, const name& to, asset& quantity ){
 
-      auto bank = trade_pair.base_symb.get_contract();
+      auto bank   = trade_pair.base_symb.get_contract();
       auto earned = asset( 0, trade_pair.quote_symb.get_symbol() );
+      auto bought = asset( 0, trade_pair.base_symb.get_symbol() );
       
-      auto itr = offers.begin();
-      auto init_price = itr->price.amount;
-
       auto idx = offers.get_index<"priceidx"_n>();
+      auto itr = idx.begin();
+      auto init_price = itr->price.amount;
       for (; itr != idx.end(); itr++) {
          auto price_diff = init_price - itr->price.amount;
          if( price_diff > 0 && price_diff * 100 / init_price > slippage )
@@ -249,18 +277,28 @@ using namespace std;
          if (offer_amount >= sell_amount) {
             earned.amount += sell_amount;
 
-            offers.modify(itr, same_payer, [&]( auto& row ) {
+            idx.modify(itr, same_payer, [&]( auto& row ) {
                row.amount -= sell_amount;
             });
             
+            //send to seller for quote tokens
             TRANSFER( bank, to, earned, "bookdex market sell:" + to_string(itr->id) )
+
+            //send to buyer for base tokens
+            bought.amount = quantity.amount;
+            TRANSFER( bank, itr->maker, bought, "dex buy:" + to_string(itr->id) )
+
             return;
 
          } else {// will buy the current offer wholely
             earned.amount += itr->amount;
             quantity.amount -= offer_amount;
 
-            offers.erase( itr );
+            //send to buyer for base tokens
+            bought.amount = itr->amount;
+            TRANSFER( bank, itr->maker, bought, "dex buy:" + to_string(itr->id) )
+
+            idx.erase( itr );
          }
       }
 

@@ -42,6 +42,8 @@ struct price_s {
 
         return name(sym_pair);
     }
+
+    EOSLIB_SERIALIZE( price_s, (base_symb)(quote_symb)(amount) )
 };
 
 //only support unquie of pair of base & quote symbol, regardless of their issuance token contract
@@ -64,6 +66,9 @@ TBL offer_t {
     name        maker;                //order maker
     time_point  created_at;
     time_point  updated_at;
+
+    offer_t() {}
+    offer_t(const uint64_t& i):id(i) {}
 
     uint64_t primary_key()const { return id; }
     uint64_t by_small_price_first()const { return price.amount; }
