@@ -83,8 +83,14 @@ using namespace std;
       }
    }
 
-   void bookdex::addprice() {
-
+   void bookdex::addtradepair(const extended_symbol& base_symb, const extended_symbol& quote_symb, const float& maker_fee_rate, const float& taker_fee_rate) {
+      auto tradepair = trade_pair_t::idx_t(_self, _self.value);
+      tradepair.emplace(_self, [&]( auto& row ){
+            row.base_symb      = base_symb;
+            row.quote_symb     = quote_symb; 
+            row.maker_fee_rate = maker_fee_rate;
+            row.taker_fee_rate = taker_fee_rate;
+      });
    }
 
    //TODO add cancel order

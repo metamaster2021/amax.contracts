@@ -45,14 +45,25 @@ enum class err: uint8_t {
  * Similarly, the `stats` multi-index table, holds instances of `currency_stats` objects for each row, which contains information about current supply, maximum supply, and the creator account for a symbol token. The `stats` table is scoped to the token symbol.  Therefore, when one queries the `stats` table for a token symbol the result is one single entry/row corresponding to the queried symbol token if it was previously created, or nothing, otherwise.
  */
 class [[eosio::contract("amax.bookdex")]] bookdex : public contract {
+   private:
+      global_singleton    _global;
+      global_t            _gstate;
+
    public:
-      using contract::contract;
+   using contract::contract;
+   
+   bookdex(name receiver, name code, datastream<const char*> ds): contract(receiver, code, ds), 
+      _global(get_self(), get_self().value)
+    {
+        _gstate = _global.exists() ? _global.get() : global_t{};
+    }
 
    [[eosio::on_notify("*::transfer")]]
    void ontransfer(const name& from, const name& to, const asset& quantity, const string& memo);
  
-   ACTION addprice();
-
+   ACTION addtradepair(const extended_symbol& base_symb, const extended_symbol& quote_symb, 
+                       const float& maker_fee_rate, const float& taker_fee_rate);
+   
    private:
    void process_limit_buy(  const trade_pair_t& trade_pair, baseoffer_idx& offers, 
                             const price_s& bid_price, const name& to, asset& quantity );

@@ -23,11 +23,20 @@ using namespace eosio;
 #define HASH256(str) sha256(const_cast<char*>(str.c_str()), str.size())
 #define TBL struct [[eosio::table, eosio::contract("amax.bookdex")]]
 
+#define GLOBAL_TBL(name) struct [[eosio::table(name), eosio::contract("amax.custody")]]
+
+GLOBAL_TBL("global") global_t {
+    name fee_receiver;
+
+    EOSLIB_SERIALIZE( global_t, (fee_receiver) )
+};
+typedef eosio::singleton< "global"_n, global_t > global_singleton;
+
 // price for ARC20 tokens
 struct price_s {
-    string base_symb;
-    string quote_symb;
-    float amount;                //base = amount * quote
+    string base_symb;            // E.g. MBTC
+    string quote_symb;           // E.g. CNYD
+    float amount;                // base = amount * quote
 
     price_s() {}
     price_s(const string& bs, const string& qs, const uint64_t& am): base_symb(bs), quote_symb(qs), amount(am) {}
@@ -50,16 +59,29 @@ struct price_s {
 TBL trade_pair_t {
     extended_symbol base_symb;      //E.g. USDT
     extended_symbol quote_symb;     //E.g. CNYD
-    float           current_price;
+    float           min_base_order_amount;
+    float           min_quote_order_amount;
+    // float           deal_price;
+    float           maker_fee_rate;
+    float           taker_fee_rate;
 
     trade_pair_t() {}
+    // trade_pairt_t(const extended_symbol& bs, const extended_symbol& qs): base_symb(bs), quote_symb(qs) {}
 
     uint64_t primary_key()const { return price_s::sym_pair(base_symb.get_symbol().code().to_string(), quote_symb.get_symbol().code().to_string()).value; }
 
     typedef eosio::multi_index< "tradepairs"_n,  trade_pair_t> idx_t;
 
-    EOSLIB_SERIALIZE( trade_pair_t, (base_symb)(quote_symb)(current_price) )
+    EOSLIB_SERIALIZE( trade_pair_t, (base_symb)(quote_symb)(min_base_order_amount)(min_quote_order_amount)
+                                    /**(deal_price)**/(maker_fee_rate)(taker_fee_rate) )
 };
+
+// TBL marketmaker_fee_rate_t {
+//     name account;
+//     float svcfee_rate;
+//     int64_t order_amount_from;
+//     int64_t order_amount_to;
+// };
 
 //scope sym_pair
 TBL offer_t {
