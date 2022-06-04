@@ -50,12 +50,15 @@ struct price_s {
 TBL trade_pair_t {
     extended_symbol base_symb;      //E.g. USDT
     extended_symbol quote_symb;     //E.g. CNYD
+    float           current_price;
 
     trade_pair_t() {}
 
     uint64_t primary_key()const { return price_s::sym_pair(base_symb.get_symbol().code().to_string(), quote_symb.get_symbol().code().to_string()).value; }
 
     typedef eosio::multi_index< "tradepairs"_n,  trade_pair_t> idx_t;
+
+    EOSLIB_SERIALIZE( trade_pair_t, (base_symb)(quote_symb)(current_price) )
 };
 
 //scope sym_pair
