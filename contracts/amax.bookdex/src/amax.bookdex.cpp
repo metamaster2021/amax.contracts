@@ -17,10 +17,10 @@ using namespace std;
     * @param quantity
     * @param memo: format: b|q:$targetToken:$targetPrice:$slippage
     *              Examples:
-    *                   b:AMAX:0:10.5     - to buy:   market price order, 10.5% slippage
-    *                   q:CNYD:200.88     - to sell:  limit price order 
-    *                   q:MUSDT:0:12.55   - to sell:  market price order, 12.55% slippage
-    *                   q:MUSDT:100       - to sell:  limit price order
+    *                   b:AMAX:0:10.5     - to buy:   market price buy order, 10.5% slippage
+    *                   q:CNYD:200.88     - to sell:  limit  price sell order 
+    *                   q:MUSDT:0:12.55   - to sell:  market price sell order, 12.55% slippage
+    *                   q:MUSDT:100       - to sell:  limit price sell order
     */
    [[eosio::on_notify("*::transfer")]]
    void bookdex::ontransfer(const name& from, const name& to, const asset& quantity, const string& memo) {
