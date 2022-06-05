@@ -10,15 +10,15 @@ namespace amax {
    using std::string;
 
    /**
-    * The `amax.amtoken` is a  ARC20 token contract for mirroed assets from other public blockchains like BTC, Ethereum
+    * The `amax.mtoken` is a  ARC20 token contract for mirroed assets from other public blockchains like BTC, Ethereum
     *
-    * The `amax.amtoken` contract class also implements two useful public static methods: `get_supply` and `get_balance`. The first allows one to check the total supply of a specified token, created by an account and the second allows one to check the balance of a token for a specified account (the token creator account has to be specified as well).
+    * The `amax.mtoken` contract class also implements two useful public static methods: `get_supply` and `get_balance`. The first allows one to check the total supply of a specified token, created by an account and the second allows one to check the balance of a token for a specified account (the token creator account has to be specified as well).
     *
-    * The `amax.amtoken` contract manages the set of tokens, accounts and their corresponding balances, by using two internal multi-index structures: the `accounts` and `stats`. The `accounts` multi-index table holds, for each row, instances of `account` object and the `account` object holds information about the balance of one token. The `accounts` table is scoped to an eosio account, and it keeps the rows indexed based on the token's symbol.  This means that when one queries the `accounts` multi-index table for an account name the result is all the tokens that account holds at the moment.
+    * The `amax.mtoken` contract manages the set of tokens, accounts and their corresponding balances, by using two internal multi-index structures: the `accounts` and `stats`. The `accounts` multi-index table holds, for each row, instances of `account` object and the `account` object holds information about the balance of one token. The `accounts` table is scoped to an eosio account, and it keeps the rows indexed based on the token's symbol.  This means that when one queries the `accounts` multi-index table for an account name the result is all the tokens that account holds at the moment.
     *
     * Similarly, the `stats` multi-index table, holds instances of `currency_stats` objects for each row, which contains information about current supply, maximum supply, and the creator account for a symbol token. The `stats` table is scoped to the token symbol.  Therefore, when one queries the `stats` table for a token symbol the result is one single entry/row corresponding to the queried symbol token if it was previously created, or nothing, otherwise.
     */
-   class [[eosio::contract("amax.amtoken")]] token : public contract {
+   class [[eosio::contract("amax.mtoken")]] mtoken : public contract {
       public:
          using contract::contract;
 
@@ -111,12 +111,12 @@ namespace amax {
             return ac.balance;
          }
 
-         using create_action = eosio::action_wrapper<"create"_n, &token::create>;
-         using issue_action = eosio::action_wrapper<"issue"_n, &token::issue>;
-         using retire_action = eosio::action_wrapper<"retire"_n, &token::retire>;
-         using transfer_action = eosio::action_wrapper<"transfer"_n, &token::transfer>;
-         using open_action = eosio::action_wrapper<"open"_n, &token::open>;
-         using close_action = eosio::action_wrapper<"close"_n, &token::close>;
+         using create_action = eosio::action_wrapper<"create"_n, &mtoken::create>;
+         using issue_action = eosio::action_wrapper<"issue"_n, &mtoken::issue>;
+         using retire_action = eosio::action_wrapper<"retire"_n, &mtoken::retire>;
+         using transfer_action = eosio::action_wrapper<"transfer"_n, &mtoken::transfer>;
+         using open_action = eosio::action_wrapper<"open"_n, &mtoken::open>;
+         using close_action = eosio::action_wrapper<"close"_n, &mtoken::close>;
       private:
          struct [[eosio::table]] account {
             asset    balance;

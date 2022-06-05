@@ -15,9 +15,10 @@ void ntoken::create( const name& issuer, const int64_t& maximum_supply, const ui
    auto nstats = nstats_t::idx_t( _self, _self.value );
    auto idx = nstats.get_index<"tokenuriidx"_n>();
    auto token_uri_hash = HASH256(token_uri);
-   auto lower_itr = idx.lower_bound( token_uri_hash );
-   auto upper_itr = idx.upper_bound( token_uri_hash );
-   check( lower_itr == idx.end() || lower_itr == upper_itr, "token with token_uri already exists" );
+   // auto lower_itr = idx.lower_bound( token_uri_hash );
+   // auto upper_itr = idx.upper_bound( token_uri_hash );
+   // check( lower_itr == idx.end() || lower_itr == upper_itr, "token with token_uri already exists" );
+   check( idx.find(token_uri_hash) == idx.end(), "token with token_uri already exists" );
 
    auto id = nstats.available_primary_key();
    if (id == 0) id = 1;

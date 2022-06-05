@@ -1,8 +1,8 @@
-#include <amax.amtoken/amax.amtoken.hpp>
+#include <amax.mtoken/amax.mtoken.hpp>
 
 namespace amax {
 
-void token::create( const name&   issuer,
+void mtoken::create( const name&   issuer,
                     const asset&  maximum_supply )
 {
     require_auth( get_self() );
@@ -25,7 +25,7 @@ void token::create( const name&   issuer,
 }
 
 
-void token::issue( const name& to, const asset& quantity, const string& memo )
+void mtoken::issue( const name& to, const asset& quantity, const string& memo )
 {
     auto sym = quantity.symbol;
     check( sym.is_valid(), "invalid symbol name" );
@@ -51,7 +51,7 @@ void token::issue( const name& to, const asset& quantity, const string& memo )
     add_balance( st.issuer, quantity, st.issuer );
 }
 
-void token::retire( const asset& quantity, const string& memo )
+void mtoken::retire( const asset& quantity, const string& memo )
 {
     auto sym = quantity.symbol;
     check( sym.is_valid(), "invalid symbol name" );
@@ -75,7 +75,7 @@ void token::retire( const asset& quantity, const string& memo )
     sub_balance( st.issuer, quantity );
 }
 
-void token::transfer( const name&    from,
+void mtoken::transfer( const name&    from,
                       const name&    to,
                       const asset&   quantity,
                       const string&  memo )
@@ -101,7 +101,7 @@ void token::transfer( const name&    from,
     add_balance( to, quantity, payer );
 }
 
-void token::sub_balance( const name& owner, const asset& value ) {
+void mtoken::sub_balance( const name& owner, const asset& value ) {
    accounts from_acnts( get_self(), owner.value );
 
    const auto& from = from_acnts.get( value.symbol.code().raw(), "no balance object found" );
@@ -112,7 +112,7 @@ void token::sub_balance( const name& owner, const asset& value ) {
       });
 }
 
-void token::add_balance( const name& owner, const asset& value, const name& ram_payer )
+void mtoken::add_balance( const name& owner, const asset& value, const name& ram_payer )
 {
    accounts to_acnts( get_self(), owner.value );
    auto to = to_acnts.find( value.symbol.code().raw() );
@@ -127,7 +127,7 @@ void token::add_balance( const name& owner, const asset& value, const name& ram_
    }
 }
 
-void token::open( const name& owner, const symbol& symbol, const name& ram_payer )
+void mtoken::open( const name& owner, const symbol& symbol, const name& ram_payer )
 {
    require_auth( ram_payer );
 
@@ -147,7 +147,7 @@ void token::open( const name& owner, const symbol& symbol, const name& ram_payer
    }
 }
 
-void token::close( const name& owner, const symbol& symbol )
+void mtoken::close( const name& owner, const symbol& symbol )
 {
    require_auth( owner );
    accounts acnts( get_self(), owner.value );
