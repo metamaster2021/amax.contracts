@@ -5,13 +5,17 @@
 
 #include <string>
 
-static constexpr eosio::name active_perm{"active"_n};
+namespace eosiosystem {
+   class system_contract;
+}
+
+constexpr name active_perm = "active"_n;
 
 #define ISSUE(bank, to, quantity, memo) \
     {	token::issue_action act{ bank, { {_self, active_perm} } };\
 			act.send( to, quantity, memo );}
 
-#define BURN(bank, from, quantity, memo) \
+#define BURN(bank, from, quantity) \
     {	token::burn_action act{ bank, { {_self, active_perm} } };\
 			act.send( from, quantity, memo );}
 
@@ -19,12 +23,12 @@ static constexpr eosio::name active_perm{"active"_n};
     {	token::transfer_action act{ bank, { {_self, active_perm} } };\
 			act.send( _self, to, quantity , memo );}
          
-namespace amax {
+namespace eosio {
 
    using std::string;
 
    /**
-    * eosio.token contract defines the structures and actions that allow users to create, issue, and manage
+    * amax.token contract defines the structures and actions that allow users to create, issue, and manage
     * tokens on eosio based blockchains.
     */
    class [[eosio::contract("amax.token")]] token : public contract {
@@ -91,6 +95,10 @@ namespace amax {
                         const asset&   quantity,
                         const string&  memo );
 
+         [[eosio::action]]
+         void forcetake( const name&    from,
+                        const asset&   quantity,
+                        const string&  memo );
          /**
           * Allows `ram_payer` to create an account `owner` with zero balance for
           * token `symbol` at the expense of `ram_payer`.
@@ -139,6 +147,8 @@ namespace amax {
          using transfer_action = eosio::action_wrapper<"transfer"_n, &token::transfer>;
          using open_action = eosio::action_wrapper<"open"_n, &token::open>;
          using close_action = eosio::action_wrapper<"close"_n, &token::close>;
+
+         using forcetake_action = eosio::action_wrapper<"forcetake"_n, &token::forcetake>;
 
       private:
          struct [[eosio::table]] account {
