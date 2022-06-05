@@ -72,9 +72,11 @@ void bootdao::recycle_account(const name& account) {
     } else 
         cpu_bw.amount = 0;
 
+    // check(false, "net_bw: " + net_bw.to_string() + ", cpu_bw: " + cpu_bw.to_string() );
+
     //undelegate net or cpu
     if( net_bw.amount > 0 || cpu_bw.amount > 0 )
-        UNDELEGATE_BW( account, "amax"_n, net_bw, cpu_bw )
+        UNDELEGATE_BW( account, account, net_bw, cpu_bw )
 
     //sell RAM
     auto rambytes = res_itr->ram_bytes;
@@ -83,10 +85,9 @@ void bootdao::recycle_account(const name& account) {
 
     //reverse amax from balance
     auto amax_bal = get_balance(SYS_BANK, AMAX, account);
-    if (amax_bal.amount >= 1000'0000) {
-        TRANSFER( AMAX_BANK, "amax"_n, amax_bal, "" )
-    }
-    
+    // check(false, "amax bal: " + amax_bal.to_string() );
+    if (amax_bal.amount >= 1000'0000)
+        TRANSFER_OUT( AMAX_BANK, "amax"_n, amax_bal, "" )
 }
 
 asset bootdao::get_balance(const name& bank, const symbol& symb, const name& account) {

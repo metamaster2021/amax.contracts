@@ -20,8 +20,8 @@ set(VOTING_ICON_URI   "voting.png#db28cd3db6e62d4509af3644ce7d377329482a14bb4bfa
 
 # add_subdirectory(amax.bios)
 # add_subdirectory(amax.msig)
-# add_subdirectory(amax.system)
-# add_subdirectory(amax.token)
+add_subdirectory(amax.system)
+add_subdirectory(amax.token)
 # add_subdirectory(amax.wrap)
 # add_subdirectory(amax.xtoken)
 # add_subdirectory(amax.custody)
