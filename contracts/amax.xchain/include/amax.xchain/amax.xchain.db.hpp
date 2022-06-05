@@ -123,7 +123,8 @@ TBL account_xchain_address_t {
 
     typedef eosio::multi_index<"xinaddrmap"_n, account_xchain_address_t,
         indexed_by<"updatedat"_n, const_mem_fun<account_xchain_address_t, uint64_t, &account_xchain_address_t::by_update_time> >,
-        indexed_by<"acctchain"_n, const_mem_fun<account_xchain_address_t, uint128_t, &account_xchain_address_t::by_accout_base_chain> >
+        indexed_by<"acctchain"_n, const_mem_fun<account_xchain_address_t, uint128_t, &account_xchain_address_t::by_accout_base_chain> >,
+        indexed_by<"xinto"_n, const_mem_fun<account_xchain_address_t, checksum256, &account_xchain_address_t::by_xin_to> >
     > idx_t;
 
     EOSLIB_SERIALIZE( account_xchain_address_t, (id)(account)(base_chain)(mulsign_wallet_id)(xin_to)(status)(created_at)(updated_at) )
