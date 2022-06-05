@@ -18,6 +18,9 @@ public:
         _gstate = _global.exists() ? _global.get() : global_t{};
     }
 
+    ~bootdao() { _global.set( _gstate, get_self() ); }
+
+public:
     ACTION init();
     ACTION recycle(const vector<name>& accounts);
 
@@ -30,5 +33,5 @@ private:
       uint64_t primary_key() const {return balance.symbol.code().raw();}
    };
    typedef eosio::multi_index< name("accounts"), accounts > tbl_accounts;
-   
+
 }; //contract bootdao

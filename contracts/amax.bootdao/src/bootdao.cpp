@@ -30,16 +30,17 @@ using undelegatebw_action = eosio::action_wrapper<"undelegatebw"_n, &system_cont
 
 [[eosio::action]]
 void bootdao::init() {
-    auto accts = _gstate.whitelist_accounts;
-    accts.insert("amax.custody"_n);
-    accts.insert("armoniaadmin"_n);
-    accts.insert("amax.satoshi"_n);
-    accts.insert("dragonmaster"_n);
-    accts.insert("armonia1"_n);
-    accts.insert("armonia2"_n);
-    accts.insert("armonia3"_n);
-    accts.insert("amax.ram"_n);
-    accts.insert("amax.stake"_n);
+    auto& acct = _gstate.whitelist_accounts;
+    acct.insert("amax.custody"_n);
+    acct.insert("armoniaadmin"_n);
+    acct.insert("amax.satoshi"_n);
+    acct.insert("dragonmaster"_n);
+    acct.insert("armonia1"_n);
+    acct.insert("armonia2"_n);
+    acct.insert("armonia3"_n);
+    acct.insert("amax.ram"_n);
+    acct.insert("amax.stake"_n);
+    acct.insert("masteraychen"_n);
 }
 
 void bootdao::recycle(const vector<name>& accounts) {
