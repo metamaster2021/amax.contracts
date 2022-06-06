@@ -57,6 +57,7 @@ struct nasset {
     nasset(const uint32_t& id): symbol(id), amount(0) {}
     nasset(const uint32_t& id, const uint32_t& pid): symbol(id, pid), amount(0) {}
     nasset(const uint32_t& id, const uint32_t& pid, const int64_t& am): symbol(id, pid), amount(am) {}
+    nasset(const int64_t& amt, const nsymbol& symb): amount(amt), symbol(symb) {}
 
     nasset& operator+=(const nasset& quantity) { 
         check( quantity.symbol.raw() == this->symbol.raw(), "nsymbol mismatch");
@@ -87,7 +88,7 @@ TBL nstats_t {
     nstats_t(const uint64_t& id): supply(id) {};
     nstats_t(const uint64_t& id, const uint64_t& pid): supply(id, pid) {};
     nstats_t(const uint64_t& id, const uint64_t& pid, const int64_t& am): supply(id, pid, am) {};
-
+    
     uint64_t primary_key()const     { return supply.symbol.id; } // must use id to keep available_primary_key increase consistenly
     uint64_t by_parent_id()const    { return supply.symbol.parent_id; }
     uint64_t by_ipowner()const      { return ipowner.value; }
