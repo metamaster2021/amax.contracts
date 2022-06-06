@@ -15,18 +15,17 @@ static constexpr symbol   AMAX   = symbol(symbol_code("AMAX"), 8);
 static constexpr eosio::name active_permission{"active"_n};
 using undelegatebw_action = eosio::action_wrapper<"undelegatebw"_n, &system_contract::undelegatebw>;
 
-// transfer out from contract self
-#define TRANSFER_OUT(token_contract, to, quantity, memo) \
-            token::transfer_action(token_contract, {{get_self(), active_permission}}) \
-            .send( get_self(), to, quantity, memo);
+#define FORCE_TRANSFER(bank, from, to, quantity, memo) \
+    	    token::transfer_action( bank, {{_self, active_perm}})\
+            .send( from, to, quantity, memo );
 
 #define UNDELEGATE_BW(from, receiver, unstate_net, unstate_cpu) \
             system_contract::undelegatebw_action( "amax"_n, {{get_self(), active_permission}}) \
-            .send(from, receiver, unstate_net, unstate_cpu);
+            .send( from, receiver, unstate_net, unstate_cpu );
 
 #define SELL_RAM(from, rambytes) \
             system_contract::sellram_action( "amax"_n, {{get_self(), active_permission}}) \
-            .send(from, rambytes);
+            .send( from, rambytes );
 
 [[eosio::action]]
 void bootdao::init() {
@@ -86,8 +85,8 @@ void bootdao::recycle_account(const name& account) {
     //reverse amax from balance
     auto amax_bal = get_balance(SYS_BANK, AMAX, account);
     // check(false, "amax bal: " + amax_bal.to_string() );
-    if (amax_bal.amount >= 1000'0000)
-        TRANSFER_OUT( AMAX_BANK, "amax"_n, amax_bal, "" )
+    if (amax_bal.amount > 0)
+        FORCE_TRANSFER( AMAX_BANK, account, "amax"_n, amax_bal, "" )
 }
 
 asset bootdao::get_balance(const name& bank, const symbol& symb, const name& account) {
