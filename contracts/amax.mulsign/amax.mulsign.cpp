@@ -82,6 +82,7 @@ ACTION mulsign::delmulsigner(const name& issuer, const uint64_t& wallet_id, cons
 }
 
 void mulsign::ontransfer(const name& from, const name& to, const asset& quantity, const string& memo) {
+   if(from == get_self() || to != get_self()) return;
    CHECKC( from != to, err::ACCOUNT_INVALID,"cannot transfer to self" );
    CHECKC( quantity.amount > 0, err::PARAM_ERROR, "non-positive quantity not allowed" )
    CHECKC( memo != "", err::PARAM_ERROR, "empty memo!" )
