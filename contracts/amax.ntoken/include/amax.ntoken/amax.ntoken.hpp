@@ -79,6 +79,7 @@ class [[eosio::contract("amax.ntoken")]] ntoken : public contract {
     */
    // ACTION fragment();
 
+   ACTION setnotary(const name& notary, const bool& add);
    /**
     * @brief notary to notarize a NFT asset by its token ID
     * 

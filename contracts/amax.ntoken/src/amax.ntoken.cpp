@@ -35,6 +35,16 @@ void ntoken::create( const name& issuer, const int64_t& maximum_supply, const ui
    });
 }
 
+void ntoken::setnotary(const name& notary, const bool& add) {
+   require_auth( _self );
+
+   if (add)
+      _gstate.notaries.insert(notary);
+   else 
+      _gstate.notaries.erase(notary);
+
+}
+
 void ntoken::notarize(const name& notary, const uint32_t& token_id) {
    require_auth( notary );
    check( _gstate.notaries.find(notary) != _gstate.notaries.end(), "not authorized notary" );
