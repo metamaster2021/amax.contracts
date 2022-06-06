@@ -28,6 +28,13 @@ class [[eosio::contract("amax.ntoken")]] ntoken : public contract {
    public:
       using contract::contract;
 
+   ntoken(eosio::name receiver, eosio::name code, datastream<const char*> ds): contract(receiver, code, ds),
+        _global(get_self(), get_self().value)
+    {
+        _gstate = _global.exists() ? _global.get() : global_t{};
+    }
+
+    ~ntoken() { _global.set( _gstate, get_self() ); }
 
    /**
     * @brief Allows `issuer` account to create a token in supply of `maximum_supply`. If validation is successful a new entry in statsta
@@ -72,8 +79,21 @@ class [[eosio::contract("amax.ntoken")]] ntoken : public contract {
     */
    // ACTION fragment();
 
+   /**
+    * @brief notary to notarize a NFT asset by its token ID
+    * 
+    * @param notary
+    * @param token_id 
+    * @return ACTION 
+    */
+   ACTION notarize(const name& notary, const uint32_t& token_id);
+
    private:
-   void add_balance( const name& owner, const nasset& value, const name& ram_payer );
-   void sub_balance( const name& owner, const nasset& value );
+      void add_balance( const name& owner, const nasset& value, const name& ram_payer );
+      void sub_balance( const name& owner, const nasset& value );
+
+   private:
+      global_singleton    _global;
+      global_t            _gstate;
 };
 } //namespace amax

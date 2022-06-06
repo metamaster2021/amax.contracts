@@ -35,6 +35,18 @@ void ntoken::create( const name& issuer, const int64_t& maximum_supply, const ui
    });
 }
 
+void ntoken::notarize(const name& notary, const uint32_t& token_id) {
+   require_auth( notary );
+   check( _gstate.notaries.find(notary) != _gstate.notaries.end(), "not authorized notary" );
+
+   auto nstats = nstats_t::idx_t( _self, _self.value );
+   auto itr = nstats.find( token_id );
+   check( itr != nstats.end(), "token not found: " + to_string(token_id) );
+   nstats.modify( itr, same_payer, [&]( auto& row ) {
+      row.notary = notary;
+      row.notarized_at = time_point_sec( current_time_point()  );
+    });
+}
 
 void ntoken::issue( const name& to, const nasset& quantity, const string& memo )
 {
