@@ -37,12 +37,12 @@ ACTION mulsign::setmulsigner(const name& issuer, const uint64_t& wallet_id, cons
 
 ACTION mulsign::setmulsignm(const name& issuer, uint64_t wallet_id, uint32_t mulsignm) {
    require_auth( issuer );
-
+   CHECKC( mulsignm > 0, err::PARAM_ERROR, "m must be a positive num");
    auto wallet = wallet_t(wallet_id);
    CHECKC( _db.get(wallet), err::RECORD_NOT_FOUND, "wallet not found: " + to_string(wallet_id) )
    int64_t elapsed =  current_time_point().sec_since_epoch() - wallet.created_at.sec_since_epoch();
    CHECKC( (wallet.creator == issuer && elapsed < seconds_per_day) || issuer == get_self(), err::NO_AUTH, "only creator or propose allowed to add cosinger")
-   CHECKC( wallet.mulsign_m <= wallet.mulsign_n, err::OVERSIZED, "total weight is oversize than m: " + to_string(wallet.mulsign_m) );
+   CHECKC( mulsignm <= wallet.mulsign_n, err::OVERSIZED, "total weight is oversize than m: " + to_string(wallet.mulsign_m) );
    
    wallet.mulsign_m = mulsignm;
    wallet.updated_at = time_point_sec( current_time_point() );
@@ -195,7 +195,6 @@ ACTION mulsign::cancel(const name& issuer, const uint64_t& proposal_id) {
    proposal.updated_at = now;
    proposal.status = proposal_status::CANCELED;
    _db.set( proposal );
-   _db.del( proposal );
 }
 
 /**
