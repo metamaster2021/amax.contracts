@@ -49,7 +49,6 @@ bool operator==(const nsymbol& symb1, const nsymbol& symb2) {
 }
 
 
-///Scope: symbole.id
 struct nasset {
     int64_t         amount;
     nsymbol         symbol;

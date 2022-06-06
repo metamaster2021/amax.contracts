@@ -24,7 +24,7 @@ using namespace std;
     */
    [[eosio::on_notify("*::transfer")]]
    void bookdex::ontransfer(const name& from, const name& to, const asset& quantity, const string& memo) {
-      CHECKC( from != to, err::ACCOUNT_INVALID,"cannot transfer to self" );
+      CHECKC( from != to, err::ACCOUNT_INVALID, "cannot transfer to self" );
       CHECKC( quantity.amount > 0, err::PARAM_ERROR, "non-positive quantity not allowed" )
       CHECKC( memo != "", err::MEMO_FORMAT_ERROR, "empty memo!" )
 
