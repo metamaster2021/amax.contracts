@@ -120,7 +120,7 @@ ACTION mulsign::propose(const name& issuer,
                    const name& type, 
                    const map<string, string>& params, 
                    const string& excerpt, 
-                   const string& meta_url,
+                   const string& description,
                    const uint32_t& duration) {
    require_auth( issuer );
 
@@ -164,7 +164,7 @@ ACTION mulsign::propose(const name& issuer,
    }
 
    CHECKC( excerpt.length() < 1024, err::OVERSIZED, "excerpt length >= 1024" )
-   CHECKC( meta_url.length() < 2048, err::OVERSIZED, "meta_url length >= 2048" )
+   CHECKC( description.length() < 2048, err::OVERSIZED, "description length >= 2048" )
    
    auto proposals = proposal_t::idx_t(_self, _self.value);
    auto pid = proposals.available_primary_key();
@@ -174,7 +174,7 @@ ACTION mulsign::propose(const name& issuer,
    proposal.params = params;
    proposal.proposer = issuer;
    proposal.excerpt = excerpt;
-   proposal.meta_url = meta_url;
+   proposal.description = description;
    proposal.status = proposal_status::PROPOSED;
    proposal.created_at = time_point_sec(current_time_point());
    proposal.expired_at = time_point_sec(proposal.created_at + duration);

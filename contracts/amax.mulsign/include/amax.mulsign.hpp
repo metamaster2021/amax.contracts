@@ -154,7 +154,7 @@ public:
      *               setmulsigner: name mulsigner, uint8_t weight
      *               delmulsigner: name mulsigner
      * @param excerpt proposal title
-     * @param meta_url proposal detail
+     * @param description proposal detail, start with http/https for a url
      * @param duration proposal duration, should less than wallet expire time
      * @return * anyone*
      */
@@ -163,7 +163,7 @@ public:
                    const name& type, 
                    const map<string, string>& params, 
                    const string& excerpt, 
-                   const string& meta_url,
+                   const string& description,
                    const uint32_t& duration) ;
 
      /**

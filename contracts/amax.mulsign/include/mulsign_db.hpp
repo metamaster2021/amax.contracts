@@ -95,7 +95,7 @@ TBL proposal_t {
     name                type;               //support proposal types: proposal_type
     map<string,string>  params;
     string              excerpt;            //propose title
-    string              meta_url;           //propose detail, can be a text or url
+    string              description;           //propose detail, can be a text or url
     map<name,uint32_t>  approvers;          //updated in approve process
     uint32_t            recv_votes;         //received votes, based on mulsigner's weight
     time_point_sec      created_at;         //proposal expired after
@@ -110,7 +110,7 @@ TBL proposal_t {
 
     uint64_t by_wallet_id()const { return wallet_id; }
 
-    EOSLIB_SERIALIZE( proposal_t,   (id)(wallet_id)(proposer)(type)(params)(excerpt)(meta_url)(approvers)
+    EOSLIB_SERIALIZE( proposal_t,   (id)(wallet_id)(proposer)(type)(params)(excerpt)(description)(approvers)
                                     (recv_votes)(created_at)(expired_at)(updated_at)(status) )
 
     typedef eosio::multi_index
