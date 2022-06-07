@@ -148,6 +148,7 @@ ACTION mulsign::propose(const name& issuer,
    else if(type == proposal_type::setmulsignm){
       uint32_t m = to_uint32(params.at("m"), "error type of m");
       CHECKC( m <= wallet.mulsign_n, err::OVERSIZED, "total weight is oversize than m: " + to_string(wallet.mulsign_m) );
+      CHECKC( m >0, err::OVERSIZED, "m must be a positive number" );
    }
    else if(type == proposal_type::setmulsigner){
       uint32_t weight = to_uint32(params.at("weight"), "error type of weight");
