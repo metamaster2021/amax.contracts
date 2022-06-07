@@ -20,6 +20,14 @@ using namespace eosio;
 
 #define HASH256(str) sha256(const_cast<char*>(str.c_str()), str.size())
 #define TBL struct [[eosio::table, eosio::contract("amax.ntoken")]]
+#define NTBL(name) struct [[eosio::table(name), eosio::contract("amax.ntoken")]]
+
+NTBL("global") global_t {
+    set<name> notaries;
+
+    EOSLIB_SERIALIZE( global_t, (notaries) )
+};
+typedef eosio::singleton< "global"_n, global_t > global_singleton;
 
 struct nsymbol {
     uint32_t id;
@@ -41,7 +49,6 @@ bool operator==(const nsymbol& symb1, const nsymbol& symb2) {
 }
 
 
-///Scope: symbole.id
 struct nasset {
     int64_t         amount;
     nsymbol         symbol;
@@ -50,6 +57,7 @@ struct nasset {
     nasset(const uint32_t& id): symbol(id), amount(0) {}
     nasset(const uint32_t& id, const uint32_t& pid): symbol(id, pid), amount(0) {}
     nasset(const uint32_t& id, const uint32_t& pid, const int64_t& am): symbol(id, pid), amount(am) {}
+    nasset(const int64_t& amt, const nsymbol& symb): amount(amt), symbol(symb) {}
 
     nasset& operator+=(const nasset& quantity) { 
         check( quantity.symbol.raw() == this->symbol.raw(), "nsymbol mismatch");
@@ -80,7 +88,7 @@ TBL nstats_t {
     nstats_t(const uint64_t& id): supply(id) {};
     nstats_t(const uint64_t& id, const uint64_t& pid): supply(id, pid) {};
     nstats_t(const uint64_t& id, const uint64_t& pid, const int64_t& am): supply(id, pid, am) {};
-
+    
     uint64_t primary_key()const     { return supply.symbol.id; } // must use id to keep available_primary_key increase consistenly
     uint64_t by_parent_id()const    { return supply.symbol.parent_id; }
     uint64_t by_ipowner()const      { return ipowner.value; }
