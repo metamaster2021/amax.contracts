@@ -29,6 +29,25 @@ static constexpr name       SYS_BANK              = "amax.token"_n;
 static constexpr symbol     SYS_SYMBOL            = symbol(symbol_code("AMAX"), 8);
 static constexpr uint64_t   seconds_per_day       = 24 * 3600;
 
+namespace proposal_status {
+    static constexpr name PROPOSED = "proposed"_n;
+    static constexpr name APPROVED = "approved"_n;
+    static constexpr name EXECUTED = "executed"_n;
+    static constexpr name CANCELED = "canceled"_n;
+}
+
+namespace proposal_type {
+    static constexpr eosio::name transfer         = "transfer"_n;
+    static constexpr eosio::name setmulsignm         = "setmulsignm"_n;
+    static constexpr eosio::name setmulsigner         = "setmulsigner"_n;
+    static constexpr eosio::name delmulsigner         = "delmulsigner"_n;
+};
+
+enum proposal_vote {
+    PROPOSAL_AGAINST       = 0,
+    PROPOSAL_FOR          = 1,
+};
+
 struct [[eosio::table("global"), eosio::contract("amax.mulsign")]] global_t {
     name admin;                 // default is contract self
     name fee_collector;         // who creates fee wallet (id = 0)
@@ -46,7 +65,7 @@ TBL wallet_t {
     uint32_t                mulsign_n;      // m <= n
     map<name, uint32_t>     mulsigners;     // mulsigner : weight
     map<extended_symbol, int64_t>    assets;         // symb@bank_contract  : amount
-    uint64_t                proposal_expiry_sec = seconds_per_day;
+    uint64_t                proposal_expiry_sec = seconds_per_day * 7;
     name                    creator;
     time_point_sec          created_at;
     time_point_sec          updated_at;
@@ -69,23 +88,15 @@ TBL wallet_t {
     > idx_t;
 };
 
-namespace proposal_status {
-    static constexpr name PROPOSED = "proposed"_n;
-    static constexpr name APPROVED = "approved"_n;
-    static constexpr name EXECUTED = "executed"_n;
-    static constexpr name CANCELED = "canceled"_n;
-}
-
 TBL proposal_t {
     uint64_t            id;
     uint64_t            wallet_id;
-    extended_asset      quantity;
-    name                recipient;
     name                proposer;
-    string              transfer_memo;
-    string              excerpt;
-    string              meta_url;
-    set<name>           approvers;          //updated in approve process
+    name                type;               //support proposal types: proposal_type
+    map<string,string>  params;
+    string              excerpt;            //propose title
+    string              description;           //propose detail, can be a text or url
+    map<name,uint32_t>  approvers;          //updated in approve process
     uint32_t            recv_votes;         //received votes, based on mulsigner's weight
     time_point_sec      created_at;         //proposal expired after
     time_point_sec      expired_at;         //proposal expired after
@@ -99,7 +110,7 @@ TBL proposal_t {
 
     uint64_t by_wallet_id()const { return wallet_id; }
 
-    EOSLIB_SERIALIZE( proposal_t,   (id)(wallet_id)(quantity)(recipient)(proposer)(transfer_memo)(excerpt)(meta_url)(approvers)
+    EOSLIB_SERIALIZE( proposal_t,   (id)(wallet_id)(proposer)(type)(params)(excerpt)(description)(approvers)
                                     (recv_votes)(created_at)(expired_at)(updated_at)(status) )
 
     typedef eosio::multi_index

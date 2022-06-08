@@ -1,13 +1,25 @@
-<h1 class="contract">createmsign</h1>
+<h1 class="contract">init</h1>
 
 ---
 spec_version: "0.1.0"
-title: create a new multisign wallet
-summary: 'create a multisgin wallet for issuer'
+title: set a collector for fee
+summary: 'set a collector for fee'
+icon: @ICON_BASE_URL@/@TOKEN_ICON_URI@
+---
+set a collector for fee
+
+
+
+<h1 class="contract">setmulsignm</h1>
+
+---
+spec_version: "0.1.0"
+title: update a mulsign wallet proposal approve votes
+summary: 'update a mulsign wallet proposal approve votes'
 icon: @ICON_BASE_URL@/@TOKEN_ICON_URI@
 ---
 
-one can create a multisign wallet and set m/n signature requirement
+update a mulsign wallet proposal approve votes
 
 
 <h1 class="contract">setmulsigner</h1>
@@ -30,22 +42,76 @@ icon: @ICON_BASE_URL@/@TOKEN_ICON_URI@
 
 a multisign wallet owner can choose to delete a multisigner from his or her wallet
 
+
+<h1 class="contract">setwapexpiry</h1>
+---
+spec_version: "0.1.0"
+title: set a multisign wallet max expire time
+summary: 'set a multisign wallet max expire time'
+icon: @ICON_BASE_URL@/@TOKEN_ICON_URI@
+---
+
+set proposal expiry time in seconds for a given wallet
+
+
+<h1 class="contract">ontransfer</h1>
+---
+spec_version: "0.1.0"
+title: transfer notify 
+summary: 'transfer amax to create wallet or deposite asset for a mulsign wallet'
+icon: @ICON_BASE_URL@/@TOKEN_ICON_URI@
+---
+
+memo: 
+1) create:$title transfer fee to create a wallet, title size should less than 128
+2) lock:$wallet_id  transfer asset to a mulsign wallet, all type of arc20 token supported
+
+
 <h1 class="contract">propose</h1>
 ---
 spec_version: "0.1.0"
-title: propose to move funds/assets
-summary: 'propose to move funds/assets that belong to a multisgin wallet'
+title: propose an action for a mulsign wallet
+summary: 'mulsigner can propose an action'
 icon: @ICON_BASE_URL@/@TOKEN_ICON_URI@
 ---
+mulsign wallet operation: include 'transfer','setmulsignm','setmulsigner','delmulsigner'
+operation's params, settings with string: 
+    transefer: name from, name to, asset quantity, memo, contract
+    setmulsignm: uint8_t m
+    setmulsigner: name mulsigner, uint8_t weight
+    delmulsigner: name mulsigner
 
-anyone can propose to move funds that reside in a multisign wallet
 
-<h1 class="contract">approve</h1>
+<h1 class="contract">cancel</h1>
 ---
 spec_version: "0.1.0"
-title: approve a multisign wallet proposal
-summary: 'approve a multisgin wallet proposal to move funds'
+title: cancel a proposal before it expires
+summary: 'cancel a proposal before it expires'
 icon: @ICON_BASE_URL@/@TOKEN_ICON_URI@
 ---
 
-Only multisign wallet co-signers can vote to approve the proposal
+cancel a proposal before it expires
+
+
+<h1 class="contract">submit</h1>
+---
+spec_version: "0.1.0"
+title: submit result for a multisign wallet proposal
+summary: 'submit result for a multisign wallet proposal'
+icon: @ICON_BASE_URL@/@TOKEN_ICON_URI@
+---
+
+submit result for a multisign wallet proposal
+vote type: 0, against; 1, approve
+
+
+
+<h1 class="contract">execute</h1>
+---
+spec_version: "0.1.0"
+title: execute a proposal action
+summary: 'execute a proposal action'
+icon: @ICON_BASE_URL@/@TOKEN_ICON_URI@
+---
+
+execute a proposal action
