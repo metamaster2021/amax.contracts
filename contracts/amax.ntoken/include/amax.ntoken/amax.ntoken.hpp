@@ -43,8 +43,7 @@ class [[eosio::contract("amax.ntoken")]] ntoken : public contract {
     * @param maximum_supply - the maximum supply set for the token created
     * @return ACTION 
     */
-   ACTION create( const name& issuer, const int64_t& maximum_supply, const uint32_t& parent_tokenid,
-                  const string& token_uri, const name& ipowner );
+   ACTION create( const name& issuer, const int64_t& maximum_supply, const nsymbol& symbol, const string& token_uri, const name& ipowner );
 
    /**
     * @brief This action issues to `to` account a `quantity` of tokens.
