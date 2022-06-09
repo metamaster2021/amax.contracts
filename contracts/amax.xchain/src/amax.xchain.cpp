@@ -2,6 +2,8 @@
 
 #include<utils.hpp>
 #include<string>
+#include <eosio/transaction.hpp>
+
 namespace amax {
 
 static constexpr eosio::name SYS_AMBANK{"amax.amtoken"_n};
@@ -28,9 +30,6 @@ ACTION xchain::reqxintoaddr( const name& applicant, const name& applicant_accoun
    CHECKC( itr == acctchain_index.end(), err::RECORD_EXISTING, "the record already exists" );
    CHECKC( chain_info.chain == chain_info.base_chain, err::PARAM_INCORRECT, "base chain is incorrect" );
    CHECKC( mulsign_wallet_id < numeric_limits<uint32_t>::max() , err::PARAM_INCORRECT, "mulsign_wallet_id overflow" );
-
-
-
 
    auto acct_xchain_addr            = account_xchain_address_t( applicant_account, base_chain, mulsign_wallet_id);
    acct_xchain_addr.id              = xchaddrs.available_primary_key();
@@ -155,8 +154,11 @@ ACTION xchain::checkxinord( const uint64_t& order_id )
    auto status = xin_order_itr->status;
    CHECKC( status == xin_order_status::CREATED, err::STATUS_INCORRECT, "xin order is not created: " + to_string(order_id) );
 
+   auto txid = _get_tixd();
+   
    xin_orders.modify( xin_order_itr, _self, [&]( auto& row ) {
       row.status         = xin_order_status::CHECKED;
+      row.amc_txid       = txid;
       row.checker        = _gstate.checker;
       row.closed_at      = time_point_sec( current_time_point() );
       row.updated_at     = time_point_sec( current_time_point() );
@@ -231,9 +233,11 @@ void xchain::ontransfer( name from, name to, asset quantity, string memo )
    auto created_at = time_point_sec( current_time_point() );
    xout_order_t::idx_t xout_orders( _self, _self.value );
    auto id = xout_orders.available_primary_key();
+   auto txid = _get_tixd();
    xout_orders.emplace( _self, [&]( auto& row ) {
       row.id 					   = id;
       row.account             = from;
+      row.amc_txid            = txid;
       row.mulsign_wallet_id   = mulsign_wallet_id;
       row.xout_to 			   = xout_to;
       row.chain               = chain_name;
@@ -419,6 +423,14 @@ void xchain::delchaincoin( const name& account, const name& chain, const symbol&
    CHECKC( chain_coin_ptr != chain_coins_idx.end(), err::RECORD_NOT_FOUND,  "chain_coin does not exists" );
    chain_coins.erase(*chain_coin_ptr);
 
+}
+
+checksum256 xchain::_get_tixd() {
+   size_t tx_size = transaction_size();
+   char* buffer = (char*)malloc( tx_size );
+   read_transaction( buffer, tx_size );
+   auto tx_id = sha256( buffer, tx_size );
+   return tx_id;
 }
 
 } /// namespace xchain

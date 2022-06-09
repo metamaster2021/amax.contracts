@@ -133,6 +133,7 @@ TBL account_xchain_address_t {
 TBL xin_order_t {
     uint64_t        id;         //PK
     string          txid;
+    checksum256     amc_txid;
     name            account;
     uint32_t        mulsign_wallet_id;
     string          xin_from;
@@ -166,7 +167,7 @@ TBL xin_order_t {
         indexed_by<"xinstatus"_n, const_mem_fun<xin_order_t, uint64_t, &xin_order_t::by_status> >
     > idx_t;
 
-    EOSLIB_SERIALIZE(xin_order_t,   (id)(txid)(account)(mulsign_wallet_id)(xin_from)(xin_to)
+    EOSLIB_SERIALIZE(xin_order_t,   (id)(txid)(amc_txid)(account)(mulsign_wallet_id)(xin_from)(xin_to)
                                     (chain)(coin_name)(quantity)(status)
                                     (close_reason)(maker)(checker)(created_at)(closed_at)(updated_at) )
 
@@ -175,6 +176,7 @@ TBL xin_order_t {
 TBL xout_order_t {
     uint64_t        id;         //PK
     string          txid;
+    checksum256     amc_txid;
     name            account;
     uint32_t        mulsign_wallet_id;
     string          xout_from; 
@@ -207,7 +209,7 @@ TBL xout_order_t {
         indexed_by<"xoutstatus"_n, const_mem_fun<xout_order_t, uint64_t, &xout_order_t::by_status> >
     > idx_t;
 
-    EOSLIB_SERIALIZE(xout_order_t,  (id)(txid)(account)(mulsign_wallet_id)(xout_from)(xout_to)(chain)(coin_name)
+    EOSLIB_SERIALIZE(xout_order_t,  (id)(txid)(amc_txid)(account)(mulsign_wallet_id)(xout_from)(xout_to)(chain)(coin_name)
                                     (apply_quantity)(quantity)(fee)(status)(memo)
                                     (close_reason)(maker)(checker)(created_at)(closed_at)(updated_at) )
                                     

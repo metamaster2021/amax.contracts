@@ -91,6 +91,7 @@ public:
 
    private:
     void _check_xin_addr( const name& to, const name& chain_name, const string& xin_to, uint32_t& mulsign_wallet_id );
+    checksum256 _get_tixd();
     
 };
 } //namespace apollo
