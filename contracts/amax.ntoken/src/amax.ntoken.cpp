@@ -10,7 +10,7 @@ void ntoken::create( const name& issuer, const int64_t& maximum_supply, const ui
 
    check( is_account(issuer), "issuer account does not exist" );
    check( maximum_supply > 0, "max-supply must be positive" );
-   check( token_uri.length() > 1024, "token uri length > 1024" );
+   check( token_uri.length() < 1024, "token uri length > 1024" );
 
    auto nstats = nstats_t::idx_t( _self, _self.value );
    auto idx = nstats.get_index<"tokenuriidx"_n>();
