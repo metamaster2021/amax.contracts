@@ -6,7 +6,7 @@ namespace amax {
 void ntoken::create( const name& issuer, const int64_t& maximum_supply, const uint32_t& parent_tokenid,
                      const string& token_uri, const name& ipowner )
 {
-   require_auth( get_self() );
+   require_auth( issuer );
 
    check( is_account(issuer), "issuer account does not exist" );
    check( maximum_supply > 0, "max-supply must be positive" );
