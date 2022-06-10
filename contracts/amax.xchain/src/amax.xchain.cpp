@@ -6,7 +6,19 @@
 
 namespace amax {
 
-static constexpr eosio::name SYS_AMBANK{"amax.amtoken"_n};
+uint64_t fee_pct   = 50;
+
+inline int64_t get_precision(const symbol &s) {
+    int64_t digit = s.precision();
+    CHECK(digit >= 0 && digit <= 18, "precision digit " + std::to_string(digit) + " should be in range[0,18]");
+    return calc_precision(digit);
+}
+
+inline int64_t get_precision(const asset &a) {
+    return get_precision(a.symbol);
+}
+
+static constexpr eosio::name SYS_AMBANK{"amax.mtoken"_n};
 
 ACTION xchain::init( const name& admin, const name& maker, const name& checker, const name& fee_collector ) {
    require_auth( _self );
@@ -202,7 +214,7 @@ ACTION xchain::cancelxinord( const uint64_t& order_id, const string& cancel_reas
  *                            "$eth_addr:eth:ETH,8:mulsign_wallet_id:xchain's memo
  *               
  */
-[[eosio::on_notify("amax.amtoken::transfer")]] 
+[[eosio::on_notify("amax.mtoken::transfer")]] 
 void xchain::ontransfer( name from, name to, asset quantity, string memo ) 
 {
    CHECK(memo.size() <= 256, "memo has more than 256 bytes");
@@ -232,8 +244,10 @@ void xchain::ontransfer( name from, name to, asset quantity, string memo )
    auto user_memo = parts[4];
    auto created_at = time_point_sec( current_time_point() );
    xout_order_t::idx_t xout_orders( _self, _self.value );
+
    auto id = xout_orders.available_primary_key();
    auto txid = _get_tixd();
+   auto fee = _calc_fee(chain_coin_ptr->fee, quantity);
    xout_orders.emplace( _self, [&]( auto& row ) {
       row.id 					   = id;
       row.account             = from;
@@ -243,8 +257,8 @@ void xchain::ontransfer( name from, name to, asset quantity, string memo )
       row.chain               = chain_name;
       row.coin_name           = coin_name;
       row.apply_quantity		= quantity;
-      row.quantity		      = quantity - chain_coin_ptr->fee;
-      row.fee			         = chain_coin_ptr->fee;  
+      row.quantity		      = quantity - fee;
+      row.fee			         = fee;  
       row.status			      = xin_order_status::CREATED;
       row.created_at          = time_point_sec( current_time_point() );
       row.updated_at          = time_point_sec( current_time_point() );
@@ -433,4 +447,14 @@ checksum256 xchain::_get_tixd() {
    return tx_id;
 }
 
-} /// namespace xchain
+asset xchain::_calc_fee( asset fee, asset quantity ) {
+   return _calc_deal_amount(quantity) + fee;
+}
+
+asset xchain::_calc_deal_amount( const asset &quantity ) {
+    int64_t amount = multiply_decimal64(quantity.amount, fee_pct, percent_boost);
+    amount = multiply_decimal64(amount, get_precision(quantity.symbol), get_precision(quantity));
+
+    return asset(amount, quantity.symbol);
+} 
+}/// namespace xchain
