@@ -3,14 +3,13 @@
 namespace amax {
 
 
-void ntoken::create( const name& issuer, const int64_t& maximum_supply, const uint32_t& parent_tokenid,
-                     const string& token_uri, const name& ipowner )
+void ntoken::create( const name& issuer, const int64_t& maximum_supply, const nsymbol& symbol, const string& token_uri, const name& ipowner )
 {
-   require_auth( get_self() );
+   require_auth( issuer );
 
    check( is_account(issuer), "issuer account does not exist" );
    check( maximum_supply > 0, "max-supply must be positive" );
-   check( token_uri.length() > 1024, "token uri length > 1024" );
+   check( token_uri.length() < 1024, "token uri length > 1024" );
 
    auto nstats = nstats_t::idx_t( _self, _self.value );
    auto idx = nstats.get_index<"tokenuriidx"_n>();
@@ -19,19 +18,15 @@ void ntoken::create( const name& issuer, const int64_t& maximum_supply, const ui
    // auto upper_itr = idx.upper_bound( token_uri_hash );
    // check( lower_itr == idx.end() || lower_itr == upper_itr, "token with token_uri already exists" );
    check( idx.find(token_uri_hash) == idx.end(), "token with token_uri already exists" );
-
-   auto id = nstats.available_primary_key();
-   if (id == 0) id = 1;
-   auto sym = nsymbol( id, parent_tokenid );
-   auto max_nassets = nasset( id, parent_tokenid, maximum_supply );
+   check( nstats.find(symbol.id) == nstats.end(), "token of ID: " + to_string(symbol.id) + " alreay exists" );
 
    nstats.emplace( issuer, [&]( auto& s ) {
-      s.supply.symbol   = sym;
-      s.max_supply      = max_nassets;
+      s.supply.symbol   = symbol;
+      s.max_supply      = nasset( maximum_supply, symbol );
       s.token_uri       = token_uri;
       s.ipowner         = ipowner;
       s.issuer          = issuer;
-      s.issued_at       = time_point_sec( current_time_point() );
+      s.issued_at       = current_time_point();
    });
 }
 
