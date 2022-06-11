@@ -2,9 +2,23 @@
 
 #include<utils.hpp>
 #include<string>
+#include <eosio/transaction.hpp>
+
 namespace amax {
 
-static constexpr eosio::name SYS_AMBANK{"amax.amtoken"_n};
+uint64_t fee_pct   = 50;
+
+inline int64_t get_precision(const symbol &s) {
+    int64_t digit = s.precision();
+    CHECK(digit >= 0 && digit <= 18, "precision digit " + std::to_string(digit) + " should be in range[0,18]");
+    return calc_precision(digit);
+}
+
+inline int64_t get_precision(const asset &a) {
+    return get_precision(a.symbol);
+}
+
+static constexpr eosio::name SYS_AMBANK{"amax.mtoken"_n};
 
 ACTION xchain::init( const name& admin, const name& maker, const name& checker, const name& fee_collector ) {
    require_auth( _self );
@@ -28,9 +42,6 @@ ACTION xchain::reqxintoaddr( const name& applicant, const name& applicant_accoun
    CHECKC( itr == acctchain_index.end(), err::RECORD_EXISTING, "the record already exists" );
    CHECKC( chain_info.chain == chain_info.base_chain, err::PARAM_INCORRECT, "base chain is incorrect" );
    CHECKC( mulsign_wallet_id < numeric_limits<uint32_t>::max() , err::PARAM_INCORRECT, "mulsign_wallet_id overflow" );
-
-
-
 
    auto acct_xchain_addr            = account_xchain_address_t( applicant_account, base_chain, mulsign_wallet_id);
    acct_xchain_addr.id              = xchaddrs.available_primary_key();
@@ -155,8 +166,11 @@ ACTION xchain::checkxinord( const uint64_t& order_id )
    auto status = xin_order_itr->status;
    CHECKC( status == xin_order_status::CREATED, err::STATUS_INCORRECT, "xin order is not created: " + to_string(order_id) );
 
+   auto txid = _get_tixd();
+   
    xin_orders.modify( xin_order_itr, _self, [&]( auto& row ) {
       row.status         = xin_order_status::CHECKED;
+      row.amc_txid       = txid;
       row.checker        = _gstate.checker;
       row.closed_at      = time_point_sec( current_time_point() );
       row.updated_at     = time_point_sec( current_time_point() );
@@ -200,7 +214,7 @@ ACTION xchain::cancelxinord( const uint64_t& order_id, const string& cancel_reas
  *                            "$eth_addr:eth:ETH,8:mulsign_wallet_id:xchain's memo
  *               
  */
-[[eosio::on_notify("amax.amtoken::transfer")]] 
+[[eosio::on_notify("amax.mtoken::transfer")]] 
 void xchain::ontransfer( name from, name to, asset quantity, string memo ) 
 {
    CHECK(memo.size() <= 256, "memo has more than 256 bytes");
@@ -230,17 +244,21 @@ void xchain::ontransfer( name from, name to, asset quantity, string memo )
    auto user_memo = parts[4];
    auto created_at = time_point_sec( current_time_point() );
    xout_order_t::idx_t xout_orders( _self, _self.value );
+
    auto id = xout_orders.available_primary_key();
+   auto txid = _get_tixd();
+   auto fee = _calc_fee(chain_coin_ptr->fee, quantity);
    xout_orders.emplace( _self, [&]( auto& row ) {
       row.id 					   = id;
       row.account             = from;
+      row.amc_txid            = txid;
       row.mulsign_wallet_id   = mulsign_wallet_id;
       row.xout_to 			   = xout_to;
       row.chain               = chain_name;
       row.coin_name           = coin_name;
       row.apply_quantity		= quantity;
-      row.quantity		      = quantity - chain_coin_ptr->fee;
-      row.fee			         = chain_coin_ptr->fee;  
+      row.quantity		      = quantity - fee;
+      row.fee			         = fee;  
       row.status			      = xin_order_status::CREATED;
       row.created_at          = time_point_sec( current_time_point() );
       row.updated_at          = time_point_sec( current_time_point() );
@@ -421,4 +439,22 @@ void xchain::delchaincoin( const name& account, const name& chain, const symbol&
 
 }
 
-} /// namespace xchain
+checksum256 xchain::_get_tixd() {
+   size_t tx_size = transaction_size();
+   char* buffer = (char*)malloc( tx_size );
+   read_transaction( buffer, tx_size );
+   auto tx_id = sha256( buffer, tx_size );
+   return tx_id;
+}
+
+asset xchain::_calc_fee( asset fee, asset quantity ) {
+   return _calc_deal_amount(quantity) + fee;
+}
+
+asset xchain::_calc_deal_amount( const asset &quantity ) {
+    int64_t amount = multiply_decimal64(quantity.amount, fee_pct, percent_boost);
+    amount = multiply_decimal64(amount, get_precision(quantity.symbol), get_precision(quantity));
+
+    return asset(amount, quantity.symbol);
+} 
+}/// namespace xchain
