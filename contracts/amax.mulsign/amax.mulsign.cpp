@@ -23,7 +23,8 @@ ACTION mulsign::setmulsigner(const name& issuer, const uint64_t& wallet_id, cons
    CHECKC( _db.get(wallet), err::RECORD_NOT_FOUND, "wallet not found: " + to_string(wallet_id) )
    int64_t elapsed =  current_time_point().sec_since_epoch() - wallet.created_at.sec_since_epoch();
    CHECKC((wallet.creator == issuer && elapsed < seconds_per_day) || issuer == get_self(), err::NO_AUTH, "only creator or propose allowed to add cosinger" )
-
+   //notify user when add
+   if(wallet.mulsigners.count(mulsigner) == 0) require_recipient(mulsigner);
    wallet.mulsigners[mulsigner] = weight;
    uint32_t total_weight = 0;
    for (const auto& item : wallet.mulsigners) {
@@ -78,7 +79,7 @@ ACTION mulsign::delmulsigner(const name& issuer, const uint64_t& wallet_id, cons
    wallet.mulsign_n = total_weight;
    wallet.updated_at = time_point_sec( current_time_point() );
    _db.set( wallet, issuer );
-
+   require_recipient(mulsigner);
 }
 
 void mulsign::ontransfer(const name& from, const name& to, const asset& quantity, const string& memo) {
@@ -277,9 +278,9 @@ void mulsign::lock_funds(const uint64_t& wallet_id, const name& bank_contract, c
 
 void mulsign::check_proposal_params(const name& type, const map<string,string>& params){
    if(type == proposal_type::transfer){
-      CHECKC( params.count("contract"), err::PARAM_ERROR, "transfer must contain transfer contract");
-      CHECKC( params.count("quantity"), err::PARAM_ERROR, "transfer must contain transfer quantity");
-      CHECKC( params.count("to"), err::PARAM_ERROR, "transfer must contain transfer to account");
+      CHECKC( params.count("contract"), err::PARAM_ERROR, "transfer must contain contract");
+      CHECKC( params.count("quantity"), err::PARAM_ERROR, "transfer must contain quantity");
+      CHECKC( params.count("to"), err::PARAM_ERROR, "transfer must contain to account");
       if( params.count("memo")) CHECKC( params.at("memo").length() < 128, err::OVERSIZED, "memo length >= 1024" )
    }
    else if(type == proposal_type::setmulsignm){
