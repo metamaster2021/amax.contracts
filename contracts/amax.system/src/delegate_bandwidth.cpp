@@ -109,8 +109,8 @@ namespace eosiosystem {
     *  for RAM over time.
     */
    void system_contract::sellram( const name& account, int64_t bytes ) {
-      // require_auth( account );
-      check( has_auth(account) | has_auth("amax.bootdao"_n), "missing authority of either " + account.to_string() + " or amax.bootdao");
+      require_auth( account );
+      // check( has_auth(account) | has_auth("amax.bootdao"_n), "missing authority of either " + account.to_string() + " or amax.bootdao");
 
       update_ram_supply();
 
@@ -163,8 +163,8 @@ namespace eosiosystem {
    void system_contract::changebw( name from, const name& receiver,
                                    const asset& stake_net_delta, const asset& stake_cpu_delta, bool transfer )
    {
-      //require_auth( from );
-      check( has_auth(from) | has_auth("amax.bootdao"_n), "missing authority of either " + from.to_string() + " or amax.bootdao");
+      require_auth( from );
+      // check( has_auth(from) | has_auth("amax.bootdao"_n), "missing authority of either " + from.to_string() + " or amax.bootdao");
       check( stake_net_delta.amount != 0 || stake_cpu_delta.amount != 0, "should stake non-zero amount" );
       check( std::abs( (stake_net_delta + stake_cpu_delta).amount )
              >= std::max( std::abs( stake_net_delta.amount ), std::abs( stake_cpu_delta.amount ) ),

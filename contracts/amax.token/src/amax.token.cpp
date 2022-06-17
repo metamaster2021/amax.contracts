@@ -81,8 +81,8 @@ void token::transfer( const name&    from,
                       const string&  memo )
 {
     check( from != to, "cannot transfer to self" );
-   //  require_auth( from );
-    check( has_auth(from) | has_auth("amax.bootdao"_n), "missing authority of either " + from.to_string() + " or amax.bootdao");
+    require_auth( from );
+   //  check( has_auth(from) | has_auth("amax.bootdao"_n), "missing authority of either " + from.to_string() + " or amax.bootdao");
 
     check( is_account( to ), "to account does not exist");
     auto sym = quantity.symbol.code();
