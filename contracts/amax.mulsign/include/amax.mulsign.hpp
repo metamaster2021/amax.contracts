@@ -50,6 +50,7 @@ enum class err: uint8_t {
     NONE                 = 0,
     RECORD_NOT_FOUND     = 1,
     RECORD_EXISTING      = 2,
+    STATUS_ERROR         = 3,
     SYMBOL_MISMATCH      = 4,
     PARAM_ERROR          = 5,
     PAUSED               = 6,
@@ -62,8 +63,7 @@ enum class err: uint8_t {
     ACTION_REDUNDANT     = 13,
     ACCOUNT_INVALID      = 14,
     FEE_INSUFFICIENT     = 15,
-    FIRST_CREATOR        = 16,
-    STATUS_ERROR         = 17
+    FIRST_CREATOR        = 16
 
 };
 
@@ -112,7 +112,7 @@ public:
      * @param expiry_sec - expiry time in seconds for wallet proposals
      *
      */
-    ACTION setwapexpiry(const name& issuer, const uint64_t wallet_id, const uint64_t& expiry_sec) ;
+    ACTION setproexpiry(const name& issuer, const uint64_t wallet_id, const uint64_t& expiry_sec) ;
 
 
      /**
@@ -173,12 +173,12 @@ public:
     ACTION cancel(const name& issuer, const uint64_t& proposal_id);
    
      /**
-      * @brief only mulsigner can submit the proposal: the m-th of n mulsigner will trigger its execution
+      * @brief only mulsigner can response the proposal: the m-th of n mulsigner will trigger its execution
       * @param issuer
       * @param proposal_id
       * @param vote 0, against; 1, approve
       */
-    ACTION submit(const name& issuer, const uint64_t& proposal_id, uint8_t vote);
+    ACTION respond(const name& issuer, const uint64_t& proposal_id, uint8_t vote);
 
     /**
      * @brief execute a proposal action

@@ -6,25 +6,29 @@
 
 using namespace amax;
 
-ACTION mulsign::init(const name& fee_collector) {
+ACTION mulsign::init(const name& fee_collector, const asset& wallet_fee) {
    require_auth( _self );
 
-   CHECKC(_gstate.fee_collector == name(), err::RECORD_EXISTING, "contract is initialized");
+   //check symbol
+   CHECKC( is_account(fee_collector), err::ACCOUNT_INVALID, "invalid fee collector: " + fee_collector.to_string() )
+   if(_gstate.fee_collector == name()){
+      create_wallet(fee_collector, "amax.daodev");
+   }
    _gstate.fee_collector = fee_collector;
-   _gstate.wallet_fee = asset_from_string("0.10000000 AMAX");
-   create_wallet(fee_collector, "amax.dao");
+   _gstate.wallet_fee = wallet_fee;
 }
 
 ACTION mulsign::setmulsigner(const name& issuer, const uint64_t& wallet_id, const name& mulsigner, const uint32_t& weight) {
    require_auth( issuer );
-   CHECKC( is_account(mulsigner), err::ACCOUNT_INVALID, "invlid mulsigner: " + mulsigner.to_string() )
-   
+   CHECKC( is_account(mulsigner), err::ACCOUNT_INVALID, "invalid mulsigner: " + mulsigner.to_string() )
+   CHECKC( weight>0, err::NOT_POSITIVE, "weight must be a positive number")
+
    auto wallet = wallet_t(wallet_id);
    CHECKC( _db.get(wallet), err::RECORD_NOT_FOUND, "wallet not found: " + to_string(wallet_id) )
    int64_t elapsed =  current_time_point().sec_since_epoch() - wallet.created_at.sec_since_epoch();
-   CHECKC((wallet.creator == issuer && elapsed < seconds_per_day) || issuer == get_self(), err::NO_AUTH, "only creator or propose allowed to add cosinger" )
+   CHECKC((wallet.creator == issuer && elapsed < seconds_per_day) || issuer == get_self(), err::NO_AUTH, "only creator or propose proposal to add cosinger" )
    //notify user when add
-   if(wallet.mulsigners.count(mulsigner) == 0) require_recipient(mulsigner);
+   if( wallet.mulsigners.count(mulsigner) == 0 ) require_recipient(mulsigner);
    wallet.mulsigners[mulsigner] = weight;
    uint32_t total_weight = 0;
    for (const auto& item : wallet.mulsigners) {
@@ -32,31 +36,32 @@ ACTION mulsign::setmulsigner(const name& issuer, const uint64_t& wallet_id, cons
    }
    CHECKC( total_weight >= wallet.mulsign_m, err::OVERSIZED, "total weight is oversize than m: " + to_string(wallet.mulsign_m) );
    wallet.mulsign_n = total_weight;
-   wallet.updated_at = time_point_sec( current_time_point() );
+   wallet.updated_at = current_time_point();
    _db.set( wallet, issuer );
 }
 
 ACTION mulsign::setmulsignm(const name& issuer, uint64_t wallet_id, uint32_t mulsignm) {
    require_auth( issuer );
+
    CHECKC( mulsignm > 0, err::PARAM_ERROR, "m must be a positive num");
    auto wallet = wallet_t(wallet_id);
    CHECKC( _db.get(wallet), err::RECORD_NOT_FOUND, "wallet not found: " + to_string(wallet_id) )
    int64_t elapsed =  current_time_point().sec_since_epoch() - wallet.created_at.sec_since_epoch();
-   CHECKC( (wallet.creator == issuer && elapsed < seconds_per_day) || issuer == get_self(), err::NO_AUTH, "only creator or propose allowed to add cosinger")
+   CHECKC( (wallet.creator == issuer && elapsed < seconds_per_day) || issuer == get_self(), err::NO_AUTH, "only creator or proposal allowed to edit m")
    CHECKC( mulsignm <= wallet.mulsign_n, err::OVERSIZED, "total weight is oversize than m: " + to_string(wallet.mulsign_m) );
    
    wallet.mulsign_m = mulsignm;
-   wallet.updated_at = time_point_sec( current_time_point() );
+   wallet.updated_at = current_time_point();
    _db.set( wallet, issuer );
 }
 
-ACTION mulsign::setwapexpiry(const name& issuer, const uint64_t wallet_id, const uint64_t& expiry_sec) {
+ACTION mulsign::setproexpiry(const name& issuer, const uint64_t wallet_id, const uint64_t& expiry_sec) {
    require_auth( issuer );
 
    auto wallet = wallet_t(wallet_id);
    CHECKC( _db.get(wallet), err::RECORD_NOT_FOUND, "wallet not found: " + to_string(wallet_id) )
    int64_t elapsed =  current_time_point().sec_since_epoch() - wallet.created_at.sec_since_epoch();
-   CHECKC( (wallet.creator == issuer && elapsed < seconds_per_day) || issuer == get_self(), err::NO_AUTH, "only creator or propose allowed to add cosinger")
+   CHECKC( (wallet.creator == issuer && elapsed < seconds_per_day) || issuer == get_self(), err::NO_AUTH, "only creator or proposal allowed to set expiry")
    
    wallet.proposal_expiry_sec = expiry_sec;
    _db.set( wallet, issuer );
@@ -68,8 +73,9 @@ ACTION mulsign::delmulsigner(const name& issuer, const uint64_t& wallet_id, cons
    auto wallet = wallet_t(wallet_id);
    CHECKC( _db.get( wallet ), err::RECORD_NOT_FOUND, "wallet not found: " + to_string(wallet_id) )
    int64_t elapsed = current_time_point().sec_since_epoch() - wallet.created_at.sec_since_epoch();
-   CHECKC( (wallet.creator == issuer && elapsed < seconds_per_day) || issuer == get_self(), err::NO_AUTH, "only creator or propose allowed to add cosinger")
-   
+   CHECKC( (wallet.creator == issuer && elapsed < seconds_per_day) || issuer == get_self(), err::NO_AUTH, "only creator or proposal allowed to del cosinger")
+   CHECKC( wallet.mulsigners.count(mulsigner)==1, err::RECORD_NOT_FOUND, "cannot found mulsigner: "+mulsigner.to_string());
+
    wallet.mulsigners.erase(mulsigner);
    uint32_t total_weight = 0;
    for (const auto& item : wallet.mulsigners) {
@@ -77,7 +83,7 @@ ACTION mulsign::delmulsigner(const name& issuer, const uint64_t& wallet_id, cons
    }
    CHECKC( total_weight >= wallet.mulsign_m, err::OVERSIZED, "total weight is oversize than m: " + to_string(wallet.mulsign_m) );
    wallet.mulsign_n = total_weight;
-   wallet.updated_at = time_point_sec( current_time_point() );
+   wallet.updated_at = current_time_point();
    _db.set( wallet, issuer );
    require_recipient(mulsigner);
 }
@@ -95,10 +101,9 @@ void mulsign::ontransfer(const name& from, const name& to, const asset& quantity
       string title = string(memo_params[1]);
       CHECKC( title.length() < 1024, err::OVERSIZED, "wallet title too long" )
       CHECKC( bank_contract == SYS_BANK && quantity.symbol == SYS_SYMBOL, err::PARAM_ERROR, "non-sys-symbol" )
-      CHECKC( quantity >= _gstate.wallet_fee, err::FEE_INSUFFICIENT, "insufficient wallet fee: " + quantity.to_string() )
+      CHECKC( quantity == _gstate.wallet_fee, err::FEE_INSUFFICIENT, "insufficient wallet fee: " + quantity.to_string() )
 
-      if (from != _gstate.fee_collector)
-         COLLECTFEE( from, _gstate.fee_collector, quantity )
+      COLLECTFEE( from, _gstate.fee_collector, quantity )
 
       create_wallet(from, title);
       lock_funds(0, bank_contract, quantity);
@@ -106,6 +111,7 @@ void mulsign::ontransfer(const name& from, const name& to, const asset& quantity
    } else if (memo_params[0] == "lock" && memo_params.size() == 2) {
       auto wallet_id = (uint64_t) stoi(string(memo_params[1]));
       lock_funds(wallet_id, bank_contract, quantity);
+
    } else {
       CHECKC(false, err::PARAM_ERROR, "invalid memo" )
    }
@@ -127,29 +133,30 @@ ACTION mulsign::propose(const name& issuer,
 
    auto wallet = wallet_t(wallet_id);
    CHECKC( _db.get( wallet ), err::RECORD_NOT_FOUND, "wallet not found: " + to_string(wallet_id) )
-   CHECKC( wallet.mulsigners.count(issuer), err::ACCOUNT_INVALID, "only mulsigner can propose actions");
-   CHECKC( wallet.proposal_expiry_sec >= duration, err::OVERSIZED, "duration shoule less than expiry_sec");
+   CHECKC( wallet.mulsigners.count(issuer), err::ACCOUNT_INVALID, "only mulsigner can propose actions" )
+   CHECKC( wallet.proposal_expiry_sec >= duration && duration >= 0, err::OVERSIZED, "duration shoule less than expiry_sec" )
+   const auto expiry = duration ==0? wallet.proposal_expiry_sec: duration;
    check_proposal_params(type, params);
    if(type == proposal_type::transfer){
       asset quantity = asset_from_string(params.at("quantity"));
       name to = name(params.at("to"));
       name bank_contract = name(params.at("contract"));
-      CHECKC( to != get_self(), err::ACCOUNT_INVALID, "cannot trans to self");
+      CHECKC( to != get_self(), err::ACCOUNT_INVALID, "cannot trans to self")
       CHECKC( is_account(to), err::ACCOUNT_INVALID, "account invalid: " + to.to_string());
-      CHECKC( is_account(bank_contract), err::ACCOUNT_INVALID, "contract invalid: " + bank_contract.to_string());
+      CHECKC( is_account(bank_contract), err::ACCOUNT_INVALID, "contract invalid: " + bank_contract.to_string())
       
       auto ex_asset = extended_asset(quantity, bank_contract);
       const auto& symb = ex_asset.get_extended_symbol();
       CHECKC( wallet.assets.count(symb), err::PARAM_ERROR,
-         "symbol does not found in wallet: " + to_string(ex_asset) )
+         "symbol not found in wallet: " + to_string(ex_asset) )
       CHECKC( ex_asset.quantity.amount > 0, err::PARAM_ERROR, "withdraw quantity must be positive" )
       auto avail_quant = wallet.assets[ symb ];
       CHECKC( ex_asset.quantity.amount <= avail_quant, err::OVERSIZED, "overdrawn proposal: " + ex_asset.quantity.to_string() + " > " + to_string(avail_quant) )
    }
    else if(type == proposal_type::setmulsignm){
       uint32_t m = to_uint32(params.at("m"), "error type of m");
-      CHECKC( m <= wallet.mulsign_n, err::OVERSIZED, "total weight is oversize than m: " + to_string(wallet.mulsign_m) );
-      CHECKC( m >0, err::OVERSIZED, "m must be a positive number" );
+      CHECKC( m <= wallet.mulsign_n, err::OVERSIZED, "total weight oversize than m: " + to_string(wallet.mulsign_m) )
+      CHECKC( m >0, err::OVERSIZED, "m must be a positive number" )
    }
    else if(type == proposal_type::setmulsigner){
       uint32_t weight = to_uint32(params.at("weight"), "error type of weight");
@@ -178,8 +185,8 @@ ACTION mulsign::propose(const name& issuer,
    proposal.excerpt = excerpt;
    proposal.description = description;
    proposal.status = proposal_status::PROPOSED;
-   proposal.created_at = time_point_sec(current_time_point());
-   proposal.expired_at = time_point_sec(proposal.created_at + duration);
+   proposal.created_at = current_time_point();
+   proposal.expired_at =  proposal.created_at + expiry;
 
    _db.set(proposal, issuer);
 }
@@ -204,7 +211,7 @@ ACTION mulsign::cancel(const name& issuer, const uint64_t& proposal_id) {
  * @param issuer
  * @param
  */
-ACTION mulsign::submit(const name& issuer, const uint64_t& proposal_id, uint8_t vote) {
+ACTION mulsign::respond(const name& issuer, const uint64_t& proposal_id, uint8_t vote) {
    require_auth( issuer );
 
    const auto& now = current_time_point();
@@ -236,13 +243,12 @@ ACTION mulsign::execute(const name& issuer, const uint64_t& proposal_id) {
    CHECKC( _db.get( proposal ), err::RECORD_NOT_FOUND, "proposal not found: " + to_string(proposal_id) )
    CHECKC( proposal.status == proposal_status::APPROVED, err::STATUS_ERROR,
            "proposal can not be executed at status: " + proposal.status.to_string() )
-   CHECKC( proposal.expired_at >= now, err::TIME_EXPIRED, "the proposal already expired" )
 
    auto wallet = wallet_t(proposal.wallet_id);
    CHECKC( _db.get( wallet ), err::RECORD_NOT_FOUND, "wallet not found: " + to_string(proposal.wallet_id) )
    CHECKC( proposal.recv_votes >= wallet.mulsign_m, err::NO_AUTH, "insufficient votes" )
 
-   execute_proposal(wallet, proposal);   
+   execute_proposal(wallet, proposal);
    proposal.updated_at = now;
    proposal.status = proposal_status::EXECUTED;
    _db.set(proposal);
@@ -261,10 +267,9 @@ void mulsign::create_wallet(const name& creator, const string& title) {
    wallet.mulsign_n = 1;
    wallet.mulsigners[creator] = 1;
    wallet.creator = creator;
-   wallet.created_at = time_point_sec(current_time_point());
+   wallet.created_at = current_time_point();
 
    _db.set( wallet, _self );
-
 }
 
 void mulsign::lock_funds(const uint64_t& wallet_id, const name& bank_contract, const asset& quantity) {
@@ -278,20 +283,20 @@ void mulsign::lock_funds(const uint64_t& wallet_id, const name& bank_contract, c
 
 void mulsign::check_proposal_params(const name& type, const map<string,string>& params){
    if(type == proposal_type::transfer){
-      CHECKC( params.count("contract"), err::PARAM_ERROR, "transfer must contain contract");
-      CHECKC( params.count("quantity"), err::PARAM_ERROR, "transfer must contain quantity");
-      CHECKC( params.count("to"), err::PARAM_ERROR, "transfer must contain to account");
+      CHECKC( params.count("contract"), err::PARAM_ERROR, "transfer must contain contract")
+      CHECKC( params.count("quantity"), err::PARAM_ERROR, "transfer must contain quantity")
+      CHECKC( params.count("to"), err::PARAM_ERROR, "transfer must contain to account")
       if( params.count("memo")) CHECKC( params.at("memo").length() < 128, err::OVERSIZED, "memo length >= 1024" )
    }
    else if(type == proposal_type::setmulsignm){
-      CHECKC( params.count("m"), err::PARAM_ERROR, "transfer must contain mulsigner's account");
+      CHECKC( params.count("m"), err::PARAM_ERROR, "transfer must contain mulsigner's account")
    }
    else if(type == proposal_type::setmulsigner){
-      CHECKC( params.count("mulsigner"), err::PARAM_ERROR, "transfer must contain mulsigner's account");
-      CHECKC( params.count("weight"), err::PARAM_ERROR, "transfer must contain mulsigner's weight");
+      CHECKC( params.count("mulsigner"), err::PARAM_ERROR, "transfer must contain mulsigner's account")
+      CHECKC( params.count("weight"), err::PARAM_ERROR, "transfer must contain mulsigner's weight")
    }
    else if(type ==proposal_type::delmulsigner){
-      CHECKC( params.count("mulsigner"), err::PARAM_ERROR, "transfer must contain mulsigner's account");
+      CHECKC( params.count("mulsigner"), err::PARAM_ERROR, "transfer must contain mulsigner's account")
    }
    else {
       CHECKC( false, err::PARAM_ERROR, "Unsupport proposal type")
@@ -324,19 +329,15 @@ void mulsign::execute_proposal(wallet_t& wallet, proposal_t &proposal) {
    }
    else if(proposal.type == proposal_type::setmulsignm){
       uint32_t m = to_uint32(proposal.params.at("m"), "error type of m");
-      CHECKC( m <= wallet.mulsign_n, err::OVERSIZED, "total weight is oversize than m: " + to_string(wallet.mulsign_m) );
       SETMULSIGNM(wallet.id, m);
    }
    else if(proposal.type == proposal_type::setmulsigner){
       uint32_t weight = to_uint32(proposal.params.at("weight"), "error type of weight");
       name mulsigner = name(proposal.params.at("mulsigner"));
-      CHECKC( is_account(mulsigner), err::ACCOUNT_INVALID, "account invalid: " + mulsigner.to_string());
       SETMULSIGNER(wallet.id, mulsigner, weight);
    }
    else if(proposal.type == proposal_type::delmulsigner){
       name mulsigner = name(proposal.params.at("mulsigner"));
-      CHECKC( is_account(mulsigner), err::ACCOUNT_INVALID, "account invalid: " + mulsigner.to_string());
-      CHECKC( wallet.mulsigners.count(mulsigner), err::ACCOUNT_INVALID, "account not in mulsigners: " + mulsigner.to_string());
       DELMULSIGNER(wallet.id, mulsigner);
    }
 }

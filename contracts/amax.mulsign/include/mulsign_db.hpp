@@ -117,7 +117,6 @@ TBL proposal_t {
     < "proposals"_n,  proposal_t,
         indexed_by<"walletidx"_n, const_mem_fun<proposal_t, uint64_t, &proposal_t::by_wallet_id> >
     > idx_t;
-
 };
 
 }
