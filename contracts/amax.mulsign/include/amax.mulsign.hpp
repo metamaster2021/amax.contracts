@@ -85,7 +85,7 @@ public:
     ~mulsign() { _global.set( _gstate, get_self() ); }
 
 
-    ACTION init(const name& fee_collector);
+    ACTION init(const name& fee_collector, const asset& wallet_fee);
 
     /**
      * @brief add a mulsinger into a target wallet, must add all mulsigners within 24 hours upon creation

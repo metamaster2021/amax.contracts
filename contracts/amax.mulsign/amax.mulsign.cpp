@@ -9,11 +9,12 @@ using namespace amax;
 ACTION mulsign::init(const name& fee_collector, const asset& wallet_fee) {
    require_auth( _self );
 
-   //check symbol
+   CHECKC( wallet_fee.symbol == SYS_SYMBOL, err::SYMBOL_MISMATCH, "requir fee type: AMAX");
+   CHECKC( wallet_fee.amount > 0, err::NOT_POSITIVE, "fee must be positive");
    CHECKC( is_account(fee_collector), err::ACCOUNT_INVALID, "invalid fee collector: " + fee_collector.to_string() )
-   if(_gstate.fee_collector == name()){
-      create_wallet(fee_collector, "amax.daodev");
-   }
+   
+   if(_gstate.fee_collector == name()) create_wallet(fee_collector, "amax.daodev");
+   
    _gstate.fee_collector = fee_collector;
    _gstate.wallet_fee = wallet_fee;
 }
