@@ -103,7 +103,7 @@ public:
      * @param mulsignm
      *
      */
-    ACTION setmulsignm(const name& issuer, uint64_t wallet_id, uint32_t mulsignm);
+    ACTION setmulsignm(const name& issuer, const uint64_t& wallet_id, const uint32_t& mulsignm);
 
     /**
     * @brief set proposal expiry time in seconds for a given wallet
