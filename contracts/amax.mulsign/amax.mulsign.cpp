@@ -35,13 +35,13 @@ ACTION mulsign::setmulsigner(const name& issuer, const uint64_t& wallet_id, cons
    for (const auto& item : wallet.mulsigners) {
       total_weight += item.second;
    }
-   CHECKC( total_weight >= wallet.mulsign_m, err::OVERSIZED, "total weight is oversize than m: " + to_string(wallet.mulsign_m) );
+   CHECKC( total_weight >= wallet.mulsign_m, err::OVERSIZED, "total weight " + to_string(wallet.mulsign_n) + "must be grater than  m: " + to_string(wallet.mulsign_m) );
    wallet.mulsign_n = total_weight;
    wallet.updated_at = current_time_point();
    _db.set( wallet, issuer );
 }
 
-ACTION mulsign::setmulsignm(const name& issuer, uint64_t wallet_id, uint32_t mulsignm) {
+ACTION mulsign::setmulsignm(const name& issuer, const uint64_t& wallet_id, const uint32_t& mulsignm){
    require_auth( issuer );
 
    CHECKC( mulsignm > 0, err::PARAM_ERROR, "m must be a positive num");
@@ -49,7 +49,7 @@ ACTION mulsign::setmulsignm(const name& issuer, uint64_t wallet_id, uint32_t mul
    CHECKC( _db.get(wallet), err::RECORD_NOT_FOUND, "wallet not found: " + to_string(wallet_id) )
    int64_t elapsed =  current_time_point().sec_since_epoch() - wallet.created_at.sec_since_epoch();
    CHECKC( (wallet.creator == issuer && elapsed < seconds_per_day) || issuer == get_self(), err::NO_AUTH, "only creator or proposal allowed to edit m")
-   CHECKC( mulsignm <= wallet.mulsign_n, err::OVERSIZED, "total weight is oversize than m: " + to_string(wallet.mulsign_m) );
+   CHECKC( mulsignm <= wallet.mulsign_n, err::OVERSIZED, "total weight " + to_string(wallet.mulsign_n) + "must be grater than  m: " + to_string(mulsignm));
    
    wallet.mulsign_m = mulsignm;
    wallet.updated_at = current_time_point();
@@ -82,7 +82,7 @@ ACTION mulsign::delmulsigner(const name& issuer, const uint64_t& wallet_id, cons
    for (const auto& item : wallet.mulsigners) {
       total_weight += item.second;
    }
-   CHECKC( total_weight >= wallet.mulsign_m, err::OVERSIZED, "total weight is oversize than m: " + to_string(wallet.mulsign_m) );
+   CHECKC( total_weight >= wallet.mulsign_m, err::OVERSIZED, "total weight " + to_string(wallet.mulsign_n) + "must be grater than  m: " + to_string(wallet.mulsign_m) );
    wallet.mulsign_n = total_weight;
    wallet.updated_at = current_time_point();
    _db.set( wallet, issuer );
@@ -102,7 +102,7 @@ void mulsign::ontransfer(const name& from, const name& to, const asset& quantity
       string title = string(memo_params[1]);
       CHECKC( title.length() < 1024, err::OVERSIZED, "wallet title too long" )
       CHECKC( bank_contract == SYS_BANK && quantity.symbol == SYS_SYMBOL, err::PARAM_ERROR, "non-sys-symbol" )
-      CHECKC( quantity == _gstate.wallet_fee, err::FEE_INSUFFICIENT, "insufficient wallet fee: " + quantity.to_string() )
+      CHECKC( quantity >= _gstate.wallet_fee, err::FEE_INSUFFICIENT, "insufficient wallet fee: " + quantity.to_string() )
 
       COLLECTFEE( from, _gstate.fee_collector, quantity )
 
@@ -187,7 +187,7 @@ ACTION mulsign::propose(const name& issuer,
    proposal.description = description;
    proposal.status = proposal_status::PROPOSED;
    proposal.created_at = current_time_point();
-   proposal.expired_at =  proposal.created_at + expiry;
+   proposal.expired_at = proposal.created_at + expiry;
 
    _db.set(proposal, issuer);
 }
