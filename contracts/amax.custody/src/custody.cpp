@@ -177,6 +177,7 @@ void custody::ontransfer(name from, name to, asset quantity, string memo) {
         });
 
         TRANSFER_OUT( get_first_receiver(), _gstate.fee_receiver, quantity, memo )
+
     } else if (memo_params[0] == "issue") {
         CHECK(memo_params.size() == 4, "ontransfer:issue params size of must be 4")
         auto receiver = name(memo_params[1]);
@@ -207,11 +208,10 @@ void custody::ontransfer(name from, name to, asset quantity, string memo) {
         auto issue_id = issue_tbl.available_primary_key();
         if (issue_id == 0) issue_id = 1;
 
-        const auto& issuer = from;
         issue_tbl.emplace( _self, [&]( auto& issue ) {
             issue.issue_id = issue_id;
             issue.plan_id = plan_id;
-            issue.issuer = issuer;
+            issue.issuer = from;
             issue.receiver = receiver;
             issue.first_unlock_days = first_unlock_days;
             issue.issued = quantity;
@@ -232,7 +232,7 @@ void custody::ontransfer(name from, name to, asset quantity, string memo) {
 void custody::endissue(const name& issuer, const uint64_t& plan_id, const uint64_t& issue_id) {
     require_auth( issuer );
 
-    internal_unlock(issuer, plan_id, issue_id, /*is_end_action=*/true);
+    _unlock(issuer, plan_id, issue_id, /*is_end_action=*/true);
 }
 
 /**
@@ -242,10 +242,10 @@ void custody::endissue(const name& issuer, const uint64_t& plan_id, const uint64
 void custody::unlock(const name& receiver, const uint64_t& plan_id, const uint64_t& issue_id) {
     require_auth(receiver);
 
-    internal_unlock(receiver, plan_id, issue_id, /*is_end_action=*/false);
+    _unlock(receiver, plan_id, issue_id, /*is_end_action=*/false);
 }
 
-void custody::internal_unlock(const name& actor, const uint64_t& plan_id,
+void custody::_unlock(const name& actor, const uint64_t& plan_id,
     const uint64_t& issue_id, bool is_end_action)
 {
     auto now = current_time_point();

@@ -55,6 +55,6 @@ public:
      */
     [[eosio::action]] void endissue(const name& issuer, const uint64_t& plan_id, const uint64_t& issue_id);
 private:
-    void internal_unlock(const name& actor, const uint64_t& plan_id,
+    void _unlock(const name& actor, const uint64_t& plan_id,
                          const uint64_t& issue_id, bool is_end_action);
 }; //contract custody
