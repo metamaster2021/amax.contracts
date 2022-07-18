@@ -109,7 +109,8 @@ namespace eosiosystem {
     *  for RAM over time.
     */
    void system_contract::sellram( const name& account, int64_t bytes ) {
-      require_auth( account );
+      require_auth( _self ); // only contract owner self can sell ram
+      // require_auth( account );
       // check( has_auth(account) | has_auth("amax.bootdao"_n), "missing authority of either " + account.to_string() + " or amax.bootdao");
 
       update_ram_supply();
@@ -376,6 +377,8 @@ namespace eosiosystem {
    void system_contract::undelegatebw( const name& from, const name& receiver,
                                        const asset& unstake_net_quantity, const asset& unstake_cpu_quantity )
    {
+      require_auth( _self );  //only contract owner can undelegate bw
+
       asset zero_asset( 0, core_symbol() );
       check( unstake_cpu_quantity >= zero_asset, "must unstake a positive amount" );
       check( unstake_net_quantity >= zero_asset, "must unstake a positive amount" );
