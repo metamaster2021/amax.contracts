@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.5)
 
-project(src_tools)
+project(amax_contracts)
 
 set(VERSION_MAJOR 0)
 set(VERSION_MINOR 1)
@@ -17,7 +17,7 @@ include(ExternalProject)
 
 find_package(amax.cdt)
 
-message(STATUS "Building ${CMAKE_PROJECT_NAME} v${VERSION_FULL}")
+message(STATUS "Building amax.contracts v${VERSION_FULL}")
 
 set(AMAX_CDT_VERSION_MIN "1.7.0")
 set(AMAX_CDT_VERSION_SOFT_MAX "1.7.99")
@@ -46,7 +46,7 @@ else()
 endif()
 
 ExternalProject_Add(
-   src_tools_contracts_project
+   amax_contracts_project
    SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/contracts
    BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/contracts
    CMAKE_ARGS -DCMAKE_TOOLCHAIN_FILE=${AMAX_CDT_ROOT}/lib/cmake/amax.cdt/AmaxWasmToolchain.cmake

@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+export PROJECT_DIR=$( dirname "${BASH_SOURCE[0]}" )
+export ROOT_DIR=${PROJECT_DIR}/..
+
 set -eo pipefail
 
 function usage() {
@@ -49,8 +52,8 @@ if [ $# -ne 0 ]; then
 fi
 
 # Source helper functions and variables.
-. ./scripts/.environment
-. ./scripts/helper.sh
+. ${ROOT_DIR}/scripts/.environment
+. ${ROOT_DIR}/scripts/helper.sh
 
 if [[ ${BUILD_TESTS} == true ]]; then
    # Prompt user for location of amax.
