@@ -9,15 +9,13 @@ using std::chrono::system_clock;
 using namespace wasm;
 
 
-// [[eosio::action]]
-// void amax_ido::init() {
-//     auto issues = issue_t::tbl_t(_self, _self.value);
-//     auto itr = issues.begin();
-//     while (itr != issues.end()) {
-//         issues.modify( *itr, _self, [&]( auto& row ) {
-//         });
-//     }
-// }
+[[eosio::action]]
+void amax_ido::init() {
+  require_auth( _self );
+
+  _gstate.admin = "armoniaadmin"_n;
+  
+}
 
 
 [[eosio::action]]
@@ -46,6 +44,7 @@ void amax_ido::ontransfer(name from, name to, asset quantity, string memo) {
 
     auto balance    = eosio::token::get_balance(SYS_BANK, _self, SYS_SYMBOL.code());
     CHECK( quant < balance, "insufficent funds to buy" )
+    CHECK( quant >= _gstate.min_buy_amount, "buy amount too small: " + quant.to_string() )
 
     TRANSFER( SYS_BANK, from, quant, "ido price: " + _gstate.amax_price.to_string() )
 }

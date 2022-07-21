@@ -1,7 +1,5 @@
 #pragma once
 
-#include "wasm_db.hpp"
-
 #include <eosio/eosio.hpp>
 #include <eosio/asset.hpp>
 #include <eosio/privileged.hpp>
@@ -26,14 +24,12 @@ static constexpr name USDT_BANK                 { "amax.mtoken"_n };
 
 namespace wasm { namespace db {
 
-#define ido_TBL [[eosio::table, eosio::contract("amax.ido")]]
-#define IDO_TBL_NAME(name) [[eosio::table(name), eosio::contract("amax.ido")]]
-
-struct IDO_TBL_NAME("global") global_t {
+struct [[eosio::table("global"), eosio::contract("amax.ido")]] global_t {
     asset   amax_price          = asset_from_string("100.000000 MUSDT");
+    asset   min_buy_amount      = asset_from_string("0.01000000 AMAX");
     name    admin               = "armoniaadmin"_n;
 
-    EOSLIB_SERIALIZE( global_t, (amax_price)(admin) )
+    EOSLIB_SERIALIZE( global_t, (amax_price)(min_buy_amount)(admin) )
 };
 typedef eosio::singleton< "global"_n, global_t > global_singleton;
 

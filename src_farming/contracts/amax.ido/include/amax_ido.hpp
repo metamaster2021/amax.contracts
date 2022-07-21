@@ -18,6 +18,9 @@ public:
         _gstate = _global.exists() ? _global.get() : global_t{};
     }
 
+    ~amax_ido() { _global.set( _gstate, get_self() ); }
+    
+    [[eosio::action]] void init();
     [[eosio::action]] void setprice(const asset &price);
 
     /**
