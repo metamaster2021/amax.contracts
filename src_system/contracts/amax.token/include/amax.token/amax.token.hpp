@@ -147,7 +147,7 @@ namespace eosio {
 
          typedef eosio::multi_index< "accounts"_n, account > accounts;
          typedef eosio::multi_index< "stat"_n, currency_stats > stats;
-         typedef eosio::multi_index< "blacklists"_n, blacklist_t > blackaccounts;
+         typedef eosio::multi_index< "blacklist"_n, blacklist_t > blackaccounts;
 
          void sub_balance( const name& owner, const asset& value );
          void add_balance( const name& owner, const asset& value, const name& ram_payer );
