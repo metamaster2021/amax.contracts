@@ -42,13 +42,17 @@ void amax_ido::setprice(const asset &price) {
 void amax_ido::ontransfer(name from, name to, asset quantity, string memo) {
     if (from == get_self() || to != get_self()) return;
 
-	CHECK( quantity.amount > 0, "quantity must be positive" )
-
     auto first_contract = get_first_receiver();
+    if (first_contract == SYS_BANK) return; //refuel only
+
+	CHECK( quantity.amount > 0, "quantity must be positive" )
     CHECK( first_contract == USDT_BANK, "none USDT payment not allowed: " + first_contract.to_string() )
 
-    auto amount     = quantity / _gstate.amax_price;
+    auto amount     = 1'0000'0000 * quantity / _gstate.amax_price;
     auto quant      = asset(amount, SYS_SYMBOL);
 
-    TRANSFER_OUT( SYS_BANK, from, quant, "" )
+    auto balance    = eosio::token::get_balance(SYS_BANK, _self, SYS_SYMBOL.code());
+    CHECK( quant < balance, "insufficent funds to buy" )
+
+    TRANSFER_OUT( SYS_BANK, from, quant, "ido price: " + _gstate.amax_price.to_string() )
 }

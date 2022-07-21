@@ -1,0 +1,15 @@
+
+<h1 class="contract"> init </h1>
+
+---
+spec_version: "0.1.0"
+title: init
+summary: 'initilize & maintain'
+icon: @ICON_BASE_URL@/@TOKEN_ICON_URI@
+---
+
+Set Price for AMAX with payment token
+
+<h1 class="contract"> setprice </h1>
+
+---
