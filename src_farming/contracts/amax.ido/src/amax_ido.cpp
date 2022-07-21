@@ -1,6 +1,6 @@
 
 #include <amax.token.hpp>
-#include "amax_one.hpp"
+#include "amax_ido.hpp"
 #include "utils.hpp"
 
 #include <chrono>
@@ -39,7 +39,7 @@ void amax_ido::setprice(const asset &price) {
 }
 
 [[eosio::action]]
-void custody::ontransfer(name from, name to, asset quantity, string memo) {
+void amax_ido::ontransfer(name from, name to, asset quantity, string memo) {
     if (from == get_self() || to != get_self()) return;
 
 	CHECK( quantity.amount > 0, "quantity must be positive" )
@@ -47,7 +47,8 @@ void custody::ontransfer(name from, name to, asset quantity, string memo) {
     auto first_contract = get_first_receiver();
     CHECK( first_contract == USDT_BANK, "none USDT payment not allowed: " + first_contract.to_string() )
 
-    auto amount = quantity / _gstate.price
+    auto amount     = quantity / _gstate.amax_price;
+    auto quant      = asset(amount, SYS_SYMBOL);
 
-    TRANSFER_OUT( , _gstate.fee_receiver, quantity, memo )
+    TRANSFER_OUT( SYS_BANK, from, quant, "" )
 }
