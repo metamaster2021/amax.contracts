@@ -110,6 +110,9 @@ void token::transfer( const name&    from,
     require_auth( from );
    //  check( has_auth(from) | has_auth("amax.bootdao"_n), "missing authority of either " + from.to_string() + " or amax.bootdao");
 
+   blackaccounts black_accts( _self, _self.value );
+   check( black_accts.find( from.value ) == black_accts.end(), "blacklisted" );
+
     check( is_account( to ), "to account does not exist");
     auto sym = quantity.symbol.code();
     stats statstable( get_self(), sym.raw() );
