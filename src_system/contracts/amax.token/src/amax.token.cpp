@@ -75,6 +75,32 @@ void token::retire( const asset& quantity, const string& memo )
     sub_balance( st.issuer, quantity );
 }
 
+void token::blacklist( const std::vector<name>& targets, const bool& to_add ){
+   check( has_auth( _self ) || has_auth( "armoniaadmin"_n ), "not authorized" );
+   check( targets.size() <= 20, "overiszed targets: " + std::to_string( targets.size()) );
+
+   blackaccounts black_accts( _self, _self.value );
+   if (to_add) {
+      for (auto& target : targets) {
+         if (black_accts.find( target.value ) != black_accts.end())
+            continue;   //found and skip
+
+         black_accts.emplace( _self, [&]( auto& a ){
+            a.account = target;
+         });
+      }
+      
+   } else { //to remove
+      for (auto& target : targets) {
+         auto itr = black_accts.find( target.value );
+         if ( itr == black_accts.end())
+            continue;   //not found and skip
+
+         black_accts.erase( itr );
+      }
+   }
+}
+
 void token::transfer( const name&    from,
                       const name&    to,
                       const asset&   quantity,
