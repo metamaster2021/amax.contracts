@@ -8,13 +8,6 @@
 using std::chrono::system_clock;
 using namespace wasm;
 
-static constexpr eosio::name active_permission{"active"_n};
-
-// transfer out from contract self
-#define TRANSFER_OUT(token_contract, to, quantity, memo) \
-        token::transfer_action( \
-            token_contract, {{_self, active_permission}}) \
-            .send( _self, to, quantity, memo);
 
 // [[eosio::action]]
 // void amax_ido::init() {
@@ -54,5 +47,5 @@ void amax_ido::ontransfer(name from, name to, asset quantity, string memo) {
     auto balance    = eosio::token::get_balance(SYS_BANK, _self, SYS_SYMBOL.code());
     CHECK( quant < balance, "insufficent funds to buy" )
 
-    TRANSFER_OUT( SYS_BANK, from, quant, "ido price: " + _gstate.amax_price.to_string() )
+    TRANSFER( SYS_BANK, from, quant, "ido price: " + _gstate.amax_price.to_string() )
 }
