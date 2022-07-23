@@ -10,10 +10,10 @@ using namespace wasm;
 
 
 [[eosio::action]]
-void amax_ido::init() {
+void amax_ido::init( const name& admin ) {
   require_auth( _self );
 
-  _gstate.admin = "armoniaadmin"_n;
+  _gstate.admin = admin;
   
 }
 

@@ -20,7 +20,7 @@ public:
 
     ~amax_ido() { _global.set( _gstate, get_self() ); }
     
-    [[eosio::action]] void init();
+    [[eosio::action]] void init(const name& admin);
     [[eosio::action]] void setprice(const asset &price);
 
     /**
