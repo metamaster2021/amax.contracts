@@ -118,6 +118,11 @@ namespace eosio {
             return ac.balance;
          }
 
+         static bool is_blacklisted( const name& token_contract, const name& target ) {
+            blackaccounts black_accts( token_contract, token_contract.value );
+            return ( black_accts.find( target.value ) != black_accts.end() );
+         }
+
          using create_action = eosio::action_wrapper<"create"_n, &token::create>;
          using issue_action = eosio::action_wrapper<"issue"_n, &token::issue>;
          using retire_action = eosio::action_wrapper<"retire"_n, &token::retire>;

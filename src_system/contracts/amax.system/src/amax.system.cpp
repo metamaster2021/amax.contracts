@@ -304,6 +304,9 @@ namespace eosiosystem {
                             ignore<authority> owner,
                             ignore<authority> active ) {
 
+      //TODO: to be removed
+      check( creator == get_self(), "not allowed to create now" );
+
       if( creator != get_self() ) {
          uint64_t tmp = newact.value >> 4;
          bool has_dot = false;

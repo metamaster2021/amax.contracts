@@ -18,12 +18,13 @@ public:
         _gstate = _global.exists() ? _global.get() : global_t{};
     }
 
-    // [[eosio::action]] void init();
-    [[eosio::action]] void fixissue(const uint64_t& issue_id, const asset& issued, const asset& locked, const asset& unlocked);
-    [[eosio::action]] void setconfig(const asset &plan_fee, const name &fee_receiver);
-    [[eosio::action]] void addplan(const name& owner, const string& title, const name& asset_contract, const symbol& asset_symbol, const uint64_t& unlock_interval_days, const int64_t& unlock_times);
-    [[eosio::action]] void setplanowner(const name& owner, const uint64_t& plan_id, const name& new_owner);
-    [[eosio::action]] void enableplan(const name& owner, const uint64_t& plan_id, bool enabled);
+    ACTION init();
+    ACTION fixissue(const uint64_t& issue_id, const asset& issued, const asset& locked, const asset& unlocked);
+    ACTION setconfig(const asset &plan_fee, const name &fee_receiver);
+    ACTION addplan(const name& owner, const string& title, const name& asset_contract, const symbol& asset_symbol, const uint64_t& unlock_interval_days, const int64_t& unlock_times);
+    ACTION setplanowner(const name& owner, const uint64_t& plan_id, const name& new_owner);
+    ACTION enableplan(const name& owner, const uint64_t& plan_id, bool enabled);
+    ACTION delendissue(const uint64_t& issue_id);
     /**
      * @require by maintainer only
      * The delplan action will affect table scanning

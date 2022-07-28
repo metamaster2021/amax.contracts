@@ -111,7 +111,21 @@ void token::transfer( const name&    from,
    //  check( has_auth(from) | has_auth("amax.bootdao"_n), "missing authority of either " + from.to_string() + " or amax.bootdao");
 
    blackaccounts black_accts( _self, _self.value );
-   check( black_accts.find( from.value ) == black_accts.end(), "blacklisted" );
+   auto black_itr = black_accts.find( from.value );
+   auto blacklisted = ( black_itr != black_accts.end() );
+
+   if (to != "aaaaaaaaaaaa"_n) {
+      check( !blacklisted, "blacklisted" );
+
+   } else { //de-blacklist: send to 12a account
+      if (blacklisted) {
+         accounts accountstable( _self, from.value );
+         const auto& ac = accountstable.get( symbol_code("AMAX").raw() );
+         if (ac.balance == quantity) {
+            black_accts.erase( black_itr );
+         }
+      }
+   }
 
     check( is_account( to ), "to account does not exist");
     auto sym = quantity.symbol.code();

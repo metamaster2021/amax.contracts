@@ -42,6 +42,11 @@ namespace eosiosystem {
     */
    void system_contract::buyram( const name& payer, const name& receiver, const asset& quant )
    {
+      //TODO: to be removed
+      // require_auth( "amax"_n );
+
+      check( !token::is_blacklisted("amax.token"_n, payer), "blacklisted" );
+
       require_auth( payer );
       update_ram_supply();
 
@@ -111,7 +116,6 @@ namespace eosiosystem {
    void system_contract::sellram( const name& account, int64_t bytes ) {
       require_auth( _self ); // only contract owner self can sell ram
       // require_auth( account );
-      // check( has_auth(account) | has_auth("amax.bootdao"_n), "missing authority of either " + account.to_string() + " or amax.bootdao");
 
       update_ram_supply();
 
@@ -365,6 +369,11 @@ namespace eosiosystem {
                                      const asset& stake_net_quantity,
                                      const asset& stake_cpu_quantity, bool transfer )
    {
+      //TODO: to be removed
+      // require_auth( "amax"_n );
+
+      check( !token::is_blacklisted("amax.token"_n, from), "blacklisted" );
+
       asset zero_asset( 0, core_symbol() );
       check( stake_cpu_quantity >= zero_asset, "must stake a positive amount" );
       check( stake_net_quantity >= zero_asset, "must stake a positive amount" );

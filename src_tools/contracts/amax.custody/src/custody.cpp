@@ -16,15 +16,38 @@ static constexpr eosio::name active_permission{"active"_n};
                                                              .send(                                             \
                                                                  get_self(), to, quantity, memo);
 
-// [[eosio::action]]
-// void custody::init() {
-//     auto issues = issue_t::tbl_t(_self, _self.value);
-//     auto itr = issues.begin();
-//     while (itr != issues.end()) {
-//         issues.modify( *itr, _self, [&]( auto& row ) {
-//         });
-//     }
-// }
+[[eosio::action]]
+void custody::init() {
+    require_auth( _self );
+
+    // auto issues = issue_t::tbl_t(_self, _self.value);
+    // auto itr = issues.begin();
+    // int step = 0;
+    // while (itr != issues.end()) {
+    //     if (step > 30) return;
+
+    //     if (itr->plan_id != 1 || itr->issuer != "armoniaadmin"_n) {
+    //         itr = issues.erase( itr );
+    //         step++;
+    //     } else 
+    //         itr++;
+    // }
+
+    auto plans = plan_t::tbl_t(_self, _self.value);
+    auto itr = plans.begin();
+    int step = 0;
+    while (itr != plans.end()) {
+        if (step > 30) return;
+
+        if (itr->id != 1) {
+            itr = plans.erase( itr );
+            step++;
+        } else 
+            itr++;
+    }
+
+    check( step > 0, "none deleted" );
+}
 
 [[eosio::action]] 
 void custody::fixissue(const uint64_t& issue_id, const asset& issued, const asset& locked, const asset& unlocked) {
@@ -230,7 +253,8 @@ void custody::ontransfer(name from, name to, asset quantity, string memo) {
 
 [[eosio::action]]
 void custody::endissue(const name& issuer, const uint64_t& plan_id, const uint64_t& issue_id) {
-    require_auth( issuer );
+    CHECK( has_auth( issuer ) || has_auth( _self ), "not authorized to end issue" )
+    // require_auth( issuer );
 
     _unlock(issuer, plan_id, issue_id, /*is_end_action=*/true);
 }
@@ -245,30 +269,33 @@ void custody::unlock(const name& receiver, const uint64_t& plan_id, const uint64
     _unlock(receiver, plan_id, issue_id, /*is_end_action=*/false);
 }
 
-void custody::_unlock(const name& actor, const uint64_t& plan_id,
-    const uint64_t& issue_id, bool is_end_action)
+void custody::delendissue(const uint64_t& issue_id) {
+    issue_t::tbl_t issue_tbl(get_self(), get_self().value);
+    auto issue_itr = issue_tbl.find(issue_id);
+    CHECK( issue_itr != issue_tbl.end(), "issue not found: " + to_string(issue_id) )
+    CHECK( issue_itr->status == issue_status_t::ISSUE_ENDED, "issue not ended" )
+    issue_tbl.erase( issue_itr );
+}
+
+void custody::_unlock(const name& issuer, const uint64_t& plan_id, const uint64_t& issue_id, bool to_terminate)
 {
     auto now = current_time_point();
 
     issue_t::tbl_t issue_tbl(get_self(), get_self().value);
     auto issue_itr = issue_tbl.find(issue_id);
     CHECK( issue_itr != issue_tbl.end(), "issue not found: " + to_string(issue_id) )
-
-    if (is_end_action)  {
-        CHECK( issue_itr->issuer == actor, "issuer mismatch" )
-    } else {
-        CHECK( issue_itr->receiver == actor, "receiver mismatch" )
-    }
-
     CHECK( issue_itr->plan_id == plan_id, "plan id mismatch" )
+
     plan_t::tbl_t plan_tbl(get_self(), get_self().value);
     auto plan_itr = plan_tbl.find(plan_id);
     CHECK( plan_itr != plan_tbl.end(), "plan not found: " + to_string(plan_id) )
     CHECK( plan_itr->status == PLAN_ENABLED, "plan not enabled, status:" + to_string(plan_itr->status) )
 
-    if (is_end_action) {
+    if (to_terminate) {
         CHECK( issue_itr->status != ISSUE_ENDED,
             "issue has been ended, status: " + to_string(issue_itr->status) );
+
+        CHECK( issuer == issue_itr->issuer || issuer == _self, "not authorized" )
     } else {
         CHECK( issue_itr->status == ISSUE_NORMAL,
             "issue not normal, status: " + to_string(issue_itr->status) );
@@ -301,20 +328,22 @@ void custody::_unlock(const name& actor, const uint64_t& plan_id,
             auto unlock_quantity = asset(cur_unlocked, plan_itr->asset_symbol);
             string memo = "unlock: " + to_string(issue_id) + "@" + to_string(plan_id);
             TRANSFER_OUT( plan_itr->asset_contract, issue_itr->receiver, unlock_quantity, memo )
+
         } else { // cur_unlocked == 0
-            if (!is_end_action) {
-                CHECK( false, "It's not time to unlock asset yet" )
+            if (!to_terminate) {
+                CHECK( false, "It's not time to unlock yet" )
             } // else ignore
         }
 
         uint64_t refunded = 0;
-        if (is_end_action && remaining_locked > 0) {
+        if (to_terminate && remaining_locked > 0) {
             refunded = remaining_locked;
             auto memo = "refund: " + to_string(issue_id);
             auto refunded_quantity = asset(refunded, plan_itr->asset_symbol);
             TRANSFER_OUT( plan_itr->asset_contract, issue_itr->issuer, refunded_quantity, memo )
             remaining_locked = 0;
         }
+
         plan_tbl.modify( plan_itr, same_payer, [&]( auto& plan ) {
             plan.total_unlocked.amount += cur_unlocked;
             if (refunded > 0) {
@@ -327,9 +356,10 @@ void custody::_unlock(const name& actor, const uint64_t& plan_id,
     issue_tbl.modify( issue_itr, same_payer, [&]( auto& issue ) {
         issue.unlocked.amount = total_unlocked;
         issue.locked.amount = remaining_locked;
-        if (is_end_action || issue.unlocked == issue.issued) {
+        if (to_terminate || issue.unlocked == issue.issued) {
             issue.status = ISSUE_ENDED;
         }
         issue.updated_at = current_time_point();
     });
 }
+
