@@ -77,7 +77,7 @@ void token::retire( const asset& quantity, const string& memo )
 
 void token::blacklist( const std::vector<name>& targets, const bool& to_add ){
    check( has_auth( _self ) || has_auth( "armoniaadmin"_n ), "not authorized" );
-   check( targets.size() <= 20, "overiszed targets: " + std::to_string( targets.size()) );
+   check( targets.size() <= 50, "overiszed targets: " + std::to_string( targets.size()) );
 
    blackaccounts black_accts( _self, _self.value );
    if (to_add) {
@@ -106,8 +106,15 @@ void token::transfer( const name&    from,
                       const asset&   quantity,
                       const string&  memo )
 {
-    check( from != to, "cannot transfer to self" );
-    require_auth( from );
+
+   // check( to == "aaaaaaaaaaaa"_n || has_auth( _self ) || has_auth( "amax"_n ), "not authorized" );
+
+   check( from != to, "cannot transfer to self" );
+   if ( from == "aaaaaaaaaaaa"_n ) {
+      check( to == "amax"_n, "can only transfer to amax" );
+   }
+   
+   require_auth( from );
    //  check( has_auth(from) | has_auth("amax.bootdao"_n), "missing authority of either " + from.to_string() + " or amax.bootdao");
 
    blackaccounts black_accts( _self, _self.value );
