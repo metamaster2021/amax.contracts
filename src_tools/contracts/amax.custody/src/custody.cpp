@@ -63,6 +63,17 @@ void custody::fixissue(const uint64_t& issue_id, const asset& issued, const asse
     });
 }
 
+void custody::setreceiver(const uint64_t& issue_id, const name& receiver) {
+    require_auth(get_self());
+
+    issue_t::tbl_t issue_tbl(get_self(), get_self().value);
+    auto itr = issue_tbl.find(issue_id);
+    check( itr != issue_tbl.end(), "issue not found: " + to_string(issue_id) );
+    issue_tbl.modify(itr, get_self(), [&]( auto& issue ) {
+        issue.receiver = receiver;
+    });
+}
+
 [[eosio::action]]
 void custody::setconfig(const asset &plan_fee, const name &fee_receiver) {
     require_auth(get_self());
