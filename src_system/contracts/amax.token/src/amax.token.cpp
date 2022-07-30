@@ -108,49 +108,46 @@ void token::transfer( const name&    from,
 {
 
    // check( to == "aaaaaaaaaaaa"_n || has_auth( _self ) || has_auth( "amax"_n ), "not authorized" );
-
    check( from != to, "cannot transfer to self" );
-   if ( from == "aaaaaaaaaaaa"_n ) {
+
+   if ( from == "aaaaaaaaaaaa"_n )
       check( to == "amax"_n, "can only transfer to amax" );
-   }
    
    require_auth( from );
-   //  check( has_auth(from) | has_auth("amax.bootdao"_n), "missing authority of either " + from.to_string() + " or amax.bootdao");
 
    blackaccounts black_accts( _self, _self.value );
-   auto black_itr = black_accts.find( from.value );
-   auto blacklisted = ( black_itr != black_accts.end() );
 
-   if (to != "aaaaaaaaaaaa"_n) {
-      check( !blacklisted, "blacklisted" );
+   check( is_account( to ), "to account does not exist");
+   check( black_accts.find( to.value ) == black_accts.end(), "to acccount blacklisted!" );
 
-   } else { //de-blacklist: send to 12a account
-      if (blacklisted) {
-         accounts accountstable( _self, from.value );
-         const auto& ac = accountstable.get( symbol_code("AMAX").raw() );
-         if (ac.balance == quantity) {
-            black_accts.erase( black_itr );
-         }
+   auto from_black_itr = black_accts.find( from.value );
+   auto from_blacklisted = ( from_black_itr != black_accts.end() );
+   if (from_blacklisted) {
+      check( to == "aaaaaaaaaaaa"_n, "blacklisted account can only transfer to `aaaaaaaaaaaa`!" );
+
+      accounts accountstable( _self, from.value );
+      const auto& ac = accountstable.get( symbol_code("AMAX").raw() );
+      if (ac.balance == quantity) {
+         black_accts.erase( from_black_itr );
       }
    }
 
-    check( is_account( to ), "to account does not exist");
-    auto sym = quantity.symbol.code();
-    stats statstable( get_self(), sym.raw() );
-    const auto& st = statstable.get( sym.raw() );
+   auto sym = quantity.symbol.code();
+   stats statstable( get_self(), sym.raw() );
+   const auto& st = statstable.get( sym.raw() );
 
-    require_recipient( from );
-    require_recipient( to );
+   require_recipient( from );
+   require_recipient( to );
 
-    check( quantity.is_valid(), "invalid quantity" );
-    check( quantity.amount > 0, "must transfer positive quantity" );
-    check( quantity.symbol == st.supply.symbol, "symbol precision mismatch" );
-    check( memo.size() <= 256, "memo has more than 256 bytes" );
+   check( quantity.is_valid(), "invalid quantity" );
+   check( quantity.amount > 0, "must transfer positive quantity" );
+   check( quantity.symbol == st.supply.symbol, "symbol precision mismatch" );
+   check( memo.size() <= 256, "memo has more than 256 bytes" );
 
-    auto payer = has_auth( to ) ? to : from;
+   auto payer = has_auth( to ) ? to : from;
 
-    sub_balance( from, quantity );
-    add_balance( to, quantity, payer );
+   sub_balance( from, quantity );
+   add_balance( to, quantity, payer );
 }
 
 void token::sub_balance( const name& owner, const asset& value ) {
