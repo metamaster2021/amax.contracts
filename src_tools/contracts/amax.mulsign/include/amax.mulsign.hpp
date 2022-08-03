@@ -142,6 +142,14 @@ public:
      */
     ACTION collectfee(const name& from, const name& to, const asset& quantity);
    
+
+    ACTION proposeact(const name& issuer, 
+                    const uint64_t& wallet_id, 
+                    const action& excution, 
+                    const string& excerpt, 
+                    const string& description,
+                    const uint32_t& duration);
+
     /**
      * @brief mulsigner can propose an action
      *
@@ -150,21 +158,21 @@ public:
      * @param type   mulsign wallet operation: include 'transfer','setmulsignm','setmulsigner','delmulsigner'
      * @param params operation's params, settings with string: 
      *               transefer: name from, name to, asset quantity, memo, contract
-     *               setmulsignm: uint8_t m
+     *               setmulsignm: uint8_t mulsignm
      *               setmulsigner: name mulsigner, uint8_t weight
      *               delmulsigner: name mulsigner
      * @param excerpt proposal title
      * @param description proposal detail, start with http/https for a url
      * @param duration proposal duration, should less than wallet expire time
-     * @return * anyone*
      */
     ACTION propose(const name& issuer, 
                    const uint64_t& wallet_id, 
-                   const name& type, 
-                   const map<string, string>& params, 
+                   const name& action_name,
+                   const name& action_account,
+                   const std::vector<char>& packed_action_data, //map string-string,
                    const string& excerpt, 
                    const string& description,
-                   const uint32_t& duration) ;
+                   const uint32_t& duration);
 
      /**
       * @brief cancel a proposal before it expires
@@ -198,9 +206,9 @@ private:
     global_singleton    _global;
     global_t            _gstate;
     
-    void create_wallet(const name& creator, const string& title);
-    void lock_funds(const uint64_t& wallet_id, const name& bank_contract, const asset& quantity);
-    void check_proposal_params(const name& type, const map<string,string>& params);
-    void execute_proposal(wallet_t& wallet, proposal_t &proposal);
+    void _create_wallet(const name& creator, const string& title);
+    void _lock_funds(const uint64_t& wallet_id, const name& bank_contract, const asset& quantity);
+    void _check_proposal_params(const wallet_t& wallet, const action& excution);
+    void _execute_proposal(wallet_t& wallet, proposal_t &proposal);
 };
 }

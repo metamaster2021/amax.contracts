@@ -12,11 +12,11 @@ ACTION mulsign::init(const name& fee_collector, const asset& wallet_fee) {
    CHECKC( wallet_fee.symbol == SYS_SYMBOL, err::SYMBOL_MISMATCH, "requir fee type: AMAX");
    CHECKC( wallet_fee.amount > 0, err::NOT_POSITIVE, "fee must be positive");
    CHECKC( is_account(fee_collector), err::ACCOUNT_INVALID, "invalid fee collector: " + fee_collector.to_string() )
-   
-   if(_gstate.fee_collector == name()) create_wallet(fee_collector, "amax.daodev");
+   CHECKC( _gstate.fee_collector == name(), err::RECORD_EXISTING, "cannot init twice");
    
    _gstate.fee_collector = fee_collector;
    _gstate.wallet_fee = wallet_fee;
+   _create_wallet(fee_collector, "amax.daodev");
 }
 
 ACTION mulsign::setmulsigner(const name& issuer, const uint64_t& wallet_id, const name& mulsigner, const uint32_t& weight) {
@@ -106,12 +106,12 @@ void mulsign::ontransfer(const name& from, const name& to, const asset& quantity
 
       COLLECTFEE( from, _gstate.fee_collector, quantity )
 
-      create_wallet(from, title);
-      lock_funds(0, bank_contract, quantity);
+      _create_wallet(from, title);
+      _lock_funds(0, bank_contract, quantity);
 
    } else if (memo_params[0] == "lock" && memo_params.size() == 2) {
       auto wallet_id = (uint64_t) stoi(string(memo_params[1]));
-      lock_funds(wallet_id, bank_contract, quantity);
+      _lock_funds(wallet_id, bank_contract, quantity);
 
    } else {
       CHECKC(false, err::PARAM_ERROR, "invalid memo" )
@@ -122,11 +122,21 @@ ACTION mulsign::collectfee(const name& from, const name& to, const asset& quanti
    require_auth( _self );
    require_recipient( _gstate.fee_collector );
 }
-   
+
+ACTION mulsign::proposeact(const name& issuer, 
+                   const uint64_t& wallet_id, 
+                   const action& excution, 
+                   const string& excerpt, 
+                   const string& description,
+                   const uint32_t& duration){
+      propose(issuer, wallet_id, excution.name, excution.account, excution.data, excerpt, description, duration);
+                   }
+
 ACTION mulsign::propose(const name& issuer, 
                    const uint64_t& wallet_id, 
-                   const name& type, 
-                   const map<string, string>& params, 
+                   const name& action_name, 
+                   const name& action_account, 
+                   const std::vector<char>& packed_action_data, 
                    const string& excerpt, 
                    const string& description,
                    const uint32_t& duration) {
@@ -137,58 +147,55 @@ ACTION mulsign::propose(const name& issuer,
    CHECKC( wallet.mulsigners.count(issuer), err::ACCOUNT_INVALID, "only mulsigner can propose actions" )
    CHECKC( wallet.proposal_expiry_sec >= duration && duration >= 0, err::OVERSIZED, "duration shoule less than expiry_sec" )
    const auto expiry = duration ==0? wallet.proposal_expiry_sec: duration;
-   check_proposal_params(type, params);
-   if(type == proposal_type::transfer){
-      asset quantity = asset_from_string(params.at("quantity"));
-      name to = name(params.at("to"));
-      name bank_contract = name(params.at("contract"));
-      CHECKC( to != get_self(), err::ACCOUNT_INVALID, "cannot trans to self")
-      CHECKC( is_account(to), err::ACCOUNT_INVALID, "account invalid: " + to.to_string());
-      CHECKC( is_account(bank_contract), err::ACCOUNT_INVALID, "contract invalid: " + bank_contract.to_string())
-      
-      auto ex_asset = extended_asset(quantity, bank_contract);
-      const auto& symb = ex_asset.get_extended_symbol();
-      CHECKC( wallet.assets.count(symb), err::PARAM_ERROR,
-         "symbol not found in wallet: " + to_string(ex_asset) )
-      CHECKC( ex_asset.quantity.amount > 0, err::PARAM_ERROR, "withdraw quantity must be positive" )
-      auto avail_quant = wallet.assets[ symb ];
-      CHECKC( ex_asset.quantity.amount <= avail_quant, err::OVERSIZED, "overdrawn proposal: " + ex_asset.quantity.to_string() + " > " + to_string(avail_quant) )
-   }
-   else if(type == proposal_type::setmulsignm){
-      uint32_t m = to_uint32(params.at("m"), "error type of m");
-      CHECKC( m <= wallet.mulsign_n, err::OVERSIZED, "total weight oversize than m: " + to_string(wallet.mulsign_m) )
-      CHECKC( m >0, err::OVERSIZED, "m must be a positive number" )
-   }
-   else if(type == proposal_type::setmulsigner){
-      uint32_t weight = to_uint32(params.at("weight"), "error type of weight");
-      name mulsigner = name(params.at("mulsigner"));
-      CHECKC( is_account(mulsigner), err::ACCOUNT_INVALID, "account invalid: " + mulsigner.to_string());
-   }
-   else if(type == proposal_type::delmulsigner){
-      name mulsigner = name(params.at("mulsigner"));
-      CHECKC( is_account(mulsigner), err::ACCOUNT_INVALID, "account invalid: " + mulsigner.to_string());
-      CHECKC( wallet.mulsigners.count(mulsigner), err::ACCOUNT_INVALID, "account not in mulsigners: " + mulsigner.to_string());
-   }
-   else {
-      CHECKC( false, err::PARAM_ERROR, "Unsupport proposal type")
-   }
 
-   CHECKC( excerpt.length() < 1024, err::OVERSIZED, "excerpt length >= 1024" )
-   CHECKC( description.length() < 2048, err::OVERSIZED, "description length >= 2048" )
+   CHECKC( is_account(action_account), err::ACCOUNT_INVALID, "contract invalid: " + action_account.to_string())
+   if (action_name != proposal_type::transfer) 
+      CHECKC( action_account == get_self(), err::NO_AUTH, "no auth to submit proposal to other account")
    
    auto proposals = proposal_t::idx_t(_self, _self.value);
    auto pid = proposals.available_primary_key();
    auto proposal = proposal_t(pid);
+   permission_level pem({_self, "active"_n});
+   switch (action_name.value)
+   {
+      case proposal_type::transfer.value: {
+         transfer_data action_data = unpack<transfer_data>(packed_action_data);
+         proposal.excution = action(pem, action_account, action_name, action_data);
+         break;
+      }
+      case proposal_type::setmulsignm.value: {
+         setmulsignm_data action_data = unpack<setmulsignm_data>(packed_action_data);
+         proposal.excution = action(pem, action_account, action_name, action_data);
+         break;
+      }
+      case proposal_type::setmulsigner.value: {
+         setmulsigner_data action_data = unpack<setmulsigner_data>(packed_action_data);
+         proposal.excution = action(pem, action_account, action_name, action_data);
+         break;
+      }
+      case proposal_type::delmulsigner.value: {
+         delmulsigner_data action_data = unpack<delmulsigner_data>(packed_action_data);   
+         proposal.excution = action(pem, action_account, action_name, action_data);
+         break;
+      }
+      default: {
+         CHECKC( false, err::PARAM_ERROR, "Unsupport proposal type")
+         break;
+      }
+   }
+
+   _check_proposal_params(wallet, proposal.excution);
+   
+   CHECKC( excerpt.length() < 1024, err::OVERSIZED, "excerpt length >= 1024" )
+   CHECKC( description.length() < 2048, err::OVERSIZED, "description length >= 2048" )
+   
    proposal.wallet_id = wallet_id;
-   proposal.type = type;
-   proposal.params = params;
    proposal.proposer = issuer;
    proposal.excerpt = excerpt;
    proposal.description = description;
    proposal.status = proposal_status::PROPOSED;
    proposal.created_at = current_time_point();
    proposal.expired_at = proposal.created_at + expiry;
-
    _db.set(proposal, issuer);
 }
 
@@ -207,11 +214,6 @@ ACTION mulsign::cancel(const name& issuer, const uint64_t& proposal_id) {
    _db.set( proposal );
 }
 
-/**
- * @brief only mulsigner can submit the proposal: the m-th of n mulsigner will trigger its execution
- * @param issuer
- * @param
- */
 ACTION mulsign::respond(const name& issuer, const uint64_t& proposal_id, uint8_t vote) {
    require_auth( issuer );
 
@@ -235,8 +237,6 @@ ACTION mulsign::respond(const name& issuer, const uint64_t& proposal_id, uint8_t
    _db.set(proposal, issuer);
 }
 
-
-
 ACTION mulsign::execute(const name& issuer, const uint64_t& proposal_id) {
    require_auth( issuer );
    const auto& now = current_time_point();
@@ -249,13 +249,13 @@ ACTION mulsign::execute(const name& issuer, const uint64_t& proposal_id) {
    CHECKC( _db.get( wallet ), err::RECORD_NOT_FOUND, "wallet not found: " + to_string(proposal.wallet_id) )
    CHECKC( proposal.recv_votes >= wallet.mulsign_m, err::NO_AUTH, "insufficient votes" )
 
-   execute_proposal(wallet, proposal);
+   _execute_proposal(wallet, proposal);
    proposal.updated_at = now;
    proposal.status = proposal_status::EXECUTED;
    _db.set(proposal);
 }
 
-void mulsign::create_wallet(const name& creator, const string& title) {
+void mulsign::_create_wallet(const name& creator, const string& title) {
    auto mwallets = wallet_t::idx_t(_self, _self.value);
    auto wallet_id = mwallets.available_primary_key();
    if (wallet_id == 0) {
@@ -273,7 +273,7 @@ void mulsign::create_wallet(const name& creator, const string& title) {
    _db.set( wallet, _self );
 }
 
-void mulsign::lock_funds(const uint64_t& wallet_id, const name& bank_contract, const asset& quantity) {
+void mulsign::_lock_funds(const uint64_t& wallet_id, const name& bank_contract, const asset& quantity) {
    auto wallet = wallet_t(wallet_id);
    CHECKC( _db.get( wallet ), err::RECORD_NOT_FOUND, "wallet not found: " + to_string(wallet_id) )
 
@@ -282,63 +282,72 @@ void mulsign::lock_funds(const uint64_t& wallet_id, const name& bank_contract, c
    _db.set( wallet, _self );
 }
 
-void mulsign::check_proposal_params(const name& type, const map<string,string>& params){
-   if(type == proposal_type::transfer){
-      CHECKC( params.count("contract"), err::PARAM_ERROR, "transfer must contain contract")
-      CHECKC( params.count("quantity"), err::PARAM_ERROR, "transfer must contain quantity")
-      CHECKC( params.count("to"), err::PARAM_ERROR, "transfer must contain to account")
-      if( params.count("memo")) CHECKC( params.at("memo").length() < 128, err::OVERSIZED, "memo length >= 1024" )
-   }
-   else if(type == proposal_type::setmulsignm){
-      CHECKC( params.count("m"), err::PARAM_ERROR, "transfer must contain mulsigner's account")
-   }
-   else if(type == proposal_type::setmulsigner){
-      CHECKC( params.count("mulsigner"), err::PARAM_ERROR, "transfer must contain mulsigner's account")
-      CHECKC( params.count("weight"), err::PARAM_ERROR, "transfer must contain mulsigner's weight")
-   }
-   else if(type ==proposal_type::delmulsigner){
-      CHECKC( params.count("mulsigner"), err::PARAM_ERROR, "transfer must contain mulsigner's account")
-   }
-   else {
-      CHECKC( false, err::PARAM_ERROR, "Unsupport proposal type")
+void mulsign::_check_proposal_params(const wallet_t& wallet, const action& excution){
+   auto packed_action_data = excution.data;
+   auto action_account = excution.account;
+   auto action_name = excution.name;
+
+   switch (excution.name.value)
+   {
+      case proposal_type::transfer.value: {
+         transfer_data action_data = unpack<transfer_data>(packed_action_data);
+         CHECKC( action_data.to != get_self(), err::ACCOUNT_INVALID, "cannot trans to self")
+         CHECKC( is_account(action_data.to), err::ACCOUNT_INVALID, "account invalid: " + action_data.to.to_string());
+         CHECKC( action_data.memo.length() <= 512, err::OVERSIZED, "max memo length <= 512" )
+
+         auto ex_asset = extended_asset(action_data.quantity, action_account);
+         const auto& symb = ex_asset.get_extended_symbol();
+         CHECKC( wallet.assets.count(symb), err::PARAM_ERROR,
+            "symbol not found in wallet: " + to_string(ex_asset) )
+         CHECKC( ex_asset.quantity.amount > 0, err::PARAM_ERROR, "withdraw quantity must be positive" )
+         auto avail_quant = wallet.assets.at(symb);
+         CHECKC( ex_asset.quantity.amount <= avail_quant, err::OVERSIZED, "overdrawn proposal: " + ex_asset.quantity.to_string() + " > " + to_string(avail_quant) )
+         break;
+      }
+      case proposal_type::setmulsignm.value: {
+         setmulsignm_data action_data = unpack<setmulsignm_data>(packed_action_data);
+         CHECKC( action_data.wallet_id == wallet.id, err::NO_AUTH, "no auth to submit proposal for other wallet")
+         CHECKC( action_data.mulsignm > 0, err::NOT_POSITIVE, "mulsignm must be a positive number")
+         CHECKC( action_data.mulsignm <= wallet.mulsign_n, err::OVERSIZED, "total weight oversize than m: " + to_string(wallet.mulsign_m) )
+         break;
+      }
+      case proposal_type::setmulsigner.value: {
+         setmulsigner_data action_data = unpack<setmulsigner_data>(packed_action_data);
+         CHECKC( action_data.wallet_id == wallet.id, err::NO_AUTH, "no auth to submit proposal for other wallet")
+         CHECKC( is_account(action_data.mulsigner), err::ACCOUNT_INVALID, "account invalid: " + action_data.mulsigner.to_string());
+         CHECKC( action_data.weight > 0, err::NOT_POSITIVE, "weight must be a positive number")
+         break;
+      }
+      case proposal_type::delmulsigner.value: {
+         delmulsigner_data action_data = unpack<delmulsigner_data>(packed_action_data);   
+         CHECKC( action_data.wallet_id == wallet.id, err::NO_AUTH, "no auth to submit proposal for other wallet") 
+         CHECKC( is_account(action_data.mulsigner), err::ACCOUNT_INVALID, "account invalid: " + action_data.mulsigner.to_string());
+         CHECKC( wallet.mulsigners.count(action_data.mulsigner), err::ACCOUNT_INVALID, "account not in mulsigners: " + action_data.mulsigner.to_string());
+         break;
+      }
+      default: {
+         CHECKC( false, err::PARAM_ERROR, "Unsupport proposal type")
+         break;
+      }
    }
 }
 
-void mulsign::execute_proposal(wallet_t& wallet, proposal_t &proposal) {
-   check_proposal_params(proposal.type, proposal.params);
-   if(proposal.type == proposal_type::transfer){
-      asset quantity = asset_from_string(proposal.params.at("quantity"));
-      string memo = proposal.params.count("memo")? proposal.params.at("memo"):"multisign wallet transfer";
-      name to = name(proposal.params.at("to"));
-      name bank_contract = name(proposal.params.at("contract"));
-      CHECKC( is_account(to), err::ACCOUNT_INVALID, "account invalid: " + to.to_string());
-      CHECKC( is_account(bank_contract), err::ACCOUNT_INVALID, "contract invalid: " + bank_contract.to_string());
+void mulsign::_execute_proposal(wallet_t& wallet, proposal_t &proposal) {
+   _check_proposal_params(wallet, proposal.excution);
 
-      const auto& symb = extended_symbol( quantity.symbol, bank_contract);
+   if(proposal.excution.name == proposal_type::transfer){
+      transfer_data action_data = unpack<transfer_data>(proposal.excution.data);
+
+      const auto& symb = extended_symbol( action_data.quantity.symbol, proposal.excution.account);
       auto avail_quant = wallet.assets[ symb ];
-      CHECKC( quantity.amount <= avail_quant, err::OVERSIZED, "Overdrawn not allowed: " + quantity.to_string() + " > " + to_string(avail_quant) );
+      CHECKC(  action_data.quantity.amount <= avail_quant, err::OVERSIZED, "Overdrawn not allowed: " +  action_data.quantity.to_string() + " > " + to_string(avail_quant) );
 
-      if (quantity.amount == avail_quant) {
+      if ( action_data.quantity.amount == avail_quant) {
          wallet.assets.erase(symb);
       } else {
-         wallet.assets[ symb ] -= quantity.amount;
+         wallet.assets[ symb ] -=  action_data.quantity.amount;
       }
-
       _db.set(wallet);
-      TRANSFER( bank_contract, to, quantity, memo);
-
    }
-   else if(proposal.type == proposal_type::setmulsignm){
-      uint32_t m = to_uint32(proposal.params.at("m"), "error type of m");
-      SETMULSIGNM(wallet.id, m);
-   }
-   else if(proposal.type == proposal_type::setmulsigner){
-      uint32_t weight = to_uint32(proposal.params.at("weight"), "error type of weight");
-      name mulsigner = name(proposal.params.at("mulsigner"));
-      SETMULSIGNER(wallet.id, mulsigner, weight);
-   }
-   else if(proposal.type == proposal_type::delmulsigner){
-      name mulsigner = name(proposal.params.at("mulsigner"));
-      DELMULSIGNER(wallet.id, mulsigner);
-   }
+   proposal.excution.send();
 }

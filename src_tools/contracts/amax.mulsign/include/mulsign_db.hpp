@@ -48,6 +48,32 @@ enum proposal_vote {
     PROPOSAL_FOR          = 1,
 };
 
+struct transfer_data {
+    name from;
+    name to;
+    asset quantity;
+    string memo;
+};
+
+struct setmulsigner_data {
+    name issuer;
+    uint64_t wallet_id;
+    name mulsigner;
+    uint32_t weight;
+};
+
+struct  setmulsignm_data{
+    name issuer;
+    uint64_t wallet_id;
+    uint32_t mulsignm;
+};
+
+struct delmulsigner_data {
+    name issuer;
+    uint64_t wallet_id;
+    name mulsigner;
+};
+
 struct [[eosio::table("global"), eosio::contract("amax.mulsign")]] global_t {
     name admin;                 // default is contract self
     name fee_collector;         // who creates fee wallet (id = 0)
@@ -92,10 +118,9 @@ TBL proposal_t {
     uint64_t            id;
     uint64_t            wallet_id;
     name                proposer;
-    name                type;               //support proposal types: proposal_type
-    map<string,string>  params;
+    action              excution;
     string              excerpt;            //propose title
-    string              description;           //propose detail, can be a text or url
+    string              description;        //propose detail, can be a text or url
     map<name,uint32_t>  approvers;          //updated in approve process
     uint32_t            recv_votes;         //received votes, based on mulsigner's weight
     time_point_sec      created_at;         //proposal expired after
@@ -110,7 +135,7 @@ TBL proposal_t {
 
     uint64_t by_wallet_id()const { return wallet_id; }
 
-    EOSLIB_SERIALIZE( proposal_t,   (id)(wallet_id)(proposer)(type)(params)(excerpt)(description)(approvers)
+    EOSLIB_SERIALIZE( proposal_t,   (id)(wallet_id)(proposer)(excution)(excerpt)(description)(approvers)
                                     (recv_votes)(created_at)(expired_at)(updated_at)(status) )
 
     typedef eosio::multi_index
