@@ -38,6 +38,7 @@ void amax_ido::ontransfer(name from, name to, asset quantity, string memo) {
 
 	CHECK( quantity.amount > 0, "quantity must be positive" )
     CHECK( first_contract == USDT_BANK, "none USDT payment not allowed: " + first_contract.to_string() )
+    CHECK( )
 
     auto amount     = 1'0000'0000 * quantity / _gstate.amax_price;
     auto quant      = asset(amount, SYS_SYMBOL);
