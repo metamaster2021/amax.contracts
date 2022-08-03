@@ -21,7 +21,7 @@ set(VOTING_ICON_URI   "voting.png#db28cd3db6e62d4509af3644ce7d377329482a14bb4bfa
 
 # add_subdirectory(amax.bookdex)
 # add_subdirectory(amax.bootdao)
-add_subdirectory(amax.custody)
-# add_subdirectory(amax.mulsign)
+# add_subdirectory(amax.custody)
+add_subdirectory(amax.mulsign)
 # add_subdirectory(amax.test)
 # add_subdirectory(currencyview)
