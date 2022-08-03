@@ -33,14 +33,15 @@ public:
       auto meth_bal     = get_balance(MIRROR_BANK, METH,    account);
       auto mbnb_bal     = get_balance(MIRROR_BANK, MBNB,    account);
 
-      auto res          = "Asset currency view >>     \n -"
-                           + amax_bal.to_string()  + "\n -" 
-                           + apl_bal.to_string()   + "\n -" 
-                           + cnyd_bal.to_string()  + "\n -" 
-                           + musdt_bal.to_string() + "\n -"
-                           + mbtc_bal.to_string()  + "\n -"
-                           + meth_bal.to_string()  + "\n -"
-                           + mbnb_bal.to_string();
+      auto res          = "Asset currency view >>>    \n[\n  \""
+                           + amax_bal.to_string()  + "\",\n  \"" 
+                           + apl_bal.to_string()   + "\",\n  \"" 
+                           + cnyd_bal.to_string()  + "\",\n  \"" 
+                           + musdt_bal.to_string() + "\",\n  \""
+                           + mbnb_bal.to_string()  + "\",\n  \""
+                           + mbtc_bal.to_string()  + "\",\n  \""
+                           + meth_bal.to_string()  + "\n]";
+                          
 
       check(false, res );
    }
