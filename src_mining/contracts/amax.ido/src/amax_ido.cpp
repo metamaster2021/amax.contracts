@@ -49,7 +49,7 @@ void amax_ido::ontransfer(name from, name to, asset quantity, string memo) {
     CHECK( first_contract == USDT_BANK, "None USDT contract not allowed: " + first_contract.to_string() )
     CHECK( quantity.symbol == USDT_SYMBOL, "None USDT symbol not allowed: " + quantity.to_string() )
 
-    auto amount     = wasm::safemath::div(quantity.amount, _gstate.amax_price.amount, get_precision(quantity));
+    auto amount     = wasm::safemath::div(quantity.amount, _gstate.amax_price.amount, get_precision(_gstate.amax_price));
     auto quant      = asset(amount, SYS_SYMBOL);
 
     auto balance    = eosio::token::get_balance(SYS_BANK, _self, SYS_SYMBOL.code());
