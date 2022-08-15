@@ -21,13 +21,18 @@ namespace amax {
 using namespace std;
 using namespace eosio;
 
-#define HASH256(str) sha256(const_cast<char*>(str.c_str()), str.size())
+#define HASH256(str) sha256(str.c_str(), str.size())
 
 #define TBL struct [[eosio::table, eosio::contract("amax.mulsign")]]
 
 static constexpr name       SYS_BANK              = "amax.token"_n;
 static constexpr symbol     SYS_SYMBOL            = symbol(symbol_code("AMAX"), 8);
 static constexpr uint64_t   seconds_per_day       = 24 * 3600;
+
+
+static constexpr uint16_t       MAX_TITLE_LENGTH = 64;
+static constexpr uint16_t       MAX_CONTENT_LENGTH = 512;
+static constexpr uint16_t       MAX_MULSIGNER_LENGTH = 100;
 
 namespace proposal_status {
     static constexpr name PROPOSED = "proposed"_n;
@@ -37,15 +42,23 @@ namespace proposal_status {
 }
 
 namespace proposal_type {
-    static constexpr eosio::name transfer         = "transfer"_n;
-    static constexpr eosio::name setmulsignm         = "setmulsignm"_n;
+    static constexpr eosio::name setfee               = "setfee"_n;
+    static constexpr eosio::name transfer             = "transfer"_n;
+    static constexpr eosio::name setmulsignm          = "setmulsignm"_n;
     static constexpr eosio::name setmulsigner         = "setmulsigner"_n;
     static constexpr eosio::name delmulsigner         = "delmulsigner"_n;
+    static constexpr eosio::name setproexpiry         = "setproexpiry"_n;
 };
 
 enum proposal_vote {
     PROPOSAL_AGAINST       = 0,
     PROPOSAL_FOR          = 1,
+};
+
+struct setfee_data {
+    name issuer;
+    uint64_t wallet_id;
+    asset wallet_fee;
 };
 
 struct transfer_data {
@@ -74,13 +87,17 @@ struct delmulsigner_data {
     name mulsigner;
 };
 
+struct setproexpiry_data {
+    name issuer;
+    uint64_t wallet_id;
+    uint64_t expiry_sec;
+};
+
 struct [[eosio::table("global"), eosio::contract("amax.mulsign")]] global_t {
-    name admin;                 // default is contract self
     name fee_collector;         // who creates fee wallet (id = 0)
     asset wallet_fee;
-    bool active = false;
 
-    EOSLIB_SERIALIZE( global_t, (admin)(fee_collector)(wallet_fee)(active) )
+    EOSLIB_SERIALIZE( global_t, (fee_collector)(wallet_fee) )
 };
 typedef eosio::singleton< "global"_n, global_t > global_singleton;
 
@@ -118,7 +135,7 @@ TBL proposal_t {
     uint64_t            id;
     uint64_t            wallet_id;
     name                proposer;
-    action              excution;
+    action              execution;
     string              excerpt;            //propose title
     string              description;        //propose detail, can be a text or url
     map<name,uint32_t>  approvers;          //updated in approve process
@@ -135,7 +152,7 @@ TBL proposal_t {
 
     uint64_t by_wallet_id()const { return wallet_id; }
 
-    EOSLIB_SERIALIZE( proposal_t,   (id)(wallet_id)(proposer)(excution)(excerpt)(description)(approvers)
+    EOSLIB_SERIALIZE( proposal_t,   (id)(wallet_id)(proposer)(execution)(excerpt)(description)(approvers)
                                     (recv_votes)(created_at)(expired_at)(updated_at)(status) )
 
     typedef eosio::multi_index

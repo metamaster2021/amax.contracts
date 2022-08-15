@@ -82,7 +82,8 @@ inline constexpr int64_t calc_precision(int64_t digit) {
 
 string_view trim(string_view sv) {
     sv.remove_prefix(std::min(sv.find_first_not_of(" "), sv.size())); // left trim
-    sv.remove_suffix(std::min(sv.size()-sv.find_last_not_of(" ")-1, sv.size())); // right trim
+    if (!sv.empty())
+        sv.remove_suffix(sv.size() - sv.find_last_not_of(" ") - 1);
     return sv;
 }
 
