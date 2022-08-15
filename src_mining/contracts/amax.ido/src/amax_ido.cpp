@@ -2,12 +2,22 @@
 #include <amax.token.hpp>
 #include "amax_ido.hpp"
 #include "utils.hpp"
+#include "math.hpp"
 
 #include <chrono>
 
 using std::chrono::system_clock;
 using namespace wasm;
 
+inline int64_t get_precision(const symbol &s) {
+    int64_t digit = s.precision();
+    CHECK(digit >= 0 && digit <= 18, "precision digit " + std::to_string(digit) + " should be in range[0,18]");
+    return calc_precision(digit);
+}
+
+inline int64_t get_precision(const asset &a) {
+    return get_precision(a.symbol);
+}
 
 [[eosio::action]]
 void amax_ido::init( const name& admin ) {
@@ -29,7 +39,6 @@ void amax_ido::setprice(const asset &price) {
     
 }
 
-[[eosio::action]]
 void amax_ido::ontransfer(name from, name to, asset quantity, string memo) {
     if (from == get_self() || to != get_self()) return;
 
@@ -37,9 +46,10 @@ void amax_ido::ontransfer(name from, name to, asset quantity, string memo) {
     if (first_contract == SYS_BANK) return; //refuel only
 
 	CHECK( quantity.amount > 0, "quantity must be positive" )
-    CHECK( first_contract == USDT_BANK, "none USDT payment not allowed: " + first_contract.to_string() )
+    CHECK( first_contract == USDT_BANK, "None USDT contract not allowed: " + first_contract.to_string() )
+    CHECK( quantity.symbol == USDT_SYMBOL, "None USDT symbol not allowed: " + quantity.to_string() )
 
-    auto amount     = 1'0000'0000 * quantity / _gstate.amax_price;
+    auto amount     = wasm::safemath::div(quantity.amount * 100, _gstate.amax_price.amount, get_precision(_gstate.amax_price));
     auto quant      = asset(amount, SYS_SYMBOL);
 
     auto balance    = eosio::token::get_balance(SYS_BANK, _self, SYS_SYMBOL.code());
