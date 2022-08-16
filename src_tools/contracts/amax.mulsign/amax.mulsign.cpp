@@ -115,7 +115,7 @@ void mulsign::ontransfer(const name& from, const name& to, const asset& quantity
    vector<string_view> memo_params = split(memo, ":");
    if (memo_params[0] == "create" && memo_params.size() == 3) {
       string title = string(memo_params[1]);
-      uint32_t wight = to_uint32(memo_params[1], "Weight param error");
+      uint32_t wight = to_uint32(memo_params[2], "Weight param error");
       CHECKC( title.length() < 32, err::OVERSIZED, "wallet title too long, suggest length below 32" )
       CHECKC( bank_contract == SYS_BANK && quantity.symbol == SYS_SYMBOL, err::PARAM_ERROR, "non-sys-symbol" )
       CHECKC( quantity >= _gstate.wallet_fee, err::FEE_INSUFFICIENT, "insufficient wallet fee: " + quantity.to_string() )
