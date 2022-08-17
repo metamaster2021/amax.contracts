@@ -1,4 +1,7 @@
 #include "amax_one.db.hpp"
+#include <eosio/action.hpp>
+#include <wasm_db.hpp>
+
 
 using namespace std;
 using namespace wasm::db;
@@ -12,49 +15,63 @@ public:
     using contract::contract;
 
     amax_one(eosio::name receiver, eosio::name code, datastream<const char*> ds):
-        contract(receiver, code, ds),
+         contract(receiver, code, ds),
         _global(get_self(), get_self().value)
     {
         _gstate = _global.exists() ? _global.get() : global_t{};
     }
+    ~amax_one() { _global.set( _gstate, get_self() ); }
 
-    // [[eosio::action]] void init();
-    [[eosio::action]] void fixissue(const uint64_t& issue_id, const asset& issued, const asset& locked, const asset& unlocked);
-    [[eosio::action]] void setconfig(const asset &plan_fee, const name &fee_receiver);
-    [[eosio::action]] void addplan(const name& owner, const string& title, const name& asset_contract, const symbol& asset_symbol, const uint64_t& unlock_interval_days, const int64_t& unlock_times);
-    [[eosio::action]] void setplanowner(const name& owner, const uint64_t& plan_id, const name& new_owner);
-    [[eosio::action]] void enableplan(const name& owner, const uint64_t& plan_id, bool enabled);
-    /**
-     * @require by maintainer only
-     * The delplan action will affect table scanning
-     */
-    // [[eosio::action]] void delplan(const name& owner, const uint64_t& plan_id);
+
+    [[eosio::action]] void init(const name& admin, const name& mine_token_contract, time_point_sec started_at, time_point_sec ended_at);
+
 
     /**
      * ontransfer, trigger by recipient of transfer()
      * @param memo - memo format:
-     * 1. plan:${plan_id}, pay plan fee, Eg: "plan:" or "plan:1"
-     *    pay plan fee
-     *
-     * 2. issue:${receiver}:${plan_id}:${first_unlock_days}, Eg: "issue:receiver1234:1:30"
-     *
-     *    add issue, the owner
-     *    @param receiver - owner name
-     *    @param plan_id - plan id
-     *    @param first_unlock_days - first unlock days after created
+     * 1. ads_id:${ads_id}, pay plan fee, Eg: "ads_id:" or "ads_id:1"
      *
      *    transfer() params:
      *    @param from - issuer
      *    @param to   - must be contract self
      *    @param quantity - issued quantity
      */
-    [[eosio::on_notify("*::transfer")]] void ontransfer(name from, name to, asset quantity, string memo);
-    [[eosio::action]] void unlock(const name& unlocker, const uint64_t& plan_id, const uint64_t& issue_id);
-    /**
-     * @require run by issuer only
-     */
-    [[eosio::action]] void endissue(const name& issuer, const uint64_t& plan_id, const uint64_t& issue_id);
-private:
-    void _unlock(const name& actor, const uint64_t& plan_id,
-                         const uint64_t& issue_id, bool is_end_action);
+    [[eosio::on_notify("aplink.token::transfer")]] void ontransfer(name from, name to, asset quantity, string memo);
+
+
+    [[eosio::action]] void confirmads(const string& ads_id);
+    [[eosio::action]] void onswapexpird(const name& account, const name& miner );
+
+     [[eosio::action]] void aplswaplog(
+                    const name&         miner,
+                    const asset&        recd_apls,
+                    const asset&        swap_tokens,
+                    const string&       ads_id,
+                    const time_point&   created_at);
+
+    [[eosio::action]] void addswapconf(
+            const name&         account,
+            const uint64_t&     amount,
+            const asset&        swap_tokens,
+            const asset&        swap_tokens_after_adscheck,
+            const asset&        total_amount,
+            const asset&        remain_amount);
+    
+    [[eosio::action]] void delswapconf( const name& account, const uint64_t amount);
+
+    using aplswaplog_action = eosio::action_wrapper<"aplswaplog"_n, &amax_one::aplswaplog>;
+
+private: 
+    void _claim_reward( const name& to, const asset& recd_apls, bool ads_checked, const string& ads_id, const string& memo );
+    void _on_apl_swap_log(
+                    const name&         miner,
+                    const asset&        recd_apls,
+                    const asset&        swap_tokens,
+                    const string&       ads_id,
+                    const time_point&   created_at);
+
+    string_view _get_ads_id (const string& memo);
+
+    void _add_adsorder(const name& miner, const asset& quantity, const string& ads_id);
+    
 }; //contract amax.one

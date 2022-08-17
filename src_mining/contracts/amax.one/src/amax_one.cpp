@@ -4,6 +4,8 @@
 #include "utils.hpp"
 
 #include <chrono>
+#include <amax.token/amax.token.hpp>
+
 
 using std::chrono::system_clock;
 using namespace wasm;
@@ -16,320 +18,174 @@ static constexpr eosio::name active_permission{"active"_n};
                                                              .send(                                             \
                                                                  get_self(), to, quantity, memo);
 
-// [[eosio::action]]
-// void custody::init() {
-//     auto issues = issue_t::tbl_t(_self, _self.value);
-//     auto itr = issues.begin();
-//     while (itr != issues.end()) {
-//         issues.modify( *itr, _self, [&]( auto& row ) {
-//         });
-//     }
-// }
+//tcli push action $c init '['$c',"2022-07-27T09:25:00.000","2022-12-14T10:29:00.000",amax.ntoken]' -p $c
 
-[[eosio::action]] 
-void custody::fixissue(const uint64_t& issue_id, const asset& issued, const asset& locked, const asset& unlocked) {
-    require_auth(get_self());
-
-    issue_t::tbl_t issue_tbl(get_self(), get_self().value);
-    auto itr = issue_tbl.find(issue_id);
-    check( itr != issue_tbl.end(), "issue not found: " + to_string(issue_id) );
-    issue_tbl.modify(itr, get_self(), [&]( auto& issue ) {
-        issue.issued = issued;
-        issue.locked = locked;
-        issue.unlocked = unlocked;
-    });
+void amax_one::init(const name& admin, const name& mine_token_contract, time_point_sec started_at, time_point_sec ended_at) {
+    require_auth( _self );
+    _gstate.admin                   = admin;
+    _gstate.mine_token_contract     = mine_token_contract;
+    _gstate.started_at              = started_at;
+    _gstate.ended_at                = ended_at;
 }
-
-[[eosio::action]]
-void custody::setconfig(const asset &plan_fee, const name &fee_receiver) {
-    require_auth(get_self());
-    CHECK(plan_fee.symbol == SYS_SYMBOL, "plan_fee symbol mismatch with sys symbol")
-    CHECK(plan_fee.amount >= 0, "plan_fee symbol amount can not be negative")
-    CHECK(is_account(fee_receiver), "fee_receiver account does not exist")
-    _gstate.plan_fee = plan_fee;
-    _gstate.fee_receiver = fee_receiver;
-    _global.set( _gstate, get_self() );
-}
-
-//add a lock plan
-[[eosio::action]] void custody::addplan(const name& owner,
-                                        const string& title, const name& asset_contract, const symbol& asset_symbol,
-                                        const uint64_t& unlock_interval_days, const int64_t& unlock_times)
-{
-    require_auth(owner);
-    CHECK( title.size() <= MAX_TITLE_SIZE, "title size must be <= " + to_string(MAX_TITLE_SIZE) )
-    CHECK( is_account(asset_contract), "asset contract account does not exist" )
-    CHECK( asset_symbol.is_valid(), "Invalid asset symbol" )
-    CHECK( unlock_interval_days > 0 && unlock_interval_days <= MAX_LOCK_DAYS,
-        "unlock_days must be > 0 and <= 365*10, i.e. 10 years" )
-    CHECK( unlock_times > 0, "unlock times must be > 0" )
-    if (_gstate.plan_fee.amount > 0) {
-        CHECK(_gstate.fee_receiver.value != 0, "fee_receiver not set")
-    }
-    plan_t::tbl_t plan_tbl(get_self(), get_self().value);
-	auto plan_id = plan_tbl.available_primary_key();
-    if (plan_id == 0) plan_id = 1;
-    plan_tbl.emplace( owner, [&]( auto& plan ) {
-        plan.id = plan_id;
-        plan.owner = owner;
-        plan.title = title;
-        plan.asset_contract = asset_contract;
-        plan.asset_symbol = asset_symbol;
-        plan.unlock_interval_days = unlock_interval_days;
-        plan.unlock_times = unlock_times;
-        plan.total_issued = asset(0, asset_symbol);
-        plan.total_unlocked = asset(0, asset_symbol);
-        plan.total_refunded = asset(0, asset_symbol);
-        plan.status =  _gstate.plan_fee.amount != 0 ? PLAN_UNPAID_FEE : PLAN_ENABLED;
-        plan.created_at = current_time_point();
-        plan.updated_at = plan.created_at;
-    });
-    account::tbl_t account_tbl(get_self(), get_self().value);
-    account_tbl.set(owner.value, owner, [&]( auto& acct ) {
-            acct.owner = owner;
-            acct.last_plan_id = plan_id;
-    });
-}
-
-[[eosio::action]]
-void custody::setplanowner(const name& owner, const uint64_t& plan_id, const name& new_owner){
-    plan_t::tbl_t plan_tbl(get_self(), get_self().value);
-    auto plan_itr = plan_tbl.find(plan_id);
-    CHECK( plan_itr != plan_tbl.end(), "plan not found: " + to_string(plan_id) )
-    CHECK( owner == plan_itr->owner, "owner mismatch" )
-    CHECK( has_auth(plan_itr->owner) || has_auth(get_self()), "Missing required authority of owner or maintainer" )
-    CHECK( is_account(new_owner), "new_owner account does not exist");
-
-    plan_tbl.modify( plan_itr, same_payer, [&]( auto& plan ) {
-        plan.owner = new_owner;
-        plan.updated_at = current_time_point();
-    });
-}
-
-// [[eosio::action]]
-// void custody::delplan(const name& owner, const uint64_t& plan_id) {
-//     require_auth(get_self());
-
-//     plan_t::tbl_t plan_tbl(get_self(), get_self().value);
-//     auto plan_itr = plan_tbl.find(plan_id);
-//     CHECK( plan_itr != plan_tbl.end(), "plan not found: " + to_string(plan_id) )
-//     CHECK( owner == plan_itr->owner, "owner mismatch" )
-
-//     plan_tbl.erase(plan_itr);
-// }
-
-[[eosio::action]]
-void custody::enableplan(const name& owner, const uint64_t& plan_id, bool enabled) {
-    require_auth(owner);
-
-    plan_t::tbl_t plan_tbl(get_self(), get_self().value);
-    auto plan_itr = plan_tbl.find(plan_id);
-    CHECK( plan_itr != plan_tbl.end(), "plan not found: " + to_string(plan_id) )
-    CHECK( owner == plan_itr->owner, "owner mismatch" )
-    CHECK( plan_itr->status != PLAN_UNPAID_FEE, "plan is unpaid fee status" )
-    plan_status_t new_status = enabled ? PLAN_ENABLED : PLAN_DISABLED;
-    CHECK( plan_itr->status != new_status, "plan status is no changed" )
-
-    plan_tbl.modify( plan_itr, same_payer, [&]( auto& plan ) {
-        plan.status = new_status;
-        plan.updated_at = current_time_point();
-    });
-}
-
-//issue-in op: transfer tokens to the contract and lock them according to the given plan
-[[eosio::action]]
-void custody::ontransfer(name from, name to, asset quantity, string memo) {
+/**
+ * memo: adsid:11111
+ * 
+ **/
+void amax_one::ontransfer(name from, name to, asset quantity, string memo) {
     if (from == get_self() || to != get_self()) return;
+
 
 	CHECK( quantity.amount > 0, "quantity must be positive" )
 
-    //memo params format:
-    //1. plan:${plan_id}, Eg: "plan:" or "plan:1"
-    //2. issue:${receiver}:${plan_id}:${first_unlock_days}, Eg: "issue:receiver1234:1:30"
-    vector<string_view> memo_params = split(memo, ":");
-    ASSERT(memo_params.size() > 0);
-    if (memo_params[0] == "plan") {
-        CHECK(memo_params.size() == 2, "ontransfer:plan params size of must be 2")
-        auto param_plan_id = memo_params[1];
+    if(amax::token::is_blacklisted("amax.token"_n, from))
+        return;
 
-        CHECK(get_first_receiver() == SYS_BANK, "must transfer by contract: " + SYS_BANK.to_string());
-        CHECK( quantity.symbol == SYS_SYMBOL, "quantity symbol mismatch with fee symbol");
-        CHECK( quantity.amount == _gstate.plan_fee.amount,
-            "quantity amount mismatch with fee amount: " + to_string(_gstate.plan_fee.amount) );
-        uint64_t plan_id = 0;
-        if (param_plan_id.empty()) {
-            account::tbl_t account_tbl(get_self(), get_self().value);
-            auto acct = account_tbl.get(from.value, "from account does not exist in custody constract");
-            plan_id = acct.last_plan_id;
-            CHECK( plan_id != 0, "from account does no have any plan" );
-        } else {
-            plan_id = to_uint64(param_plan_id.data(), "plan_id");
-            CHECK( plan_id != 0, "plan id can not be 0" );
+    swap_conf_t::tbl_t swap_conf_tbl(get_self(), get_self().value);
+    auto swap_conf_itr = swap_conf_tbl.find(quantity.amount);
+    CHECK( swap_conf_itr != swap_conf_tbl.end(), "swap amount not supported: " + quantity.to_string() )
+    CHECK( swap_conf_itr->mine_token_remained >=  swap_conf_itr->swap_tokens, "swap not enought amax ")
+
+    if(memo.length() > 10) {
+        string_view ads_id = _get_ads_id(memo);
+        if (quantity.amount == 1000000 &&  ads_id.length() > 4) {
+            _add_adsorder( from, quantity, string(ads_id) );
+            return;
         }
-
-        plan_t::tbl_t plan_tbl(get_self(), get_self().value);
-        auto plan_itr = plan_tbl.find(plan_id);
-        CHECK( plan_itr != plan_tbl.end(), "plan not found by plan_id: " + to_string(plan_id) )
-        CHECK( plan_itr->status == PLAN_UNPAID_FEE, "plan must be unpaid fee, status:" + to_string(plan_itr->status) )
-        plan_tbl.modify( plan_itr, same_payer, [&]( auto& plan ) {
-            plan.status = PLAN_ENABLED;
-            plan.updated_at = current_time_point();
-        });
-
-        TRANSFER_OUT( get_first_receiver(), _gstate.fee_receiver, quantity, memo )
-
-    } else if (memo_params[0] == "issue") {
-        CHECK(memo_params.size() == 4, "ontransfer:issue params size of must be 4")
-        auto receiver = name(memo_params[1]);
-        auto plan_id = to_uint64(memo_params[2], "plan_id");
-        auto first_unlock_days = to_uint64(memo_params[3], "first_unlock_days");
-
-        plan_t::tbl_t plan_tbl(get_self(), get_self().value);
-        auto plan_itr = plan_tbl.find(plan_id);
-        CHECK( plan_itr != plan_tbl.end(), "plan not found: " + to_string(plan_id) )
-        CHECK( plan_itr->status == PLAN_ENABLED, "plan not enabled, status:" + to_string(plan_itr->status) )
-
-        CHECK( is_account(receiver), "receiver account not exist" );
-        CHECK( first_unlock_days <= MAX_LOCK_DAYS,
-            "unlock_days must be > 0 and <= 365*10, i.e. 10 years" )
-        CHECK( quantity.symbol == plan_itr->asset_symbol, "symbol of quantity mismatch with symbol of plan" );
-        CHECK( quantity.amount > 0, "quantity must be positive" )
-        CHECK( plan_itr->asset_contract == get_first_receiver(), "issue asset contract mismatch" );
-        CHECK( plan_itr->asset_symbol == quantity.symbol, "issue asset symbol mismatch" );
-
-        auto now = current_time_point();
-
-        plan_tbl.modify( plan_itr, same_payer, [&]( auto& plan ) {
-            plan.total_issued += quantity;
-            plan.updated_at = now;
-        });
-
-        issue_t::tbl_t issue_tbl(get_self(), get_self().value);
-        auto issue_id = issue_tbl.available_primary_key();
-        if (issue_id == 0) issue_id = 1;
-
-        issue_tbl.emplace( _self, [&]( auto& issue ) {
-            issue.issue_id = issue_id;
-            issue.plan_id = plan_id;
-            issue.issuer = from;
-            issue.receiver = receiver;
-            issue.first_unlock_days = first_unlock_days;
-            issue.issued = quantity;
-            issue.locked = quantity;
-            issue.unlocked = asset(0, quantity.symbol);
-            issue.unlock_interval_days = plan_itr->unlock_interval_days;
-            issue.unlock_times = plan_itr->unlock_times;
-            issue.status = ISSUE_NORMAL;
-            issue.issued_at = now;
-            issue.updated_at = now;
-        });
-
     }
-    // else { ignore }
+
+    _claim_reward(to, quantity, false, "","");
 }
 
-[[eosio::action]]
-void custody::endissue(const name& issuer, const uint64_t& plan_id, const uint64_t& issue_id) {
-    require_auth( issuer );
+void amax_one::_add_adsorder(const name& miner, const asset& quantity, const string& ads_id) {
+    ads_order_t::tbl_t ads_order_tbl(get_self(), get_self().value);
+    auto itr = ads_order_tbl.find(miner.value);
+    check(itr == ads_order_tbl.end(), "miner already existed");
 
-    _unlock(issuer, plan_id, issue_id, /*is_end_action=*/true);
-}
-
-/**
- * withraw all available/unlocked assets belonging to the issuer
- */
-[[eosio::action]]
-void custody::unlock(const name& receiver, const uint64_t& plan_id, const uint64_t& issue_id) {
-    require_auth(receiver);
-
-    _unlock(receiver, plan_id, issue_id, /*is_end_action=*/false);
-}
-
-void custody::_unlock(const name& actor, const uint64_t& plan_id,
-    const uint64_t& issue_id, bool is_end_action)
-{
-    auto now = current_time_point();
-
-    issue_t::tbl_t issue_tbl(get_self(), get_self().value);
-    auto issue_itr = issue_tbl.find(issue_id);
-    CHECK( issue_itr != issue_tbl.end(), "issue not found: " + to_string(issue_id) )
-
-    if (is_end_action)  {
-        CHECK( issue_itr->issuer == actor, "issuer mismatch" )
-    } else {
-        CHECK( issue_itr->receiver == actor, "receiver mismatch" )
-    }
-
-    CHECK( issue_itr->plan_id == plan_id, "plan id mismatch" )
-    plan_t::tbl_t plan_tbl(get_self(), get_self().value);
-    auto plan_itr = plan_tbl.find(plan_id);
-    CHECK( plan_itr != plan_tbl.end(), "plan not found: " + to_string(plan_id) )
-    CHECK( plan_itr->status == PLAN_ENABLED, "plan not enabled, status:" + to_string(plan_itr->status) )
-
-    if (is_end_action) {
-        CHECK( issue_itr->status != ISSUE_ENDED,
-            "issue has been ended, status: " + to_string(issue_itr->status) );
-    } else {
-        CHECK( issue_itr->status == ISSUE_NORMAL,
-            "issue not normal, status: " + to_string(issue_itr->status) );
-    }
-
-    int64_t total_unlocked = 0;
-    int64_t remaining_locked = issue_itr->locked.amount;
-    if (issue_itr->status == ISSUE_NORMAL) {
-        ASSERT(now >= issue_itr->issued_at)
-        auto issued_days = (now.sec_since_epoch() - issue_itr->issued_at.sec_since_epoch()) / DAY_SECONDS;
-        auto unlocked_days = issued_days > issue_itr->first_unlock_days ? issued_days - issue_itr->first_unlock_days : 0;
-        ASSERT(plan_itr->unlock_interval_days > 0);
-        auto unlocked_times = std::min(unlocked_days / plan_itr->unlock_interval_days, plan_itr->unlock_times);
-        if (unlocked_times >= plan_itr->unlock_times) {
-            total_unlocked = issue_itr->issued.amount;
-        } else {
-            ASSERT(plan_itr->unlock_times > 0)
-            total_unlocked = multiply_decimal64(issue_itr->issued.amount, unlocked_times, plan_itr->unlock_times);
-            ASSERT(total_unlocked >= issue_itr->unlocked.amount && issue_itr->issued.amount >= total_unlocked)
-        }
-
-        int64_t cur_unlocked = total_unlocked - issue_itr->unlocked.amount;
-        remaining_locked = issue_itr->issued.amount - total_unlocked;
-        ASSERT(remaining_locked >= 0);
-
-        TRACE("unlock detail: ", PP0(issued_days), PP(unlocked_days), PP(unlocked_times), PP(total_unlocked),
-            PP(cur_unlocked), PP(remaining_locked), "\n");
-
-        if (cur_unlocked > 0) {
-            auto unlock_quantity = asset(cur_unlocked, plan_itr->asset_symbol);
-            string memo = "unlock: " + to_string(issue_id) + "@" + to_string(plan_id);
-            TRANSFER_OUT( plan_itr->asset_contract, issue_itr->receiver, unlock_quantity, memo )
-        } else { // cur_unlocked == 0
-            if (!is_end_action) {
-                CHECK( false, "It's not time to unlock asset yet" )
-            } // else ignore
-        }
-
-        uint64_t refunded = 0;
-        if (is_end_action && remaining_locked > 0) {
-            refunded = remaining_locked;
-            auto memo = "refund: " + to_string(issue_id);
-            auto refunded_quantity = asset(refunded, plan_itr->asset_symbol);
-            TRANSFER_OUT( plan_itr->asset_contract, issue_itr->issuer, refunded_quantity, memo )
-            remaining_locked = 0;
-        }
-        plan_tbl.modify( plan_itr, same_payer, [&]( auto& plan ) {
-            plan.total_unlocked.amount += cur_unlocked;
-            if (refunded > 0) {
-                plan.total_refunded.amount += refunded;
-            }
-            plan.updated_at = current_time_point();
-        });
-    }
-
-    issue_tbl.modify( issue_itr, same_payer, [&]( auto& issue ) {
-        issue.unlocked.amount = total_unlocked;
-        issue.locked.amount = remaining_locked;
-        if (is_end_action || issue.unlocked == issue.issued) {
-            issue.status = ISSUE_ENDED;
-        }
-        issue.updated_at = current_time_point();
+    ads_order_tbl.emplace(get_self(), [&](auto &order) {
+        order.miner         = miner;
+        order.ads_id        = ads_id;
+        order.recd_apls     = quantity;
+        order.created_at    = time_point_sec(current_time_point());
+        order.expired_at    = time_point_sec(current_time_point()) + HOUR_SECONDS;
     });
+}
+
+void amax_one::confirmads( const string& ads_id ) {
+    
+    require_auth(  _gstate.admin );
+    ads_order_t::tbl_t ads_order_tbl(get_self(), get_self().value);
+    auto ads_order_idx = ads_order_tbl.get_index<"adsidx"_n>();
+    auto ads_order_ptr = ads_order_idx.find(hash(ads_id));
+    check(ads_order_ptr != ads_order_idx.end(), "ads_id not existed");
+
+    swap_conf_t::tbl_t swap_conf_tbl(get_self(), get_self().value);
+    auto swap_conf_itr = swap_conf_tbl.find((ads_order_ptr->recd_apls).amount);
+    CHECK( swap_conf_itr != swap_conf_tbl.end(), "swap conf not found: " + (ads_order_ptr->recd_apls).to_string()) 
+    
+    _claim_reward(ads_order_ptr->miner, ads_order_ptr->recd_apls,
+                     true, ads_id, "");
+
+    ads_order_idx.erase(ads_order_ptr);
+}
+
+void amax_one::onswapexpird(const name& account, const name& miner ) {
+    require_auth(_gstate.admin);
+    if ( account != _gstate.admin ) {
+        CHECK( account == miner, "account need equal to miner" );
+    }
+
+    ads_order_t::tbl_t ads_order_tbl(get_self(), get_self().value);
+    auto itr = ads_order_tbl.find(miner.value);
+    CHECK(itr != ads_order_tbl.end(), "miner not existed");
+    auto recd_apls = itr->recd_apls;
+
+    _claim_reward( miner, recd_apls, false, "","" );   
+    ads_order_tbl.erase(itr);
+
+}
+
+ void amax_one::aplswaplog( const name& miner, const asset& recd_apls, const asset& swap_tokens, const string& ads_id, const time_point& created_at) {
+    require_auth(get_self());
+    require_recipient(miner);
+ }
+
+void amax_one::addswapconf(
+            const name&         account,
+            const uint64_t&     swap_amount,
+            const asset&        swap_tokens,
+            const asset&        swap_tokens_after_adscheck,
+            const asset&        mine_token_total,
+            const asset&        mine_token_remained) 
+{
+    require_auth( account );
+    CHECK(account == _self || account == _gstate.admin , "no auth for operate");
+
+    swap_conf_t::tbl_t swap_conf_tbl(get_self(), get_self().value);
+    auto swap_conf_itr = swap_conf_tbl.find(swap_amount);
+    CHECK( swap_conf_itr == swap_conf_tbl.end(), "swap conf already existed: " + to_string(swap_amount) )
+
+    swap_conf_tbl.emplace( _self, [&](auto &conf) {
+        conf.swap_amount                = swap_amount;
+        conf.swap_tokens                = swap_tokens;
+        conf.swap_tokens_after_adscheck   = swap_tokens_after_adscheck;
+        conf.mine_token_total           = mine_token_total;
+        conf.mine_token_remained        = mine_token_remained;
+    });
+
+}
+    
+void amax_one::delswapconf( const name& account, const uint64_t amount)
+{
+    require_auth( account );
+    CHECK(account == _self || account == _gstate.admin , "no auth for operate");
+
+    swap_conf_t::tbl_t swap_conf_tbl(get_self(), get_self().value);
+    auto swap_conf_itr = swap_conf_tbl.find(amount);
+    CHECK( swap_conf_itr != swap_conf_tbl.end(), "swap conf not found: " + to_string(amount) )
+    swap_conf_tbl.erase(swap_conf_itr);
+}
+
+void amax_one::_claim_reward( const name&   to, 
+                        const asset&        recd_apls,
+                        bool                ads_checked,
+                        const string&       ads_id, 
+                        const string&       memo ) 
+{
+    swap_conf_t::tbl_t swap_conf_tbl(get_self(), get_self().value);
+    auto swap_conf_itr = swap_conf_tbl.find(recd_apls.amount);
+    CHECK( swap_conf_itr != swap_conf_tbl.end(), "swap conf not found: " + recd_apls.to_string() )
+
+    asset swap_tokens = swap_conf_itr->swap_tokens;
+    if (ads_checked) swap_tokens = swap_conf_itr->swap_tokens_after_adscheck;
+
+    CHECK(swap_tokens.amount > 0, "swap token must greater than 0");
+
+    CHECK( swap_tokens <= swap_conf_itr->mine_token_remained, "reward token not enough" )
+    swap_conf_tbl.modify( swap_conf_itr, get_self(), [&]( auto& swap_conf ) {
+        swap_conf.mine_token_remained = swap_conf_itr->mine_token_total - swap_tokens;
+    });
+
+    TRANSFER(_gstate.mine_token_contract, to, swap_tokens, memo )
+    _on_apl_swap_log(to, recd_apls, swap_tokens, ads_id, current_time_point());
+
+}
+
+void amax_one::_on_apl_swap_log(
+                    const name&         miner,
+                    const asset&        recd_apls,
+                    const asset&        swap_tokens,
+                    const string&       ads_id,
+                    const time_point&   created_at) {	
+    amax_one::aplswaplog_action act{ _self, { {_self, active_permission} } };
+    act.send( miner, recd_apls, swap_tokens, ads_id, created_at );
+}
+
+string_view amax_one::_get_ads_id (const string& memo) {
+    if(memo.rfind("adsid:", 0 ) == 0) {
+        vector<string_view> params = split(memo, ":");
+        if( params.size() == 2)
+            return params[1];
+        
+    }
+    return "";
 }
