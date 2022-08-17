@@ -5,22 +5,6 @@
 #include "mulsign_db.hpp"
 #include "amax.token.hpp"
 
-// static constexpr eosio::name active_perm{"active"_n};
-
-// #define SETMULSIGNM(bank, to, quantity, memo) \
-//     {	mulsign::transfer_action act{ bank, { {_self, active_perm} } };\
-// 			act.send( _self, to, quantity , memo );}
-
-namespace eosio {
-    inline string to_string(const extended_symbol& symb) {
-       return symb.get_symbol().code().to_string() + "@" +  symb.get_contract().to_string();
-    }
-
-    inline string to_string(const extended_asset& ext_asset) {
-      return to_string(ext_asset.get_extended_symbol());
-    }
-}
-
 namespace amax {
 
 #define CHECKC(exp, code, msg) \
@@ -78,7 +62,6 @@ public:
 
       } else { // first init
          _gstate = global_t{};
-         _gstate.admin = _self;
       }
     }
 
@@ -86,6 +69,8 @@ public:
 
 
     ACTION init(const name& fee_collector, const asset& wallet_fee);
+
+    ACTION setfee(const uint64_t& wallet_id, const asset& wallet_fee);
 
     /**
      * @brief add a mulsinger into a target wallet, must add all mulsigners within 24 hours upon creation
@@ -112,7 +97,7 @@ public:
      * @param expiry_sec - expiry time in seconds for wallet proposals
      *
      */
-    ACTION setproexpiry(const name& issuer, const uint64_t wallet_id, const uint64_t& expiry_sec) ;
+    ACTION setproexpiry(const name& issuer, const uint64_t& wallet_id, const uint64_t& expiry_sec) ;
 
 
      /**
@@ -131,7 +116,7 @@ public:
      * @param from
      * @param to
      * @param quantity
-     * @param memo: 1) create:$title; 2) lock:$wallet_id
+     * @param memo: 1) create:$title:$initweight; 2) lock:$wallet_id
      */
     [[eosio::on_notify("*::transfer")]]
     void ontransfer(const name& from, const name& to, const asset& quantity, const string& memo) ;
@@ -145,7 +130,7 @@ public:
 
     ACTION proposeact(const name& issuer, 
                     const uint64_t& wallet_id, 
-                    const action& excution, 
+                    const action& execution, 
                     const string& excerpt, 
                     const string& description,
                     const uint32_t& duration);
@@ -157,7 +142,7 @@ public:
      * @param wallet_id
      * @param type   mulsign wallet operation: include 'transfer','setmulsignm','setmulsigner','delmulsigner'
      * @param params operation's params, settings with string: 
-     *               transefer: name from, name to, asset quantity, memo, contract
+     *               transfer: name from, name to, asset quantity, memo, contract
      *               setmulsignm: uint8_t mulsignm
      *               setmulsigner: name mulsigner, uint8_t weight
      *               delmulsigner: name mulsigner
@@ -206,9 +191,9 @@ private:
     global_singleton    _global;
     global_t            _gstate;
     
-    void _create_wallet(const name& creator, const string& title);
+    void _create_wallet(const name& creator, const string& title, const uint32_t& wight);
     void _lock_funds(const uint64_t& wallet_id, const name& bank_contract, const asset& quantity);
-    void _check_proposal_params(const wallet_t& wallet, const action& excution);
+    void _check_proposal_params(const wallet_t& wallet, const action& execution);
     void _execute_proposal(wallet_t& wallet, proposal_t &proposal);
 };
 }

@@ -24,8 +24,8 @@ namespace amax {
    using std::string;
 
    /**
-    * eosio.token contract defines the structures and actions that allow users to create, issue, and manage
-    * tokens on eosio based blockchains.
+    * amax.token contract defines the structures and actions that allow users to create, issue, and manage
+    * tokens on amax based blockchains.
     */
    class [[eosio::contract("amax.token")]] token : public contract {
       public:
