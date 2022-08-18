@@ -39,6 +39,9 @@ void amax_one::ontransfer(name from, name to, asset quantity, string memo) {
 
     if(amax::token::is_blacklisted("amax.token"_n, from))
         return;
+    CHECK( time_point_sec(current_time_point()) >=  _gstate.started_at, "amax #1 not open yet" )
+    CHECK( time_point_sec(current_time_point()) <  _gstate.ended_at, "amax #1 already ended" )
+    CHECK( quantity.symbol == APL_SYMBOL, "None APL symbol not allowed: " + quantity.to_string() )
 
     swap_conf_t::tbl_t swap_conf_tbl(get_self(), get_self().value);
     auto swap_conf_itr = swap_conf_tbl.find(quantity.amount);
