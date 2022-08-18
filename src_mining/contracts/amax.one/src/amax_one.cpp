@@ -56,7 +56,7 @@ void amax_one::ontransfer(name from, name to, asset quantity, string memo) {
         }
     }
 
-    _claim_reward(to, quantity, false, "","");
+    _claim_reward(from, quantity, false, "","");
 }
 
 void amax_one::_add_adsorder(const name& miner, const asset& quantity, const string& ads_id) {
