@@ -60,9 +60,14 @@ void amax_one::ontransfer(name from, name to, asset quantity, string memo) {
 }
 
 void amax_one::_add_adsorder(const name& miner, const asset& quantity, const string& ads_id) {
+    
     ads_order_t::tbl_t ads_order_tbl(get_self(), get_self().value);
     auto itr = ads_order_tbl.find(miner.value);
     check(itr == ads_order_tbl.end(), "miner already existed");
+
+    auto ads_order_idx = ads_order_tbl.get_index<"adsidx"_n>();
+    auto ads_order_ptr = ads_order_idx.find(hash(ads_id));
+    check(ads_order_ptr == ads_order_idx.end(), "ads_id is already existed");
 
     ads_order_tbl.emplace(get_self(), [&](auto &order) {
         order.miner         = miner;
