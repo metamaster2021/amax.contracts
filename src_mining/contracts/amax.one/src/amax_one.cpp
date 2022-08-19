@@ -70,9 +70,10 @@ void amax_one::_add_adsorder(const name& miner, const asset& quantity, const str
     auto ads_order_idx = ads_order_tbl.get_index<"adsidx"_n>();
     auto ads_order_ptr = ads_order_idx.find(hash(ads_id));
     check(ads_order_ptr == ads_order_idx.end(), "ads_id is already existed");
-    auto id = _gstate.id++;
+    _gstate.id = _gstate.id++;
+
     ads_order_tbl.emplace(get_self(), [&](auto &order) {
-        order.id            = id;
+        order.id            = _gstate.id ;
         order.miner         = miner;
         order.ads_id        = ads_id;
         order.recd_apls     = quantity;
