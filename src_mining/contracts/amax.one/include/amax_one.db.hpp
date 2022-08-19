@@ -47,7 +47,7 @@ struct CUSTODY_TBL_NAME("global") global_t {
     time_point_sec      started_at;                 
     time_point_sec      ended_at;  
 
-    EOSLIB_SERIALIZE( global_t, (mine_token_contract)(admin)(started_at)(ended_at) )
+    EOSLIB_SERIALIZE( global_t, (mine_token_contract)(admin)(id)(started_at)(ended_at) )
 };
 typedef eosio::singleton< "global"_n, global_t > global_singleton;
 
