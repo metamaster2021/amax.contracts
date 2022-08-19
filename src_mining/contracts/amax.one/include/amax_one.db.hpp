@@ -42,6 +42,7 @@ namespace wasm { namespace db {
 struct CUSTODY_TBL_NAME("global") global_t {
     name                mine_token_contract;
     name                admin;
+    uint64_t            id = 0;
 
     time_point_sec      started_at;                 
     time_point_sec      ended_at;  
@@ -51,20 +52,23 @@ struct CUSTODY_TBL_NAME("global") global_t {
 typedef eosio::singleton< "global"_n, global_t > global_singleton;
 
 struct CUSTODY_TBL ads_order_t {
+    uint64_t        id;
     name            miner;                   //plan owner
     string          ads_id;
     asset           recd_apls;    
     time_point_sec  created_at;                 //creation time (UTC time)
     time_point_sec  expired_at;
 
-    uint64_t primary_key() const { return miner.value; }
+    uint64_t primary_key() const { return id; }
+    uint64_t by_miner() const { return miner.value; }
     checksum256 by_ads_id() const { return hash(ads_id); }  //unique ads id
 
     typedef eosio::multi_index<"adsorder"_n, ads_order_t,
+        indexed_by<"mineridx"_n,  const_mem_fun<ads_order_t, uint64_t, &ads_order_t::by_miner> >,
         indexed_by<"adsidx"_n,  const_mem_fun<ads_order_t, checksum256, &ads_order_t::by_ads_id> >
     > tbl_t;
 
-    EOSLIB_SERIALIZE( ads_order_t, (miner)(ads_id)(recd_apls)(created_at)(expired_at) )
+    EOSLIB_SERIALIZE( ads_order_t, (id)(miner)(ads_id)(recd_apls)(created_at)(expired_at) )
 
 };
 
