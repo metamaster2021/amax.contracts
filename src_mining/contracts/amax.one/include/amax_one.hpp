@@ -39,8 +39,8 @@ public:
     [[eosio::on_notify("aplink.token::transfer")]] void ontransfer(name from, name to, asset quantity, string memo);
 
 
-    [[eosio::action]] void confirmads(const string& ads_id);
-    [[eosio::action]] void onswapexpird(const name& account, const name& miner );
+    [[eosio::action]] void confirmads( const uint64_t& order_id );
+    [[eosio::action]] void onswapexpird( const uint64_t& order_id );
 
      [[eosio::action]] void aplswaplog(
                     const name&         miner,

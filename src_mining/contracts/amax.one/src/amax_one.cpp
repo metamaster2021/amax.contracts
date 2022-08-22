@@ -63,17 +63,11 @@ void amax_one::_add_adsorder(const name& miner, const asset& quantity, const str
     
     ads_order_t::tbl_t ads_order_tbl(get_self(), get_self().value);
 
-    auto ads_order_miner_idx = ads_order_tbl.get_index<"mineridx"_n>();
-    auto ads_order_miner_ptr = ads_order_miner_idx.find(miner.value);
-    check(ads_order_miner_ptr == ads_order_miner_idx.end(), "miner already existed");
 
-    auto ads_order_idx = ads_order_tbl.get_index<"adsidx"_n>();
-    auto ads_order_ptr = ads_order_idx.find(hash(ads_id));
-    check(ads_order_ptr == ads_order_idx.end(), "ads_id is already existed");
-    _gstate.id++;
+    _gstate.last_order_id = _gstate.last_order_id + 1;
 
     ads_order_tbl.emplace(get_self(), [&](auto &order) {
-        order.id            = _gstate.id ;
+        order.id            = _gstate.last_order_id;
         order.miner         = miner;
         order.ads_id        = ads_id;
         order.recd_apls     = quantity;
@@ -82,39 +76,29 @@ void amax_one::_add_adsorder(const name& miner, const asset& quantity, const str
     });
 }
 
-void amax_one::confirmads( const string& ads_id ) {
+void amax_one::confirmads( const uint64_t& order_id ) {
     
     require_auth(  _gstate.admin );
     ads_order_t::tbl_t ads_order_tbl(get_self(), get_self().value);
-    auto ads_order_idx = ads_order_tbl.get_index<"adsidx"_n>();
-    auto ads_order_ptr = ads_order_idx.find(hash(ads_id));
-    check(ads_order_ptr != ads_order_idx.end(), "ads_id not existed");
+    auto ads_order_idx = ads_order_tbl.find(order_id);
+    check(ads_order_idx != ads_order_tbl.end(), "order_id not existed");
 
-    swap_conf_t::tbl_t swap_conf_tbl(get_self(), get_self().value);
-    auto swap_conf_itr = swap_conf_tbl.find((ads_order_ptr->recd_apls).amount);
-    CHECK( swap_conf_itr != swap_conf_tbl.end(), "swap conf not found: " + (ads_order_ptr->recd_apls).to_string()) 
-    
-    _claim_reward(ads_order_ptr->miner, ads_order_ptr->recd_apls,
-                     true, ads_id, "");
+    _claim_reward(ads_order_idx->miner, ads_order_idx->recd_apls,
+                     true, ads_order_idx->ads_id, "");
 
-    ads_order_idx.erase(ads_order_ptr);
+    ads_order_tbl.erase(ads_order_idx);
 }
 
-void amax_one::onswapexpird(const name& account, const name& miner ) {
+void amax_one::onswapexpird( const uint64_t& order_id ) {
     require_auth(_gstate.admin);
-    if ( account != _gstate.admin ) {
-        CHECK( account == miner, "account need equal to miner" );
-    }
 
     ads_order_t::tbl_t ads_order_tbl(get_self(), get_self().value);
-    auto ads_order_miner_idx = ads_order_tbl.get_index<"mineridx"_n>();
-    auto ads_order_miner_ptr = ads_order_miner_idx.find(miner.value);
-    check(ads_order_miner_ptr != ads_order_miner_idx.end(), "miner not existed");
-    auto recd_apls = ads_order_miner_ptr->recd_apls;
 
-    _claim_reward( miner, recd_apls, false, "","" );   
-    ads_order_miner_idx.erase(ads_order_miner_ptr);
+    auto itr = ads_order_tbl.find(order_id);
+    CHECK(itr != ads_order_tbl.end(), "order_id not existed");
 
+    _claim_reward( itr->miner,  itr->recd_apls, false, "", "" );   
+    ads_order_tbl.erase(itr);
 }
 
  void amax_one::aplswaplog( const name& miner, const asset& recd_apls, const asset& swap_tokens, const string& ads_id, const time_point& created_at) {
