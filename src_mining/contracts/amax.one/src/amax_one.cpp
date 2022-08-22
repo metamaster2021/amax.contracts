@@ -63,9 +63,7 @@ void amax_one::_add_adsorder(const name& miner, const asset& quantity, const str
     
     ads_order_t::tbl_t ads_order_tbl(get_self(), get_self().value);
 
-
-    _gstate.last_order_id = _gstate.last_order_id + 1;
-
+    _gstate.last_order_id++;
     ads_order_tbl.emplace(get_self(), [&](auto &order) {
         order.id            = _gstate.last_order_id;
         order.miner         = miner;
