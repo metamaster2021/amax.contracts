@@ -10,6 +10,7 @@
 
 #include <amax.system/exchange_state.hpp>
 #include <amax.system/native.hpp>
+#include <amax.system/producer_change.hpp>
 
 #include <deque>
 #include <optional>
@@ -23,6 +24,16 @@
 // channeled to REX pool. In order to stop these proceeds from being channeled, the macro must
 // be set to 0.
 #define CHANNEL_RAM_AND_NAMEBID_FEES_TO_REX 1
+
+#define PP(prop) "," #prop ":", prop
+#define PP0(prop) #prop ":", prop
+#define PRINT_PROPERTIES(...) eosio::print("{", __VA_ARGS__, "}")
+
+#define CHECK(exp, msg) { if (!(exp)) eosio::check(false, msg); }
+
+#ifndef ASSERT
+    #define ASSERT(exp) CHECK(exp, #exp)
+#endif
 
 namespace eosiosystem {
 
@@ -78,9 +89,9 @@ namespace eosiosystem {
 
   /**
    * The `amax.system` smart contract is provided by `Armoniax` as a sample system contract, and it defines the structures and actions needed for blockchain's core functionality.
-   * 
+   *
    * Just like in the `amax.bios` sample contract implementation, there are a few actions which are not implemented at the contract level (`newaccount`, `updateauth`, `deleteauth`, `linkauth`, `unlinkauth`, `canceldelay`, `onerror`, `setabi`, `setcode`), they are just declared in the contract so they will show in the contract's ABI and users will be able to push those actions to the chain via the account holding the `amax.system` contract, but the implementation is at the AMAX core level. They are referred to as AMAX native actions.
-   * 
+   *
    * - Users can stake tokens for CPU and Network bandwidth, and then vote for producers or
    *    delegate their vote to a proxy.
    * - Producers register in order to be voted for, and can claim per-block and per-vote rewards.
@@ -89,7 +100,7 @@ namespace eosiosystem {
    * - A resource exchange system (REX) allows token holders to lend their tokens,
    *    and users to rent CPU and Network resources in return for a market-determined fee.
    */
-  
+
    // A name bid, which consists of:
    // - a `newname` name that the bid is for
    // - a `high_bidder` account name that is the one with the highest bid so far
@@ -120,6 +131,46 @@ namespace eosiosystem {
 
    typedef eosio::multi_index< "bidrefunds"_n, bid_refund > bid_refund_table;
 
+   struct producer_elected_votes {
+      eosio::name           name;
+      double                elected_votes;
+
+      void clear() {
+         name.value = 0;
+         elected_votes = 0;
+      }
+
+      bool empty() const {
+         return name.value == 0;
+      }
+
+      inline friend bool operator<(const producer_elected_votes& a, const producer_elected_votes& b)  { return std::tie(a.elected_votes, a.name) < std::tie(b.elected_votes, b.name); }
+      inline friend bool operator>(const producer_elected_votes& a, const producer_elected_votes& b)  { return std::tie(a.elected_votes, a.name) > std::tie(b.elected_votes, b.name); }
+   };
+
+   struct producer_elected_queue {
+      uint32_t                  last_producer_count = 0;
+      producer_elected_votes    tail;
+      producer_elected_votes    tail_prev;
+      producer_elected_votes    tail_next;
+      EOSLIB_SERIALIZE( producer_elected_queue, (last_producer_count)(tail)(tail_prev)(tail_next) )
+   };
+
+   struct amax_global_state_ext {
+      producer_elected_queue     main_elected_queue;
+      producer_elected_queue     backup_elected_queue;
+      // producer_elected_cursor    main_producer_tail;
+      // producer_elected_cursor    main_producer_tail_prev;
+      // producer_elected_cursor    main_producer_tail_next;
+      // producer_elected_cursor    backup_producer_head;
+      // producer_elected_cursor    backup_producer_tail;
+      // producer_elected_cursor    backup_producer_tail_prev;
+      // producer_elected_cursor    backup_producer_tail_next;
+      // uint32_t                   last_backup_size = 0;
+      uint8_t                    revision = 0; ///< used to track version updates in the future.
+      EOSLIB_SERIALIZE( amax_global_state_ext, (main_elected_queue)(backup_elected_queue)(revision) )
+   };
+
    // Defines new global state parameters.
    struct [[eosio::table("global"), eosio::contract("amax.system")]] amax_global_state : eosio::blockchain_parameters {
       uint64_t free_ram()const { return max_ram_size - total_ram_bytes_reserved; }
@@ -142,22 +193,27 @@ namespace eosiosystem {
       asset             initial_inflation_per_block;  // initial inflation per block
       name              reward_dispatcher;            // block inflation reward dispatcher
       uint8_t           revision = 0; ///< used to track version updates in the future.
+      std::optional<amax_global_state_ext> ext;
 
       // explicit serialization macro is not necessary, used here only to improve compilation time
       EOSLIB_SERIALIZE_DERIVED( amax_global_state, eosio::blockchain_parameters,
                                 (core_symbol)(max_ram_size)(total_ram_bytes_reserved)(total_ram_stake)
                                 (last_producer_schedule_update)
                                 (total_activated_stake)(thresh_activated_stake_time)
-                                (last_producer_schedule_size)(total_producer_vote_weight)(last_name_close) 
+                                (last_producer_schedule_size)(total_producer_vote_weight)(last_name_close)
                                 (new_ram_per_block)(last_ram_increase)
                                 (inflation_start_time)(initial_inflation_per_block)(reward_dispatcher)
-                                (revision)
+                                (revision)(ext)
       )
    };
 
    inline eosio::block_signing_authority convert_to_block_signing_authority( const eosio::public_key& producer_key ) {
       return eosio::block_signing_authority_v0{ .threshold = 1, .keys = {{producer_key, 1}} };
    }
+
+   struct producer_info_ext {
+      double   elected_votes = 0;
+   };
 
    // Defines `producer_info` structure to be stored in `producer_info` table, added after version 1.0
    struct [[eosio::table, eosio::contract("amax.system")]] producer_info {
@@ -170,18 +226,19 @@ namespace eosiosystem {
       time_point                                               last_claimed_time;
       asset                                                    unclaimed_rewards;
       eosio::block_signing_authority                           producer_authority;
+      eosio::binary_extension<producer_info_ext>               ext;
 
       uint64_t primary_key()const { return owner.value;                             }
       double   by_votes()const    { return is_active ? -total_votes : total_votes;  }
       bool     active()const      { return is_active;                               }
       void     deactivate()       {
-         producer_key = public_key(); 
+         producer_key = public_key();
          std::visit( [](auto&& auth ) -> void {
-               auth.threshold = 0; 
+               auth.threshold = 0;
                auth.keys.clear();
             }, producer_authority );
-         is_active = false; 
-      }      
+         is_active = false;
+      }
       // explicit serialization macro is not necessary, used here only to improve compilation time
       EOSLIB_SERIALIZE( producer_info, (owner)(total_votes)(producer_key)(is_active)(url)(location)
                                        (last_claimed_time)(unclaimed_rewards)(producer_authority) )
@@ -1213,6 +1270,14 @@ namespace eosiosystem {
          [[eosio::action]]
          void powerup( const name& payer, const name& receiver, uint32_t days, int64_t net_frac, int64_t cpu_frac, const asset& max_payment );
 
+         /**
+          * initialize elect producers
+          *
+          * @param payer - the resource buyer
+          */
+         [[eosio::action]]
+         void initelects( const name& payer );
+
          using init_action = eosio::action_wrapper<"init"_n, &system_contract::init>;
          using setacctram_action = eosio::action_wrapper<"setacctram"_n, &system_contract::setacctram>;
          using setacctnet_action = eosio::action_wrapper<"setacctnet"_n, &system_contract::setacctnet>;
@@ -1357,6 +1422,8 @@ namespace eosiosystem {
             time_point_sec now, symbol core_symbol, powerup_state& state,
             powerup_order_table& orders, uint32_t max_items, int64_t& net_delta_available,
             int64_t& cpu_delta_available);
+
+         void process_elected_producer(const name& producer, const double& delta_votes, producer_info &prod_info);
    };
 
 }
