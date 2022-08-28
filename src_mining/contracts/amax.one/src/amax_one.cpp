@@ -157,7 +157,7 @@ void amax_one::_claim_reward( const name&   to,
 
     CHECK( swap_tokens <= swap_conf_itr->mine_token_remained, "reward token not enough" )
     swap_conf_tbl.modify( swap_conf_itr, get_self(), [&]( auto& swap_conf ) {
-        swap_conf.mine_token_remained = swap_conf_itr->mine_token_total - swap_tokens;
+        swap_conf.mine_token_remained = swap_conf_itr->mine_token_remained - swap_tokens;
     });
 
     TRANSFER(_gstate.mine_token_contract, to, swap_tokens, memo )
