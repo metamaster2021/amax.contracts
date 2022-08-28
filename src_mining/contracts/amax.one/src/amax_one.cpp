@@ -129,7 +129,7 @@ void amax_one::addswapconf(
 
 }
 
-void amax_one::decremained( const uint64_t& swap_amount, const asset& amount) {
+void amax_one::setremained( const uint64_t& swap_amount, const asset& amount) {
     require_auth( _self );
 
     swap_conf_t::tbl_t swap_conf_tbl(get_self(), get_self().value);
@@ -137,7 +137,7 @@ void amax_one::decremained( const uint64_t& swap_amount, const asset& amount) {
     CHECK( swap_conf_itr != swap_conf_tbl.end(), "swap conf not existing: " + to_string(swap_amount) )
     
     swap_conf_tbl.modify( swap_conf_itr, get_self(), [&]( auto& swap_conf ) {
-        swap_conf.mine_token_remained -= amount;
+        swap_conf.mine_token_remained = amount;
     });
 
 }
