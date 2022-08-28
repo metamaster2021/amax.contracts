@@ -59,6 +59,8 @@ public:
     
     [[eosio::action]] void delswapconf( const name& account, const uint64_t amount);
 
+    [[eosio::action]] void decremained( const uint64_t& swap_conf_id, const asset& amount);
+
     using aplswaplog_action = eosio::action_wrapper<"aplswaplog"_n, &amax_one::aplswaplog>;
 
 private: 
