@@ -46,7 +46,7 @@ ACTION mulsign::setmulsigner(const name& issuer, const uint64_t& wallet_id, cons
    for (const auto& item : wallet.mulsigners) {
       total_weight += item.second;
    }
-   CHECKC( total_weight >= wallet.mulsign_m, err::OVERSIZED, "total weight " + to_string(wallet.mulsign_n) + "must be greater than  m: " + to_string(wallet.mulsign_m) );
+   CHECKC( total_weight >= wallet.mulsign_m, err::OVERSIZED, "total weight " + to_string(total_weight) + "must be greater than  m: " + to_string(wallet.mulsign_m) );
    wallet.mulsign_n = total_weight;
    wallet.updated_at = current_time_point();
    _db.set( wallet, issuer );
@@ -259,8 +259,7 @@ ACTION mulsign::respond(const name& issuer, const uint64_t& proposal_id, uint8_t
       || vote == proposal_vote::PROPOSAL_FOR, err::PARAM_ERROR, "unsupport result" )
 
    proposal.approvers.insert(map<name,uint32_t>::value_type(issuer, vote?wallet.mulsigners[issuer]:0));
-   if(vote == proposal_vote::PROPOSAL_FOR) 
-      proposal.recv_votes += wallet.mulsigners[issuer];
+   proposal.recv_votes += vote == proposal_vote::PROPOSAL_FOR? wallet.mulsigners[issuer] : 0;
    proposal.updated_at = now;
    proposal.status = proposal_status::APPROVED;
    _db.set(proposal, issuer);
@@ -284,19 +283,19 @@ ACTION mulsign::execute(const name& issuer, const uint64_t& proposal_id) {
    _db.set(proposal);
 }
 
-void mulsign::_create_wallet(const name& creator, const string& title, const uint32_t& wight) {
+void mulsign::_create_wallet(const name& creator, const string& title, const uint32_t& weight) {
    auto mwallets = wallet_t::idx_t(_self, _self.value);
    auto wallet_id = mwallets.available_primary_key();
    if (wallet_id == 0) {
       CHECKC(creator == _gstate.fee_collector, err::FIRST_CREATOR, "the first creator must be fee_collector: " + _gstate.fee_collector.to_string());
    }
-   CHECKC(wight >= 10, err::PARAM_ERROR, "init weight value suggest 10 or bigger")
+   CHECKC(weight >= 10 && weight <= 100, err::PARAM_ERROR, "init weight value suggest 10~100")
 
    auto wallet = wallet_t(wallet_id);
    wallet.title = title;
-   wallet.mulsign_m = wight;
-   wallet.mulsign_n = wight;
-   wallet.mulsigners[creator] = wight;
+   wallet.mulsign_m = weight;
+   wallet.mulsign_n = weight;
+   wallet.mulsigners[creator] = weight;
    wallet.creator = creator;
    wallet.created_at = current_time_point();
    wallet.proposal_expiry_sec = 7 * seconds_per_day;
