@@ -50,6 +50,7 @@ namespace eosiosystem {
    using eosio::time_point;
    using eosio::time_point_sec;
    using eosio::unsigned_int;
+   using eosio::proposed_producer_changes;
 
    inline constexpr int64_t powerup_frac = 1'000'000'000'000'000ll;  // 1.0 = 10^15
 
@@ -132,12 +133,14 @@ namespace eosiosystem {
    typedef eosio::multi_index< "bidrefunds"_n, bid_refund > bid_refund_table;
 
    struct producer_elected_votes {
-      eosio::name           name;
-      double                elected_votes;
+      eosio::name             name;
+      double                  elected_votes;
+      eosio::block_signing_authority authority;
 
       void clear() {
          name.value = 0;
          elected_votes = 0;
+         authority = eosio::block_signing_authority{};
       }
 
       bool empty() const {
@@ -150,6 +153,8 @@ namespace eosiosystem {
       inline friend bool operator>=(const producer_elected_votes& a, const producer_elected_votes& b)  { return !( std::tie(a.elected_votes, a.name) < std::tie(b.elected_votes, b.name) ); }
       inline friend bool operator==(const producer_elected_votes& a, const producer_elected_votes& b)  { return std::tie(a.elected_votes, a.name) == std::tie(b.elected_votes, b.name); }
       inline friend bool operator!=(const producer_elected_votes& a, const producer_elected_votes& b)  { return !( std::tie(a.elected_votes, a.name) == std::tie(b.elected_votes, b.name) ); }
+
+      EOSLIB_SERIALIZE( producer_elected_votes, (name)(elected_votes)(authority) )
    };
 
    struct producer_elected_queue {
@@ -611,6 +616,18 @@ namespace eosiosystem {
                                indexed_by<"byowner"_n, const_mem_fun<powerup_order, uint64_t, &powerup_order::by_owner>>,
                                indexed_by<"byexpires"_n, const_mem_fun<powerup_order, uint64_t, &powerup_order::by_expires>>
                                > powerup_order_table;
+
+
+   struct [[eosio::table,eosio::contract("amax.system")]] prod_change {
+      uint64_t                      id;             // pk, auto increasement
+      proposed_producer_changes     changes;
+
+      uint64_t primary_key()const { return id; }
+
+      EOSLIB_SERIALIZE( prod_change, (id)(changes) )
+   };
+
+   typedef eosio::multi_index< "prod.change"_n, prod_change> prod_change_table;
 
    /**
     * The `amax.system` smart contract is provided by `Armoniax` as a sample system contract, and it defines the structures and actions needed for blockchain's core functionality.
@@ -1427,7 +1444,7 @@ namespace eosiosystem {
             powerup_order_table& orders, uint32_t max_items, int64_t& net_delta_available,
             int64_t& cpu_delta_available);
 
-         void process_elected_producer(const name& producer_name, double old_votes, double new_votes);
+         void process_elected_producer(const name& producer_name, const eosio::block_signing_authority  producer_authority, double old_votes, double new_votes);
    };
 
 }
