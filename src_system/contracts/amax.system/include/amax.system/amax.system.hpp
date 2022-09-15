@@ -166,6 +166,7 @@ namespace eosiosystem {
    };
 
    struct amax_global_state_ext {
+      uint64_t                   last_producer_change_id = 0;
       producer_elected_queue     main_elected_queue;
       producer_elected_queue     backup_elected_queue;
       // producer_elected_cursor    main_producer_tail;
@@ -618,16 +619,16 @@ namespace eosiosystem {
                                > powerup_order_table;
 
 
-   struct [[eosio::table,eosio::contract("amax.system")]] prod_change {
+   struct [[eosio::table,eosio::contract("amax.system")]] elected_change {
       uint64_t                      id;             // pk, auto increasement
       proposed_producer_changes     changes;
 
       uint64_t primary_key()const { return id; }
 
-      EOSLIB_SERIALIZE( prod_change, (id)(changes) )
+      EOSLIB_SERIALIZE( elected_change, (id)(changes) )
    };
 
-   typedef eosio::multi_index< "prod.change"_n, prod_change> prod_change_table;
+   typedef eosio::multi_index< "electchange"_n, elected_change> elected_change_table;
 
    /**
     * The `amax.system` smart contract is provided by `Armoniax` as a sample system contract, and it defines the structures and actions needed for blockchain's core functionality.
@@ -1403,7 +1404,7 @@ namespace eosiosystem {
          void register_producer( const name& producer, const eosio::block_signing_authority& producer_authority, const std::string& url, uint16_t location );
          void update_elected_producers( const block_timestamp& timestamp );
          void update_votes( const name& voter, const name& proxy, const std::vector<name>& producers, bool voting );
-         void propagate_weight_change( const voter_info& voter );
+         void propagate_weight_change( const voter_info& voter, const name& payer );
 
          template <auto system_contract::*...Ptrs>
          class registration {
@@ -1444,7 +1445,7 @@ namespace eosiosystem {
             powerup_order_table& orders, uint32_t max_items, int64_t& net_delta_available,
             int64_t& cpu_delta_available);
 
-         void process_elected_producer(const name& producer_name, const eosio::block_signing_authority  producer_authority, double old_votes, double new_votes);
+         void process_elected_producer(const producer_info& prod_info, double old_votes, double new_votes, proposed_producer_changes &changes);
    };
 
 }

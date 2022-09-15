@@ -300,7 +300,7 @@ namespace eosiosystem {
             _voters.modify( old_proxy, same_payer, [&]( auto& vp ) {
                   vp.proxied_vote_weight -= voter->last_vote_weight;
                });
-            propagate_weight_change( *old_proxy );
+            propagate_weight_change( *old_proxy, voter_name );
          } else {
             for( const auto& p : voter->producers ) {
                auto& d = producer_deltas[p];
@@ -318,7 +318,7 @@ namespace eosiosystem {
             _voters.modify( new_proxy, same_payer, [&]( auto& vp ) {
                   vp.proxied_vote_weight += new_vote_weight;
                });
-            propagate_weight_change( *new_proxy );
+            propagate_weight_change( *new_proxy, voter_name );
          }
       } else {
          if( new_vote_weight >= 0 ) {
@@ -330,6 +330,7 @@ namespace eosiosystem {
          }
       }
 
+      proposed_producer_changes changes;
       const auto ct = current_time_point();
       double delta_change_rate         = 0.0;
       double total_inactive_vpay_share = 0.0;
@@ -342,7 +343,7 @@ namespace eosiosystem {
             double init_total_votes = pitr->total_votes;
             _producers.modify( pitr, same_payer, [&]( auto& p ) {
                p.total_votes += pd.second.first;
-               process_elected_producer(p.owner, p.producer_authority, init_total_votes, p.total_votes);
+               process_elected_producer(p, init_total_votes, p.total_votes, changes);
                if ( p.total_votes < 0 ) { // floating point arithmetics can give small negative numbers
                   p.total_votes = 0;
                }
@@ -354,6 +355,16 @@ namespace eosiosystem {
                check( false, ( "producer " + pd.first.to_string() + " is not registered" ).data() );
             }
          }
+      }
+
+      if (!_gstate.ext.has_value() && (!changes.backup_changes.changes.empty() || !changes.main_changes.changes.empty()) ) {
+         elected_change_table _elected_changes(get_self(), get_self().value);
+         auto& ext = _gstate.ext.value();
+         auto producer_change_id = ext.last_producer_change_id == 0 ? 1 : ext.last_producer_change_id + 1;
+         _elected_changes.emplace( voter_name, [&]( auto& c ) {
+               c.id        = producer_change_id;
+               c.changes   = changes;
+         });
       }
 
       _voters.modify( voter, same_payer, [&]( auto& av ) {
@@ -373,7 +384,7 @@ namespace eosiosystem {
          _voters.modify( pitr, same_payer, [&]( auto& p ) {
                p.is_proxy = isproxy;
             });
-         propagate_weight_change( *pitr );
+         propagate_weight_change( *pitr, proxy );
       } else {
          _voters.emplace( proxy, [&]( auto& p ) {
                p.owner  = proxy;
@@ -382,7 +393,7 @@ namespace eosiosystem {
       }
    }
 
-   void system_contract::propagate_weight_change( const voter_info& voter ) {
+   void system_contract::propagate_weight_change( const voter_info& voter, const name& payer ) {
       check( !voter.proxy || !voter.is_proxy, "account registered as a proxy is not allowed to use a proxy" );
       double new_weight = stake2vote( voter.staked );
       if ( voter.is_proxy ) {
@@ -397,8 +408,10 @@ namespace eosiosystem {
                   p.proxied_vote_weight += new_weight - voter.last_vote_weight;
                }
             );
-            propagate_weight_change( proxy );
+            propagate_weight_change( proxy, payer );
          } else {
+
+            proposed_producer_changes changes;
             auto delta = new_weight - voter.last_vote_weight;
             const auto ct = current_time_point();
             double delta_change_rate         = 0;
@@ -410,9 +423,18 @@ namespace eosiosystem {
                   p.total_votes += delta;
                   _gstate.total_producer_vote_weight += delta;
                });
-               process_elected_producer(prod.owner, prod.producer_authority, init_total_votes, init_total_votes + delta);
+               process_elected_producer(prod, init_total_votes, init_total_votes + delta, changes);
             }
 
+            if (!_gstate.ext.has_value() && (!changes.backup_changes.changes.empty() || !changes.main_changes.changes.empty()) ) {
+               elected_change_table _elected_changes(get_self(), get_self().value);
+               auto& ext = _gstate.ext.value();
+               auto producer_change_id = ext.last_producer_change_id == 0 ? 1 : ext.last_producer_change_id + 1;
+               _elected_changes.emplace( payer, [&]( auto& c ) {
+                     c.id        = producer_change_id;
+                     c.changes   = changes;
+               });
+            }
          }
       }
       _voters.modify( voter, same_payer, [&]( auto& v ) {
@@ -421,7 +443,7 @@ namespace eosiosystem {
       );
    }
 
-   void system_contract::process_elected_producer(const name& producer_name, const eosio::block_signing_authority  producer_authority, double old_votes, double new_votes) {
+   void system_contract::process_elected_producer(const producer_info& prod_info, double old_votes, double new_votes, proposed_producer_changes &changes) {
 
       if (!_gstate.ext.has_value())
          return;
@@ -432,14 +454,15 @@ namespace eosiosystem {
          return;
 
 
-      producer_elected_votes cur_old_prod = {producer_name, old_votes, producer_authority};
-      producer_elected_votes cur_new_prod = {producer_name, std::max(0.0, new_votes), producer_authority};
-      const auto& cur_name = producer_name;
+      const auto& cur_name = prod_info.owner;
+      const auto& producer_authority = prod_info.producer_authority;
+      producer_elected_votes cur_old_prod = {cur_name, old_votes, producer_authority};
+      producer_elected_votes cur_new_prod = {cur_name, std::max(0.0, new_votes), producer_authority};
 
-      // prod_change_table prod_change_tbl(get_self(), get_self().value);
-      // prod_change change;
-      std::map<name, eosio::producer_change_record> main_changes;
-      std::map<name, eosio::producer_change_record> backup_changes;
+      // elected_change_table prod_change_tbl(get_self(), get_self().value);
+      // elected_change change;
+      auto &main_changes = changes.main_changes.changes;
+      auto &backup_changes = changes.backup_changes.changes;
 
       bool refresh_main_tail_prev = false; // refresh by main_tail
       bool refresh_main_tail_next = false; // refresh by main_tail
