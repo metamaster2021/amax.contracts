@@ -17,7 +17,7 @@ ACTION mulsign::init(const name& fee_collector, const asset& wallet_fee) {
    _gstate.fee_collector = fee_collector;
    _gstate.wallet_fee = wallet_fee;
    _gstate.support_contracts.insert("amax.token"_n);
-   _gstate.support_contracts.insert("amax.ntoken"_n);
+   _gstate.support_contracts.insert("amax.mtoken"_n);
    _create_wallet(fee_collector, "amax.daodev", 10);
 }
 
