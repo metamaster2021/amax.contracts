@@ -16,6 +16,8 @@ ACTION mulsign::init(const name& fee_collector, const asset& wallet_fee) {
    
    _gstate.fee_collector = fee_collector;
    _gstate.wallet_fee = wallet_fee;
+   _gstate.support_contracts.insert("amax.token"_n);
+   _gstate.support_contracts.insert("amax.ntoken"_n);
    _create_wallet(fee_collector, "amax.daodev", 10);
 }
 
@@ -111,6 +113,7 @@ void mulsign::ontransfer(const name& from, const name& to, const asset& quantity
    CHECKC( memo != "", err::PARAM_ERROR, "empty memo!" )
 
    auto bank_contract = get_first_receiver();
+   CHECKC( _gstate.support_contracts.count(bank_contract), err::SYMBOL_MISMATCH, "unsupport token contract" )
 
    vector<string_view> memo_params = split(memo, ":");
    if (memo_params[0] == "create" && memo_params.size() == 3) {
