@@ -24,7 +24,6 @@ namespace eosio {
    #define producer_authority_change(operation) \
       struct producer_authority_##operation { \
          static constexpr producer_change_operation change_operation = producer_change_operation::operation; \
-         static constexpr char abi_type_name[] = STR_REF(producer_authority_##operation); \
          std::optional<block_signing_authority> authority; \
          EOSLIB_SERIALIZE( producer_authority_##operation, (authority) ) \
       };
@@ -54,12 +53,12 @@ namespace eosio {
 
    inline int64_t set_proposed_producers_ex( const proposed_producer_changes& changes ) {
       auto packed_changes = eosio::pack( changes );
-      return internal_use_do_not_use::set_proposed_producers_ex(2, (char*)packed_changes.data(), packed_changes.size());
+      return internal_use_do_not_use::set_proposed_producers_ex((uint64_t)producer_change_format::incremental,
+         (char*)packed_changes.data(), packed_changes.size());
    }
 
    inline std::optional<uint64_t> set_proposed_producers( const proposed_producer_changes& changes ) {
-      auto packed_changes = eosio::pack( changes );
-      int64_t ret = internal_use_do_not_use::set_proposed_producers_ex((uint64_t)producer_change_format::incremental, (char*)packed_changes.data(), packed_changes.size());
+      int64_t ret = set_proposed_producers_ex(changes);
       if (ret >= 0)
         return static_cast<uint64_t>(ret);
       return {};

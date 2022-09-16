@@ -35,6 +35,9 @@
     #define ASSERT(exp) CHECK(exp, #exp)
 #endif
 
+template<class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
+template<class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
+
 namespace eosiosystem {
 
    using eosio::asset;
