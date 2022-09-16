@@ -22,7 +22,8 @@ namespace eosiosystem {
     _rexretbuckets(get_self(), get_self().value),
     _rexfunds(get_self(), get_self().value),
     _rexbalance(get_self(), get_self().value),
-    _rexorders(get_self(), get_self().value)
+    _rexorders(get_self(), get_self().value),
+    _elected_changes(get_self(), get_self().value)
    {
       _gstate  = _global.exists() ? _global.get() : get_default_parameters();
    }
@@ -279,7 +280,7 @@ namespace eosiosystem {
    void system_contract::setinflation(  time_point inflation_start_time, const asset& initial_inflation_per_block ) {
       require_auth(get_self());
       check(initial_inflation_per_block.symbol == core_symbol(), "inflation symbol mismatch with core symbol");
-      
+
       const auto& ct = eosio::current_time_point();
       if (_gstate.inflation_start_time != time_point() ) {
          check( ct < _gstate.inflation_start_time, "inflation has been started");
@@ -369,7 +370,7 @@ namespace eosiosystem {
       auto system_token_supply   = eosio::token::get_supply(token_account, core.code() );
       check( system_token_supply.symbol == core, "specified core symbol does not exist (precision mismatch)" );
       check( system_token_supply.amount > 0, "system token supply must be greater than 0" );
-      
+
       _gstate.core_symbol = core;
 
       _rammarket.emplace( get_self(), [&]( auto& m ) {

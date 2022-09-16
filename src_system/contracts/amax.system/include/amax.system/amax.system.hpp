@@ -134,12 +134,12 @@ namespace eosiosystem {
 
    struct producer_elected_votes {
       eosio::name             name;
-      double                  elected_votes;
+      double                  elected_votes = 0.0;
       eosio::block_signing_authority authority;
 
       void clear() {
          name.value = 0;
-         elected_votes = 0;
+         elected_votes = 0.0;
          authority = eosio::block_signing_authority{};
       }
 
@@ -166,7 +166,9 @@ namespace eosiosystem {
    };
 
    struct amax_global_state_ext {
-      uint64_t                   last_producer_change_id = 0;
+      uint32_t                   max_main_producer_count        = 21;
+      uint32_t                   max_backup_producer_count  = 10000;
+      uint64_t                   last_producer_change_id    = 0;
       producer_elected_queue     main_elected_queue;
       producer_elected_queue     backup_elected_queue;
       // producer_elected_cursor    main_producer_tail;
@@ -674,6 +676,7 @@ namespace eosiosystem {
          rex_fund_table           _rexfunds;
          rex_balance_table        _rexbalance;
          rex_order_table          _rexorders;
+         elected_change_table     _elected_changes;
 
       public:
          static constexpr eosio::name active_permission{"active"_n};
@@ -1314,7 +1317,7 @@ namespace eosiosystem {
           * @param payer - the resource buyer
           */
          [[eosio::action]]
-         void initelects( const name& payer );
+         void initelects( const name& payer, uint32_t max_backup_producer_count );
 
          using init_action = eosio::action_wrapper<"init"_n, &system_contract::init>;
          using setacctram_action = eosio::action_wrapper<"setacctram"_n, &system_contract::setacctram>;
