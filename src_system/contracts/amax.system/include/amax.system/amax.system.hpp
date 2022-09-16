@@ -240,6 +240,21 @@ namespace eosiosystem {
 
       uint64_t primary_key()const { return owner.value;                             }
       double   by_votes()const    { return is_active ? -total_votes : total_votes;  }
+
+
+      static long double   by_votes_prod(const name& owner, const double& total_votes, bool is_active) {
+         uint64_t uint64_max = std::numeric_limits<uint64_t>::max();
+         if (is_active) {
+            return (-total_votes) * (uint64_max + 1.0) - (uint64_max - owner.value);
+         } else {
+            return total_votes * (uint64_max + 1.0) + owner.value;
+         }
+      }
+
+      long double by_votes_prod() const {
+         return by_votes_prod(owner, total_votes, is_active);
+      }
+
       bool     active()const      { return is_active;                               }
       void     deactivate()       {
          producer_key = public_key();
@@ -296,7 +311,8 @@ namespace eosiosystem {
 
 
    typedef eosio::multi_index< "producers"_n, producer_info,
-                               indexed_by<"prototalvote"_n, const_mem_fun<producer_info, double, &producer_info::by_votes>  >
+                               indexed_by<"prototalvote"_n, const_mem_fun<producer_info, double, &producer_info::by_votes>  >,
+                               indexed_by<"totalvotepro"_n, const_mem_fun<producer_info, long double, &producer_info::by_votes_prod>  >
                              > producers_table;
 
    typedef eosio::singleton< "global"_n, amax_global_state >   global_state_singleton;

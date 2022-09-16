@@ -88,6 +88,7 @@ namespace eosiosystem {
       }
    }
 
+   // TODO: add args: backup_producer_count
    void system_contract::initelects( const name& payer ) {
       require_auth( payer );
       bool is_init = false;
@@ -101,35 +102,43 @@ namespace eosiosystem {
          changes.backup_changes.clear_existed = true;
 
          auto &main_changes = changes.main_changes;
-         auto idx = _producers.get_index<"prototalvote"_n>();
+         auto idx = _producers.get_index<"totalvotepro"_n>();
          amax_global_state_ext ext;
+         auto& meq = ext.main_elected_queue;
+
+         elected_change_table _elected_changes(get_self(), get_self().value);
+
+         check(_elected_changes.begin() == _elected_changes.end(), "elected change table is not empty" );
 
          // TODO: need using location to order producers?
-         for( auto it = idx.cbegin(); it != idx.cend() && main_changes.changes.size() < main_producer_count - 1 && 0 < it->total_votes && it->active(); ++it ) {
+         for( auto it = idx.cbegin(); it != idx.cend() && 0 < it->total_votes && it->active(); ++it ) {
+            if (main_changes.changes.size() >= main_producer_count) {
+               meq.tail_next = {it->owner, it->total_votes, it->producer_authority};
+               break;
+            }
+
             main_changes.changes.emplace(
                it->owner, eosio::producer_authority_add {
                   .authority = it->producer_authority
                }
             );
-            idx.modify( it, payer, [&]( auto& p ) {
-               // p.ext = producer_info_ext{
-               //    .elected_votes = p.total_votes
-               // };
-            });
-            // ext.main_producer_tail = {it->owner, it->total_votes};
+            // idx.modify( it, payer, [&]( auto& p ) {
+            //    // p.ext = producer_info_ext{
+            //    //    .elected_votes = p.total_votes
+            //    // };
+            // });
+            if (!meq.tail.empty()) {
+               meq.tail_prev = meq.tail;
+            }
+            meq.tail = {it->owner, it->total_votes, it->producer_authority};
          }
          main_changes.producer_count = main_changes.changes.size();
 
          eosio::check(main_changes.producer_count > 0, "top main producer count is 0");
 
-         // if( top_producers.size() == 0 || top_producers.size() < _gstate.last_producer_schedule_size ) {
-         //    return;
-         // }
-
          auto ret = set_proposed_producers_ex( changes );
          CHECK(ret >= 0, "set proposed producers to native system failed(" + std::to_string(ret) + ")");
 
-         _gstate.last_producer_schedule_size = main_changes.producer_count;
          _gstate.ext = ext;
          // clear changes
 
@@ -958,6 +967,56 @@ namespace eosiosystem {
             }
          }
       }
+
+      // refresh queue positions
+      auto idx = _producers.get_index<"totalvotepro"_n>();
+      auto begin = idx.begin();
+      check(begin != idx.end(), "totalvotepro index of producer table is empty");
+
+      if (refresh_main_tail_prev) {
+         auto itr = idx.lower_bound(producer_info::by_votes_prod(meq.tail.name, meq.tail.elected_votes, true));
+         check(itr != idx.end() && itr->owner == meq.tail.name, "main queue tail not found in producer table by total votes and name");
+         if (itr != begin) {
+            itr--;
+            meq.tail_prev = {itr->owner, itr->total_votes, itr->producer_authority};
+         } else {
+            meq.tail_prev.clear();
+         }
+      }
+
+      if (refresh_main_tail_next) {
+         auto itr = idx.lower_bound(producer_info::by_votes_prod(meq.tail.name, meq.tail.elected_votes, true));
+         check(itr != idx.end() && itr->owner == meq.tail.name, "main queue tail not found in producer table by total votes and name");
+         itr++;
+         if (itr != idx.end() && itr->total_votes > 0) {
+            meq.tail_next = {itr->owner, itr->total_votes, itr->producer_authority};
+         } else {
+            meq.tail_next.clear();
+         }
+      }
+
+      if (refresh_backup_tail_prev) {
+         auto itr = idx.lower_bound(producer_info::by_votes_prod(beq.tail.name, beq.tail.elected_votes, true));
+         check(itr != idx.end() && itr->owner == beq.tail.name, "backup queue tail not found in producer table by total votes and name");
+         if (itr != begin) {
+            itr--;
+            beq.tail_prev = {itr->owner, itr->total_votes, itr->producer_authority};
+         } else {
+            beq.tail_prev.clear();
+         }
+      }
+
+      if (refresh_backup_tail_next) {
+         auto itr = idx.lower_bound(producer_info::by_votes_prod(beq.tail.name, beq.tail.elected_votes, true));
+         check(itr != idx.end() && itr->owner == beq.tail.name, "backup queue tail not found in producer table by total votes and name");
+         itr++;
+         if (itr != idx.end() && itr->total_votes > 0) {
+            beq.tail_next = {itr->owner, itr->total_votes, itr->producer_authority};
+         } else {
+            beq.tail_next.clear();
+         }
+      }
+
    }
 
 } /// namespace eosiosystem
