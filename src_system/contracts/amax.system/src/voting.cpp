@@ -390,11 +390,11 @@ namespace eosiosystem {
             double init_total_votes = pitr->total_votes;
             _producers.modify( pitr, same_payer, [&]( auto& p ) {
                p.total_votes += pd.second.first;
-               process_elected_producer(p, init_total_votes, p.total_votes, changes);
                if ( p.total_votes < 0 ) { // floating point arithmetics can give small negative numbers
                   p.total_votes = 0;
                }
                _gstate.total_producer_vote_weight += pd.second.first;
+               process_elected_producer(p, init_total_votes, p.total_votes, changes);
                //check( p.total_votes >= 0, "something bad happened" );
             });
          } else {
@@ -467,9 +467,12 @@ namespace eosiosystem {
                const double init_total_votes = prod.total_votes;
                _producers.modify( prod, same_payer, [&]( auto& p ) {
                   p.total_votes += delta;
+                  if ( p.total_votes < 0 ) { // floating point arithmetics can give small negative numbers
+                     p.total_votes = 0;
+                  }
                   _gstate.total_producer_vote_weight += delta;
+                  process_elected_producer(prod, init_total_votes, init_total_votes + delta, changes);
                });
-               process_elected_producer(prod, init_total_votes, init_total_votes + delta, changes);
             }
 
             if (!_gstate.ext.has_value() && (!changes.backup_changes.changes.empty() || !changes.main_changes.changes.empty()) ) {
@@ -503,7 +506,7 @@ namespace eosiosystem {
       const auto& cur_name = prod_info.owner;
       const auto& producer_authority = prod_info.producer_authority;
       producer_elected_votes cur_old_prod = {cur_name, old_votes, producer_authority};
-      producer_elected_votes cur_new_prod = {cur_name, std::max(0.0, new_votes), producer_authority};
+      producer_elected_votes cur_new_prod = {cur_name, new_votes, producer_authority};
 
       // elected_change_table prod_change_tbl(get_self(), get_self().value);
       // elected_change change;

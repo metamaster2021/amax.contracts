@@ -247,8 +247,10 @@ namespace eosiosystem {
       double   by_votes()const    { return is_active ? -total_votes : total_votes;  }
 
 
-      static long double   by_votes_prod(const name& owner, const double& total_votes, bool is_active) {
+      static long double   by_votes_prod(const name& owner, double total_votes, bool is_active) {
          uint64_t uint64_max = std::numeric_limits<uint64_t>::max();
+         if (total_votes < 0.0) total_votes = 0.0;
+
          if (is_active) {
             return (-total_votes) * (uint64_max + 1.0) - (uint64_max - owner.value);
          } else {
