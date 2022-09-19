@@ -1,3 +1,5 @@
+#ifdef AMAX_CUSTODY_TESTS
+
 #include <boost/test/unit_test.hpp>
 #include <eosio/testing/tester.hpp>
 #include <eosio/chain/abi_serializer.hpp>
@@ -280,3 +282,5 @@ BOOST_FIXTURE_TEST_CASE( end_issue, amax_custody_tester ) try {
 } FC_LOG_AND_RETHROW()
 
 BOOST_AUTO_TEST_SUITE_END()
+
+#endif //AMAX_CUSTODY_TESTS
