@@ -183,7 +183,9 @@ namespace eosiosystem {
       // producer_elected_cursor    backup_producer_tail_next;
       // uint32_t                   last_backup_size = 0;
       uint8_t                    revision = 0; ///< used to track version updates in the future.
-      EOSLIB_SERIALIZE( amax_global_state_ext, (main_elected_queue)(backup_elected_queue)(revision) )
+      EOSLIB_SERIALIZE( amax_global_state_ext, (max_main_producer_count)(max_backup_producer_count)
+                                               (last_producer_change_id)(main_elected_queue)(backup_elected_queue)
+                                               (revision) )
    };
 
    // Defines new global state parameters.
@@ -226,9 +228,9 @@ namespace eosiosystem {
       return eosio::block_signing_authority_v0{ .threshold = 1, .keys = {{producer_key, 1}} };
    }
 
-   struct producer_info_ext {
-      double   elected_votes = 0;
-   };
+   // struct producer_info_ext {
+   //    double   elected_votes = 0;
+   // };
 
    // Defines `producer_info` structure to be stored in `producer_info` table, added after version 1.0
    struct [[eosio::table, eosio::contract("amax.system")]] producer_info {
@@ -241,7 +243,7 @@ namespace eosiosystem {
       time_point                                               last_claimed_time;
       asset                                                    unclaimed_rewards;
       eosio::block_signing_authority                           producer_authority;
-      eosio::binary_extension<producer_info_ext>               ext;
+      // eosio::binary_extension<producer_info_ext>               ext;
 
       uint64_t primary_key()const { return owner.value;                             }
       double   by_votes()const    { return is_active ? -total_votes : total_votes;  }

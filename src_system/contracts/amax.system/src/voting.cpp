@@ -157,6 +157,7 @@ namespace eosiosystem {
          meq.tail = {it->owner, it->total_votes, it->producer_authority};
       }
       main_changes.producer_count = main_changes.changes.size();
+      meq.last_producer_count =  main_changes.changes.size();
 
       eosio::check(main_changes.producer_count > 0, "top main producer count is 0");
 
