@@ -90,6 +90,28 @@ namespace eosiosystem {
 
    static constexpr uint32_t refund_delay_sec      = 3 * seconds_per_day;
 
+    /**
+    *  Modify the deserialization policy of binary_extension
+    *
+    *  @ingroup binary_extension
+    *  @tparam T - Contained typed
+    */
+   template <typename T>
+   class binary_extension2: public eosio::binary_extension<T> {
+
+      template<typename DataStream, typename Type>
+      friend inline DataStream& operator<<(DataStream& ds, const binary_extension2<Type>& be) {
+         if (be.has_value()) {
+            ds << be.value();
+         }
+         return ds;
+      }
+
+      template<typename DataStream, typename Type>
+      friend inline DataStream& operator>>(DataStream& ds, binary_extension2<Type>& be) {
+         return ds >> static_cast<eosio::binary_extension<Type>&>(be);
+      }
+   };
 
   /**
    * The `amax.system` smart contract is provided by `Armoniax` as a sample system contract, and it defines the structures and actions needed for blockchain's core functionality.
@@ -169,23 +191,14 @@ namespace eosiosystem {
    };
 
    struct amax_global_state_ext {
-      uint32_t                   max_main_producer_count        = 21;
+      uint8_t                    elected_version            = 0;
+      uint32_t                   max_main_producer_count    = 21;
       uint32_t                   max_backup_producer_count  = 10000;
       uint64_t                   last_producer_change_id    = 0;
       producer_elected_queue     main_elected_queue;
       producer_elected_queue     backup_elected_queue;
-      // producer_elected_cursor    main_producer_tail;
-      // producer_elected_cursor    main_producer_tail_prev;
-      // producer_elected_cursor    main_producer_tail_next;
-      // producer_elected_cursor    backup_producer_head;
-      // producer_elected_cursor    backup_producer_tail;
-      // producer_elected_cursor    backup_producer_tail_prev;
-      // producer_elected_cursor    backup_producer_tail_next;
-      // uint32_t                   last_backup_size = 0;
-      uint8_t                    revision = 0; ///< used to track version updates in the future.
       EOSLIB_SERIALIZE( amax_global_state_ext, (max_main_producer_count)(max_backup_producer_count)
-                                               (last_producer_change_id)(main_elected_queue)(backup_elected_queue)
-                                               (revision) )
+                                               (last_producer_change_id)(main_elected_queue)(backup_elected_queue))
    };
 
    // Defines new global state parameters.
@@ -212,6 +225,8 @@ namespace eosiosystem {
       uint8_t           revision = 0; ///< used to track version updates in the future.
       std::optional<amax_global_state_ext> ext;
 
+      uint8_t get_elected_version() const  { return ext ? ext->elected_version : 0; }
+
       // explicit serialization macro is not necessary, used here only to improve compilation time
       EOSLIB_SERIALIZE_DERIVED( amax_global_state, eosio::blockchain_parameters,
                                 (core_symbol)(max_ram_size)(total_ram_bytes_reserved)(total_ram_stake)
@@ -228,9 +243,10 @@ namespace eosiosystem {
       return eosio::block_signing_authority_v0{ .threshold = 1, .keys = {{producer_key, 1}} };
    }
 
-   // struct producer_info_ext {
-   //    double   elected_votes = 0;
-   // };
+   struct producer_info_ext {
+      uint8_t        elected_version   = 0;
+      double         elected_votes     = 0;
+   };
 
    // Defines `producer_info` structure to be stored in `producer_info` table, added after version 1.0
    struct [[eosio::table, eosio::contract("amax.system")]] producer_info {
@@ -243,25 +259,28 @@ namespace eosiosystem {
       time_point                                               last_claimed_time;
       asset                                                    unclaimed_rewards;
       eosio::block_signing_authority                           producer_authority;
-      // eosio::binary_extension<producer_info_ext>               ext;
+      binary_extension2<producer_info_ext>                     ext;
 
       uint64_t primary_key()const { return owner.value;                             }
       double   by_votes()const    { return is_active ? -total_votes : total_votes;  }
 
 
-      static long double   by_votes_prod(const name& owner, double total_votes, bool is_active) {
+      static long double   by_votes_prod(const name& owner, double total_votes, uint8_t elected_version, bool is_active) {
          uint64_t uint64_max = std::numeric_limits<uint64_t>::max();
          if (total_votes < 0.0) total_votes = 0.0;
 
+         long double v = elected_version * ( (long double)std::numeric_limits<uint128_t>::max() + 1);
+
          if (is_active) {
-            return (-total_votes) * (uint64_max + 1.0) - (uint64_max - owner.value);
+            return (-v ) + (-total_votes) * (uint64_max + 1.0) - (uint64_max - owner.value);
          } else {
-            return total_votes * (uint64_max + 1.0) + owner.value;
+            return v + total_votes * (uint64_max + 1.0) + owner.value;
          }
       }
 
       long double by_votes_prod() const {
-         return by_votes_prod(owner, total_votes, is_active);
+         return ext ? by_votes_prod(owner, ext->elected_votes, ext->elected_version, is_active)
+                    : std::numeric_limits<long double>::max();
       }
 
       bool     active()const      { return is_active;                               }
@@ -272,6 +291,19 @@ namespace eosiosystem {
                auth.keys.clear();
             }, producer_authority );
          is_active = false;
+      }
+
+      inline double get_elected_votes(uint8_t elected_version) const {
+         return ext && ext->elected_votes > 0 ? ext->elected_votes : 0;
+      }
+
+      void update_elected_votes(uint8_t elected_version) {
+         if (ext) {
+            ext->elected_version = elected_version;
+            ext->elected_votes   = total_votes;
+         } else {
+            ext.emplace(producer_info_ext{ elected_version, total_votes });
+         }
       }
       // explicit serialization macro is not necessary, used here only to improve compilation time
       EOSLIB_SERIALIZE( producer_info, (owner)(total_votes)(producer_key)(is_active)(url)(location)
