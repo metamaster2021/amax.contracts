@@ -90,28 +90,17 @@ namespace eosiosystem {
 
    static constexpr uint32_t refund_delay_sec      = 3 * seconds_per_day;
 
-    /**
-    *  Modify the deserialization policy of binary_extension
-    *
-    *  @ingroup binary_extension
-    *  @tparam T - Contained typed
+   /**
+    * Improved serialization of binary_extension
+    * If the extension does not have value, do not serialize anything
     */
-   template <typename T>
-   class binary_extension2: public eosio::binary_extension<T> {
-
-      template<typename DataStream, typename Type>
-      friend inline DataStream& operator<<(DataStream& ds, const binary_extension2<Type>& be) {
-         if (be.has_value()) {
-            ds << be.value();
-         }
-         return ds;
+   template<typename DataStream, typename T>
+   inline DataStream& serialize(DataStream& ds, const eosio::binary_extension<T>& be) {
+      if (be.has_value()) {
+         ds << be.value();
       }
-
-      template<typename DataStream, typename Type>
-      friend inline DataStream& operator>>(DataStream& ds, binary_extension2<Type>& be) {
-         return ds >> static_cast<eosio::binary_extension<Type>&>(be);
-      }
-   };
+      return ds;
+   }
 
   /**
    * The `amax.system` smart contract is provided by `Armoniax` as a sample system contract, and it defines the structures and actions needed for blockchain's core functionality.
@@ -197,7 +186,7 @@ namespace eosiosystem {
       uint64_t                   last_producer_change_id    = 0;
       producer_elected_queue     main_elected_queue;
       producer_elected_queue     backup_elected_queue;
-      EOSLIB_SERIALIZE( amax_global_state_ext, (max_main_producer_count)(max_backup_producer_count)
+      EOSLIB_SERIALIZE( amax_global_state_ext, (elected_version)(max_main_producer_count)(max_backup_producer_count)
                                                (last_producer_change_id)(main_elected_queue)(backup_elected_queue))
    };
 
@@ -248,6 +237,11 @@ namespace eosiosystem {
       double         elected_votes     = 0;
    };
 
+   template<typename DataStream>
+   inline DataStream& operator<<(DataStream& ds, const eosio::binary_extension<producer_info_ext>& be) {
+      return serialize(ds, be);
+   }
+
    // Defines `producer_info` structure to be stored in `producer_info` table, added after version 1.0
    struct [[eosio::table, eosio::contract("amax.system")]] producer_info {
       name                                                     owner;
@@ -259,11 +253,10 @@ namespace eosiosystem {
       time_point                                               last_claimed_time;
       asset                                                    unclaimed_rewards;
       eosio::block_signing_authority                           producer_authority;
-      binary_extension2<producer_info_ext>                     ext;
+      eosio::binary_extension<producer_info_ext>               ext;
 
       uint64_t primary_key()const { return owner.value;                             }
       double   by_votes()const    { return is_active ? -total_votes : total_votes;  }
-
 
       static long double   by_votes_prod(const name& owner, double total_votes, uint8_t elected_version, bool is_active) {
          uint64_t uint64_max = std::numeric_limits<uint64_t>::max();
@@ -307,7 +300,7 @@ namespace eosiosystem {
       }
       // explicit serialization macro is not necessary, used here only to improve compilation time
       EOSLIB_SERIALIZE( producer_info, (owner)(total_votes)(producer_key)(is_active)(url)(location)
-                                       (last_claimed_time)(unclaimed_rewards)(producer_authority) )
+                                       (last_claimed_time)(unclaimed_rewards)(producer_authority) (ext) )
    };
 
    // Voter info. Voter info stores information about the voter:

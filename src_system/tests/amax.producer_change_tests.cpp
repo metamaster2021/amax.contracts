@@ -36,15 +36,21 @@ struct producer_elected_queue {
 FC_REFLECT( producer_elected_queue, (last_producer_count)(tail)(tail_prev)(tail_next) )
 
 struct amax_global_state_ext {
-   uint32_t                   max_main_producer_count        = 21;
+   uint8_t                    elected_version            = 0;
+   uint32_t                   max_main_producer_count    = 21;
    uint32_t                   max_backup_producer_count  = 10000;
    uint64_t                   last_producer_change_id    = 0;
    producer_elected_queue     main_elected_queue;
    producer_elected_queue     backup_elected_queue;
-   uint8_t                    revision = 0; ///< used to track version updates in the future.
 };
-FC_REFLECT( amax_global_state_ext, (max_main_producer_count)(max_backup_producer_count)(last_producer_change_id)
-                                   (main_elected_queue)(backup_elected_queue)(revision) )
+FC_REFLECT( amax_global_state_ext, (elected_version)(max_main_producer_count)(max_backup_producer_count)(last_producer_change_id)
+                                   (main_elected_queue)(backup_elected_queue) )
+
+struct producer_info_ext {
+   uint8_t        elected_version   = 0;
+   double         elected_votes     = 0;
+};
+FC_REFLECT( producer_info_ext, (elected_version)(elected_votes))
 
 struct producer_info {
    name                                                     owner;
@@ -56,10 +62,11 @@ struct producer_info {
    time_point                                               last_claimed_time;
    asset                                                    unclaimed_rewards;
    block_signing_authority                                  producer_authority;
+   eosio::binary_extension<producer_info_ext>               ext;
 };
 
 FC_REFLECT( producer_info, (owner)(total_votes)(producer_key)(is_active)(url)(location)
-                                    (last_claimed_time)(unclaimed_rewards)(producer_authority) )
+                                    (last_claimed_time)(unclaimed_rewards)(producer_authority)(ext) )
 
 vector<account_name> gen_producer_names(uint32_t count, uint64_t from) {
    vector<account_name> result;
@@ -276,7 +283,7 @@ BOOST_FIXTURE_TEST_CASE(init_elects_test, producer_change_tester) try {
    BOOST_REQUIRE_EQUAL(gpo.proposed_schedule_change.backup_changes.producer_count, 0);
 
    produce_block();
-   // wdump( (get_global_state()) );
+   wdump( (get_global_state()) );
    BOOST_REQUIRE( get_global_state()["ext"].is_object() );
    auto ext = get_ext(get_global_state()["ext"]);
 
