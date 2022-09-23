@@ -127,7 +127,7 @@ namespace eosiosystem {
       changes.backup_changes.clear_existed = true;
 
       auto &main_changes = changes.main_changes;
-      auto idx = _producers.get_index<"totalvotepro"_n>();
+      auto idx = _producers.get_index<"prototalvote"_n>();
       amax_global_state_ext ext;
       ext.elected_version = 1;
       ext.max_backup_producer_count = max_backup_producer_count;
@@ -136,28 +136,23 @@ namespace eosiosystem {
       check(_elected_changes.begin() == _elected_changes.end(), "elected change table is not empty" );
 
       // TODO: need using location to order producers?
-      for( auto it = idx.cbegin(); it != idx.cend() && 0 < it->total_votes && it->active(); ++it ) {
-         if (main_changes.changes.size() >= ext.max_main_producer_count) {
-            meq.tail_next = {it->owner, it->total_votes, it->producer_authority};
-            break;
-         }
-
+      for( auto it = idx.cbegin(); it != idx.cend() && 0 < it->total_votes && main_changes.changes.size() < ext.max_main_producer_count && it->active(); ++it ) {
          main_changes.changes.emplace(
             it->owner, eosio::producer_authority_add {
                .authority = it->producer_authority
             }
          );
 
-         if (!it->ext || it->ext->elected_votes != it->total_votes) {
-            idx.modify( it, payer, [&]( auto& p ) {
-               p.update_elected_votes(ext.elected_version);
-            });
-         }
+         idx.modify( it, payer, [&]( auto& p ) {
+            p.update_elected_votes(ext.elected_version);
+         });
 
          if (!meq.tail.empty()) {
             meq.tail_prev = meq.tail;
          }
          meq.tail = {it->owner, it->total_votes, it->producer_authority};
+
+         ASSERT(meq.tail_prev.empty() || meq.tail_prev > meq.tail);
       }
       main_changes.producer_count = main_changes.changes.size();
       meq.last_producer_count =  main_changes.changes.size();

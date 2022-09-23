@@ -16,6 +16,7 @@
 #include <optional>
 #include <string>
 #include <type_traits>
+#include <cmath>
 
 #ifdef CHANNEL_RAM_AND_NAMEBID_FEES_TO_REX
 #undef CHANNEL_RAM_AND_NAMEBID_FEES_TO_REX
@@ -158,7 +159,7 @@ namespace eosiosystem {
       }
 
       bool empty() const {
-         return name.value == 0;
+         return !bool(name);
       }
 
       inline friend bool operator<(const producer_elected_votes& a, const producer_elected_votes& b)  { return std::tie(a.elected_votes, a.name) < std::tie(b.elected_votes, b.name); }
@@ -259,16 +260,17 @@ namespace eosiosystem {
       double   by_votes()const    { return is_active ? -total_votes : total_votes;  }
 
       static long double   by_votes_prod(const name& owner, double total_votes, uint8_t elected_version, bool is_active) {
-         uint64_t uint64_max = std::numeric_limits<uint64_t>::max();
-         if (total_votes < 0.0) total_votes = 0.0;
-
-         long double v = elected_version * ( (long double)std::numeric_limits<uint128_t>::max() + 1);
-
-         if (is_active) {
-            return (-v ) + (-total_votes) * (uint64_max + 1.0) - (uint64_max - owner.value);
-         } else {
-            return v + total_votes * (uint64_max + 1.0) + owner.value;
+         if (elected_version == 0) {
+            return std::numeric_limits<long double>::max();
          }
+
+         if (total_votes < 0.0) total_votes = 0.0;
+         static constexpr uint64_t uint64_max = std::numeric_limits<uint64_t>::max();
+         static const long double elected_version_prefix_base = std::pow(2, 164);
+         long double v = elected_version * elected_version_prefix_base;
+         long double reversed = v + total_votes + ( (double)(uint64_max - owner.value) / uint64_max);
+
+         return is_active ? -reversed : std::numeric_limits<long double>::max() - reversed;
       }
 
       long double by_votes_prod() const {

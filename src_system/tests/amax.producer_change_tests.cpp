@@ -21,6 +21,9 @@ struct producer_elected_votes {
    name                    name;
    double                  elected_votes = 0.0;
    block_signing_authority authority;
+   bool empty() const {
+      return !bool(name);
+   }
    inline friend bool operator==(const producer_elected_votes& a, const producer_elected_votes& b)  { return std::tie(a.elected_votes, a.name, a.authority) == std::tie(b.elected_votes, b.name, b.authority); }
    inline friend bool operator!=(const producer_elected_votes& a, const producer_elected_votes& b)  { return !(a == b); }
 
@@ -62,7 +65,7 @@ struct producer_info {
    time_point                                               last_claimed_time;
    asset                                                    unclaimed_rewards;
    block_signing_authority                                  producer_authority;
-   eosio::binary_extension<producer_info_ext>               ext;
+   eosio::chain::may_not_exist<producer_info_ext>           ext;
 };
 
 FC_REFLECT( producer_info, (owner)(total_votes)(producer_key)(is_active)(url)(location)
@@ -160,7 +163,8 @@ struct producer_change_tester : eosio_system_tester {
                                 );
    }
 
-   vector<producer_elected_votes> get_elected_producers(fc::flat_map<name, producer_elected_votes> &producer_map) {
+   vector<producer_elected_votes> get_elected_producers(fc::flat_map<name, producer_elected_votes> &producer_map,
+                     size_t max_size = -1) {
       vector<producer_elected_votes> ret;
       ret.reserve(producer_map.size());
       for (const auto& p : producer_map) {
@@ -170,7 +174,9 @@ struct producer_change_tester : eosio_system_tester {
          auto lv = -lhs.elected_votes; auto rv = -rhs.elected_votes;
          return std::tie(lv, lhs.name) < std::tie(rv, rhs.name);
       } );
-      return ret;
+
+      auto sz = std::min(max_size, producer_map.size());
+      return vector<producer_elected_votes>(ret.begin(), ret.begin() + sz);
    }
 
    const table_id_object* find_table_index_id( const name& code, const name& scope, const name& table, uint64_t index_pos ) {
@@ -191,7 +197,7 @@ struct producer_change_tester : eosio_system_tester {
       return *idx_id;
    }
 
-   vector<producer_elected_votes> get_elected_producers_from_db() {
+   vector<producer_elected_votes> get_elected_producers_from_db(uint8_t min_elected_version, size_t max_size = -1) {
       vector<producer_elected_votes> ret;
       const auto& db = control->db();
       const auto& idx_id = get_table_index_id(config::system_account_name, config::system_account_name, N(producers), 1);
@@ -208,9 +214,33 @@ struct producer_change_tester : eosio_system_tester {
          data.resize( itr2->value.size() );
          memcpy( data.data(), itr2->value.data(), itr2->value.size() );
          producer_info info = fc::raw::unpack<producer_info>(data);
+         if (info.ext.value.elected_version < min_elected_version) {
+            wdump( (info.owner) (info.ext.value.elected_version)(info.ext.value.elected_votes));
+            break;
+         }
          ret.push_back({info.owner, info.total_votes, info.producer_authority});
       }
-      return ret;
+      auto sz = std::min(max_size, ret.size());
+      return vector<producer_elected_votes>(ret.begin(), ret.begin() + sz);
+   }
+
+
+   template<typename T>
+   inline bool vector_matched( const std::vector<T>& a, const std::vector<T>& b, size_t sz ) {
+      wdump( (a.size() )  (b.size()) (sz));
+      if (a.size() < sz || b.size() < sz) {
+         if (a.size() != b.size()) {
+            return false;
+         }
+         sz = a.size();
+      }
+      for (size_t i = 0; i < sz; i++) {
+         if (a[i] != b[i]) {
+            wdump( (i) (a[i])(b[i]) );
+            return false;
+         }
+      }
+      return true;
    }
 
 };
@@ -283,25 +313,28 @@ BOOST_FIXTURE_TEST_CASE(init_elects_test, producer_change_tester) try {
    BOOST_REQUIRE_EQUAL(gpo.proposed_schedule_change.backup_changes.producer_count, 0);
 
    produce_block();
-   wdump( (get_global_state()) );
+   // wdump( (get_global_state()) );
    BOOST_REQUIRE( get_global_state()["ext"].is_object() );
    auto ext = get_ext(get_global_state()["ext"]);
 
-   auto elected_producers = get_elected_producers(producer_map);
-   auto elected_producers_in_db = get_elected_producers_from_db();
-   // wdump(  (elected_producers) );
-   // wdump(  (elected_producers_in_db) );
-   BOOST_REQUIRE( elected_producers == elected_producers_in_db);
-   // wdump( (ext) );
+   wdump( (ext) );
+   BOOST_REQUIRE_EQUAL(ext.elected_version, 1);
    BOOST_REQUIRE_EQUAL(ext.max_main_producer_count, 21);
    BOOST_REQUIRE_EQUAL(ext.max_backup_producer_count, 100);
    BOOST_REQUIRE_EQUAL(ext.main_elected_queue.last_producer_count, 21);
    BOOST_REQUIRE_EQUAL(ext.backup_elected_queue.last_producer_count, 0);
 
+   auto elected_producers = get_elected_producers(producer_map);
+   auto elected_producers_in_db = get_elected_producers_from_db(ext.elected_version);
+   // wdump(  (elected_producers) );
+   // wdump(  (elected_producers_in_db) );
+   BOOST_REQUIRE( vector_matched(elected_producers, elected_producers_in_db, 21) );
+
    // wdump( (get_rex_balance(ext.main_elected_queue.tail.name))(ext.main_elected_queue.tail) (elected_producers[20]) );
+   wdump( (ext.main_elected_queue.tail_prev)(elected_producers[19]) );
    BOOST_REQUIRE(ext.main_elected_queue.tail_prev     == elected_producers[19]);
    BOOST_REQUIRE(ext.main_elected_queue.tail          == elected_producers[20]);
-   BOOST_REQUIRE(ext.main_elected_queue.tail_next     == elected_producers[21]);
+   BOOST_REQUIRE(ext.main_elected_queue.tail_next.empty());
    BOOST_REQUIRE(ext.backup_elected_queue.tail        == empty_elected_votes);
    BOOST_REQUIRE(ext.backup_elected_queue.tail_prev   == empty_elected_votes);
    BOOST_REQUIRE(ext.backup_elected_queue.tail_next   == empty_elected_votes);
