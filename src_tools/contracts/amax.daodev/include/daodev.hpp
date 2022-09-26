@@ -18,7 +18,9 @@ public:
         _gstate = _global.exists() ? _global.get() : global_t{};
     }
 
-    ~daodev() { _global.set( _gstate, get_self() ); }
+    ~daodev() { 
+        _global.set( _gstate, get_self() ); 
+    }
 
 public:
     ACTION init();

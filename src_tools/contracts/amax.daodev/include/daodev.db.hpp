@@ -28,7 +28,7 @@ namespace wasm { namespace db {
 struct xchain_conf_s {
     name xchain_fund_account        = "xchain.fund"_n;
     name xchain_fee_account         = "xchain.fee"_n;
-    double xchain_fund_pct          = 0.6;  //xchain_fee: 0.4
+    uint8_t xchain_fund_pct         = 60;  //60%, xchain_fee: 40%
 };
 
 NTBL("global") global_t {
