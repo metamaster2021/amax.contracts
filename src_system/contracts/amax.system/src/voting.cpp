@@ -28,6 +28,16 @@ namespace eosiosystem {
    using eosio::producer_authority_modify;
    using eosio::producer_authority_del;
    using eosio::producer_change_map;
+   using eosio::print;
+   using std::to_string;
+   using std::string;
+
+   // inline bool operator<(const producer_elected_votes& a, const producer_elected_votes& b);
+   // inline bool operator>(const producer_elected_votes& a, const producer_elected_votes& b);
+   // inline bool operator<=(const producer_elected_votes& a, const producer_elected_votes& b);
+   // inline bool operator>=(const producer_elected_votes& a, const producer_elected_votes& b);
+   // inline bool operator==(const producer_elected_votes& a, const producer_elected_votes& b);
+   // inline bool operator!=(const producer_elected_votes& a, const producer_elected_votes& b);
 
    namespace producer_change_helper {
 
@@ -114,6 +124,89 @@ namespace eosiosystem {
       }
    }
 
+   namespace queue_helper {
+      uint8_t elected_version = 0;
+
+      template<typename index_t>
+      auto find_pos(index_t &idx, const producer_elected_votes &prod, const char* title) {
+         auto itr = idx.lower_bound(producer_info::by_votes_prod(prod.name, prod.elected_votes, elected_version, true));
+
+         size_t steps = 1;
+         while(true) {
+            // if (steps >= 3) itr = idx.end();
+            CHECK(itr != idx.end(), string(title) + ", pos not found! steps:" + to_string(steps) +
+               " expectd:" + prod.name.to_string() + ":" + to_string(prod.elected_votes));
+            if (itr->owner == prod.name) {
+               print("found position of prod:", prod.name, prod.elected_votes, " steps:", steps, "\n");
+               break;
+            }
+            CHECK(itr->get_elected_votes(elected_version) == prod.elected_votes && itr->owner < prod.name,
+               string(title) + ", pod mismatch in db! steps:" + to_string(steps) +
+               " expectd:" + prod.name.to_string() + ":" + to_string(prod.elected_votes) +
+               " got:" + itr->owner.to_string() + ":" + to_string(itr->get_elected_votes(elected_version)));
+            steps++;
+            itr++;
+         };
+         return itr;
+      }
+
+      template<typename index_t>
+      void fetch_prev(index_t &idx, const producer_elected_votes &tail, producer_elected_votes &prev, const char* title) {
+         auto itr = find_pos(idx, tail, title);
+         auto begin = idx.begin();
+         check(begin != idx.end(), "totalvotepro index of producer table is empty");
+         if (itr != begin) {
+            itr--;
+            prev = {itr->owner, itr->total_votes, itr->producer_authority};
+            ASSERT(tail < prev);
+            eosio::print(title, " updated: ", itr->owner, ":", itr->total_votes, "\n");
+         } else {
+            eosio::print(title, " cleared\n");
+            prev.clear();
+         }
+      }
+
+      template<typename index_t>
+      void fetch_next(index_t &idx, const producer_elected_votes &tail, producer_elected_votes &next, const char* title) {
+         auto itr = find_pos(idx, tail, title);
+         itr++;
+         if (itr != idx.end() && itr->ext && itr->ext->elected_version == elected_version && itr->ext->elected_votes > 0) {
+            next = {itr->owner, itr->total_votes, itr->producer_authority};
+            ASSERT(next < tail);
+            eosio::print(title, " updated: ", itr->owner, ":", itr->total_votes, "\n");
+         } else {
+            eosio::print(title, " cleared\n");
+            next.clear();
+         }
+      }
+
+   }
+
+   inline long double by_votes_prod(const producer_elected_votes& v) {
+      return producer_info::by_votes_prod(v.name, v.elected_votes, queue_helper::elected_version);
+   }
+
+   // inline bool operator<(const producer_elected_votes& a, const producer_elected_votes& b)  {
+   //    return by_votes_prod(a) > by_votes_prod(b);
+   // }
+
+   // inline bool operator>(const producer_elected_votes& a, const producer_elected_votes& b)  {
+   //    return by_votes_prod(a) < by_votes_prod(b);
+   // }
+
+   // inline bool operator<=(const producer_elected_votes& a, const producer_elected_votes& b)  {
+   //       return !(a > b);
+   // }
+   // inline bool operator>=(const producer_elected_votes& a, const producer_elected_votes& b)  {
+   //    return !(a < b);
+   // }
+   // inline bool operator==(const producer_elected_votes& a, const producer_elected_votes& b)  {
+   //    return a.name == b.name && a.elected_votes == b.elected_votes;
+   // }
+   // inline bool operator!=(const producer_elected_votes& a, const producer_elected_votes& b)  {
+   //    return !(a == b);
+   // }
+
    void system_contract::initelects( const name& payer, uint32_t max_backup_producer_count ) {
       require_auth( payer );
       check(max_backup_producer_count > 3, "max_backup_producer_count must > 3");
@@ -134,6 +227,7 @@ namespace eosiosystem {
       auto& meq = ext.main_elected_queue;
 
       check(_elected_changes.begin() == _elected_changes.end(), "elected change table is not empty" );
+      queue_helper::elected_version = ext.elected_version;
 
       // TODO: need using location to order producers?
       for( auto it = idx.cbegin(); it != idx.cend() && 0 < it->total_votes && main_changes.changes.size() < ext.max_main_producer_count && it->active(); ++it ) {
@@ -197,12 +291,14 @@ namespace eosiosystem {
          if (_gstate.ext && _gstate.ext->elected_version > 0) {
             double new_elected_votes = prod->get_elected_votes(elected_version);
             // TODO: update authority??
+
             if (old_elected_votes != new_elected_votes) {
                proposed_producer_changes changes;
                process_elected_producer(*prod, new_elected_votes, new_elected_votes, changes);
+
                if ( !changes.backup_changes.changes.empty() || !changes.main_changes.changes.empty() ) {
                   auto& ext = _gstate.ext.value();
-                  auto producer_change_id = ext.last_producer_change_id == 0 ? 1 : ext.last_producer_change_id + 1;
+                  auto producer_change_id = ++ext.last_producer_change_id;
                   _elected_changes.emplace( producer, [&]( auto& c ) {
                         c.id        = producer_change_id;
                         c.changes   = changes;
@@ -428,7 +524,7 @@ namespace eosiosystem {
 
       if ( !changes.backup_changes.changes.empty() || !changes.main_changes.changes.empty() ) {
          auto& ext = _gstate.ext.value();
-         auto producer_change_id = ext.last_producer_change_id == 0 ? 1 : ext.last_producer_change_id + 1;
+         auto producer_change_id = ++ext.last_producer_change_id;
          _elected_changes.emplace( voter_name, [&]( auto& c ) {
                c.id        = producer_change_id;
                c.changes   = changes;
@@ -501,7 +597,7 @@ namespace eosiosystem {
 
             if ( !changes.backup_changes.changes.empty() || !changes.main_changes.changes.empty() ) {
                auto& ext = _gstate.ext.value();
-               auto producer_change_id = ext.last_producer_change_id == 0 ? 1 : ext.last_producer_change_id + 1;
+               auto producer_change_id = ++ext.last_producer_change_id;
                _elected_changes.emplace( payer, [&]( auto& c ) {
                      c.id        = producer_change_id;
                      c.changes   = changes;
@@ -526,7 +622,7 @@ namespace eosiosystem {
       if (meq.last_producer_count == 0)
          return;
 
-
+      queue_helper::elected_version = ext.elected_version;
       const auto& cur_name = prod_info.owner;
       const auto& producer_authority = prod_info.producer_authority;
       producer_elected_votes cur_old_prod = {cur_name, old_votes, producer_authority};
@@ -542,6 +638,14 @@ namespace eosiosystem {
       bool refresh_backup_tail_prev = false; // refresh by backup_tail
       bool refresh_backup_tail_next = false; // refresh by backup_tail
 
+      // eosio::print("***** beq.last_producer_count=", beq.last_producer_count, "\n");
+      // eosio::print("cur prod: ", cur_name, ",", new_votes, ",", old_votes,  "\n");
+      // eosio::print("meq tail: ", meq.tail.name, ",", meq.tail.elected_votes, ",", "\n");
+      // eosio::print("meq tail_prev: ", meq.tail_prev.name, ",", meq.tail_prev.elected_votes, ",", "\n");
+      // eosio::print("meq tail_next: ", meq.tail_next.name, ",", meq.tail_next.elected_votes, ",", "\n");
+      // eosio::print("beq tail: ", beq.tail.name, ",", beq.tail.elected_votes, ",", "\n");
+      // eosio::print("beq tail_prev: ", beq.tail_prev.name, ",", beq.tail_prev.elected_votes, ",", "\n");
+      // eosio::print("beq tail_next: ", beq.tail_next.name, ",", beq.tail_next.elected_votes, ",", "\n");
       // TODO: refresh all queue position info
 
       ASSERT(meq.last_producer_count > 0 && !meq.tail.empty());
@@ -579,7 +683,9 @@ namespace eosiosystem {
             }
 
          } else if (cur_new_prod > meq.tail) { // and cur_new_prod <= meq.tail_prev
-            if (cur_name != meq.tail_prev.name && cur_name != meq.tail.name) {
+            if (cur_name == meq.tail.name) {
+               meq.tail = cur_new_prod;
+            } else if (cur_name == meq.tail_prev.name) {
                meq.tail_prev = cur_new_prod;
             }
          } else { //cur_new_prod <= meq.tail
@@ -930,7 +1036,11 @@ namespace eosiosystem {
                            refresh_backup_tail_prev = true;
                         }
                      } else if (cur_new_prod >= beq.tail) { // cur_new_prod < beq.tail_prev
-                        if (cur_old_prod != beq.tail_prev && cur_old_prod == beq.tail) {
+                        if (cur_old_prod == beq.tail) {
+                           beq.tail = cur_new_prod;
+                        } else if (cur_old_prod == beq.tail_prev) {
+                           beq.tail_prev = cur_new_prod;
+                        } else { // cur_old_prod > beq.beq.tail_prev
                            beq.tail_prev = cur_new_prod;
                            if (cur_old_prod == meq.tail_next) {
                               meq.tail_next.clear();
@@ -939,7 +1049,7 @@ namespace eosiosystem {
                         }
 
                      // cur_new_prod < beq.tail && cur_new_prod.elected_votes > 0
-                     } else if ( (beq.tail_prev.empty() && cur_new_prod.elected_votes > 0) ||
+                     } else if ( (beq.tail_next.empty() && cur_new_prod.elected_votes > 0) ||
                                  (!beq.tail_next.empty() && cur_new_prod > beq.tail_next )) {
                         if (cur_old_prod == meq.tail_next) {
                            meq.tail_next.clear();
@@ -971,7 +1081,7 @@ namespace eosiosystem {
                         beq.tail = beq.tail_next;
                         beq.tail_next.clear();
                         refresh_backup_tail_next = true;
-                     } else { // beq.tail_prev.empty() && cur_new_prod.elected_votes <= 0)
+                     } else { // beq.tail_next.empty() && cur_new_prod.elected_votes <= 0)
                         beq.last_producer_count--;
                         // beq-: del cur prod from backup queue
                         producer_change_helper::del(cur_name, backup_changes);
@@ -1024,6 +1134,11 @@ namespace eosiosystem {
                         if (  (beq.tail_next.empty() && cur_new_prod.elected_votes > 0) ||
                               (!beq.tail_next.empty() && cur_new_prod > beq.tail_next) ) {
                            beq.tail_next = cur_new_prod;
+                        } else {
+                           if (cur_name == beq.tail_next.name) {
+                              beq.tail_next.clear();
+                              refresh_backup_tail_next = true;
+                           }
                         }
                      }
                   }
@@ -1038,47 +1153,19 @@ namespace eosiosystem {
       check(begin != idx.end(), "totalvotepro index of producer table is empty");
 
       if (refresh_main_tail_prev) {
-         auto itr = idx.lower_bound(producer_info::by_votes_prod(meq.tail.name, meq.tail.elected_votes, ext.elected_version, true));
-         check(itr != idx.end() && itr->owner == meq.tail.name, "main queue tail not found in producer table by total votes and name");
-         if (itr != begin) {
-            itr--;
-            meq.tail_prev = {itr->owner, itr->total_votes, itr->producer_authority};
-         } else {
-            meq.tail_prev.clear();
-         }
+         queue_helper::fetch_prev(idx, meq.tail, meq.tail_prev, "main queue tail prev");
       }
 
       if (refresh_main_tail_next) {
-         auto itr = idx.lower_bound(producer_info::by_votes_prod(meq.tail.name, meq.tail.elected_votes, ext.elected_version, true));
-         check(itr != idx.end() && itr->owner == meq.tail.name, "main queue tail not found in producer table by total votes and name");
-         itr++;
-         if (itr != idx.end() && itr->ext && itr->ext->elected_version == ext.elected_version && itr->ext->elected_votes > 0) {
-            meq.tail_next = {itr->owner, itr->total_votes, itr->producer_authority};
-         } else {
-            meq.tail_next.clear();
-         }
+         queue_helper::fetch_next(idx, meq.tail, meq.tail_next, "main queue tail next");
       }
 
       if (refresh_backup_tail_prev) {
-         auto itr = idx.lower_bound(producer_info::by_votes_prod(beq.tail.name, beq.tail.elected_votes, ext.elected_version, true));
-         check(itr != idx.end() && itr->owner == beq.tail.name, "backup queue tail not found in producer table by total votes and name");
-         if (itr != begin) {
-            itr--;
-            beq.tail_prev = {itr->owner, itr->total_votes, itr->producer_authority};
-         } else {
-            beq.tail_prev.clear();
-         }
+         queue_helper::fetch_prev(idx, beq.tail, beq.tail_prev, "main queue tail prev");
       }
 
       if (refresh_backup_tail_next) {
-         auto itr = idx.lower_bound(producer_info::by_votes_prod(beq.tail.name, beq.tail.elected_votes, ext.elected_version, true));
-         check(itr != idx.end() && itr->owner == beq.tail.name, "backup queue tail not found in producer table by total votes and name");
-         itr++;
-         if (itr != idx.end() && itr->ext && itr->ext->elected_version == ext.elected_version && itr->ext->elected_votes > 0) {
-            beq.tail_next = {itr->owner, itr->total_votes, itr->producer_authority};
-         } else {
-            beq.tail_next.clear();
-         }
+         queue_helper::fetch_next(idx, beq.tail, beq.tail_next, "main queue tail next");
       }
 
    }

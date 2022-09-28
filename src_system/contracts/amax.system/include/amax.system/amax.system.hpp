@@ -36,6 +36,11 @@
     #define ASSERT(exp) CHECK(exp, #exp)
 #endif
 
+#define LESS(a, b)                     (a) < (b) ? true : false
+#define LARGER(a, b)                   (a) > (b) ? true : false
+#define LESS_OR(a, b, other_compare)   (a) < (b) ? true : (a) > (b) ? false : ( other_compare )
+#define LARGER_OR(a, b, other_compare) (a) > (b) ? true : (a) < (b) ? false : ( other_compare )
+
 template<class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
 template<class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
@@ -162,12 +167,26 @@ namespace eosiosystem {
          return !bool(name);
       }
 
-      inline friend bool operator<(const producer_elected_votes& a, const producer_elected_votes& b)  { return std::tie(a.elected_votes, a.name) < std::tie(b.elected_votes, b.name); }
-      inline friend bool operator>(const producer_elected_votes& a, const producer_elected_votes& b)  { return std::tie(a.elected_votes, a.name) > std::tie(b.elected_votes, b.name); }
-      inline friend bool operator<=(const producer_elected_votes& a, const producer_elected_votes& b)  { return !( std::tie(a.elected_votes, a.name) > std::tie(b.elected_votes, b.name) ); }
-      inline friend bool operator>=(const producer_elected_votes& a, const producer_elected_votes& b)  { return !( std::tie(a.elected_votes, a.name) < std::tie(b.elected_votes, b.name) ); }
-      inline friend bool operator==(const producer_elected_votes& a, const producer_elected_votes& b)  { return std::tie(a.elected_votes, a.name) == std::tie(b.elected_votes, b.name); }
-      inline friend bool operator!=(const producer_elected_votes& a, const producer_elected_votes& b)  { return !( std::tie(a.elected_votes, a.name) == std::tie(b.elected_votes, b.name) ); }
+      inline friend bool operator<(const producer_elected_votes& a, const producer_elected_votes& b)  {
+         return LESS_OR(a.elected_votes, b.elected_votes, LARGER(a.name, b.name));
+      }
+
+      inline friend bool operator>(const producer_elected_votes& a, const producer_elected_votes& b)  {
+         return LARGER_OR(a.elected_votes, b.elected_votes, LESS(a.name, b.name));
+      }
+
+      inline friend bool operator<=(const producer_elected_votes& a, const producer_elected_votes& b)  {
+          return !(a > b);
+      }
+      inline friend bool operator>=(const producer_elected_votes& a, const producer_elected_votes& b)  {
+         return !(a < b);
+      }
+      inline friend bool operator==(const producer_elected_votes& a, const producer_elected_votes& b)  {
+         return a.elected_votes == b.elected_votes && a.name == b.name;
+      }
+      inline friend bool operator!=(const producer_elected_votes& a, const producer_elected_votes& b)  {
+         return !(a == b);
+      }
 
       EOSLIB_SERIALIZE( producer_elected_votes, (name)(elected_votes)(authority) )
    };
@@ -259,16 +278,16 @@ namespace eosiosystem {
       uint64_t primary_key()const { return owner.value;                             }
       double   by_votes()const    { return is_active ? -total_votes : total_votes;  }
 
-      static long double   by_votes_prod(const name& owner, double total_votes, uint8_t elected_version, bool is_active) {
+      static long double   by_votes_prod(const name& owner, double elected_votes, uint8_t elected_version, bool is_active = true) {
          if (elected_version == 0) {
             return std::numeric_limits<long double>::max();
          }
 
-         if (total_votes < 0.0) total_votes = 0.0;
+         if (elected_votes < 0.0) elected_votes = 0.0;
          static constexpr uint64_t uint64_max = std::numeric_limits<uint64_t>::max();
-         static const long double elected_version_prefix_base = std::pow(2, 164);
-         long double v = elected_version * elected_version_prefix_base;
-         long double reversed = v + total_votes + ( (double)(uint64_max - owner.value) / uint64_max);
+         // static const long double elected_version_prefix_base = std::pow(2, 164);
+         // long double v = elected_version * elected_version_prefix_base;
+         long double reversed = elected_votes + ( (double)(uint64_max - owner.value) / uint64_max);
 
          return is_active ? -reversed : std::numeric_limits<long double>::max() - reversed;
       }
@@ -289,7 +308,7 @@ namespace eosiosystem {
       }
 
       inline double get_elected_votes(uint8_t elected_version) const {
-         return ext && ext->elected_votes > 0 ? ext->elected_votes : 0;
+         return ext && ext->elected_version >= elected_version && ext->elected_votes > 0 ? ext->elected_votes : 0;
       }
 
       void update_elected_votes(uint8_t elected_version) {
