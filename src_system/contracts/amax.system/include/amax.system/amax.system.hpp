@@ -234,7 +234,7 @@ namespace eosiosystem {
       uint8_t           revision = 0; ///< used to track version updates in the future.
       std::optional<amax_global_state_ext> ext;
 
-      uint8_t get_elected_version() const  { return ext ? ext->elected_version : 0; }
+      bool is_init_elects() const  { return ext && ext->elected_version > 0; }
 
       // explicit serialization macro is not necessary, used here only to improve compilation time
       EOSLIB_SERIALIZE_DERIVED( amax_global_state, eosio::blockchain_parameters,
@@ -253,7 +253,6 @@ namespace eosiosystem {
    }
 
    struct producer_info_ext {
-      uint8_t        elected_version   = 0;
       double         elected_votes     = 0;
    };
 
@@ -278,22 +277,16 @@ namespace eosiosystem {
       uint64_t primary_key()const { return owner.value;                             }
       double   by_votes()const    { return is_active ? -total_votes : total_votes;  }
 
-      static long double   by_votes_prod(const name& owner, double elected_votes, uint8_t elected_version, bool is_active = true) {
-         if (elected_version == 0) {
-            return std::numeric_limits<long double>::max();
-         }
-
+      static long double   by_votes_prod(const name& owner, double elected_votes, bool is_active = true) {
          if (elected_votes < 0.0) elected_votes = 0.0;
          static constexpr uint64_t uint64_max = std::numeric_limits<uint64_t>::max();
-         // static const long double elected_version_prefix_base = std::pow(2, 164);
-         // long double v = elected_version * elected_version_prefix_base;
          long double reversed = elected_votes + ( (double)(uint64_max - owner.value) / uint64_max);
 
          return is_active ? -reversed : std::numeric_limits<long double>::max() - reversed;
       }
 
       long double by_votes_prod() const {
-         return ext ? by_votes_prod(owner, ext->elected_votes, ext->elected_version, is_active)
+         return ext ? by_votes_prod(owner, ext->elected_votes, is_active)
                     : std::numeric_limits<long double>::max();
       }
 
@@ -307,16 +300,15 @@ namespace eosiosystem {
          is_active = false;
       }
 
-      inline double get_elected_votes(uint8_t elected_version) const {
-         return ext && ext->elected_version >= elected_version && ext->elected_votes > 0 ? ext->elected_votes : 0;
+      inline double get_elected_votes() const {
+         return ext ? (ext->elected_votes > 0 ? ext->elected_votes : 0) : 0;
       }
 
-      void update_elected_votes(uint8_t elected_version) {
+      void update_elected_votes() {
          if (ext) {
-            ext->elected_version = elected_version;
             ext->elected_votes   = total_votes;
          } else {
-            ext.emplace(producer_info_ext{ elected_version, total_votes });
+            ext.emplace(producer_info_ext{ total_votes });
          }
       }
       // explicit serialization macro is not necessary, used here only to improve compilation time
