@@ -51,7 +51,7 @@ namespace eosiosystem {
                   itr->second = eosio::producer_authority_modify{producer_authority};
                   break;
                default:
-                  CHECK(false, "the old change type can not be " + std::to_string((uint8_t)op) + " when add prod change")
+                  CHECK(false, "the old change type can not be " + std::to_string((uint8_t)op) + " when add prod change: " + producer_name.to_string())
                   break;
             }
          } else {
@@ -71,7 +71,7 @@ namespace eosiosystem {
                   std::get<1>(itr->second).authority = producer_authority;
                   break;
                default:
-                  CHECK(false, "the old change type can not be " + std::to_string((uint8_t)op) + " when add prod change")
+                  CHECK(false, "the old change type can not be " + std::to_string((uint8_t)op) + " when modify prod change: " + producer_name.to_string())
                   break;
             }
          } else {
@@ -91,7 +91,7 @@ namespace eosiosystem {
                   itr->second = eosio::producer_authority_del{};
                   break;
                default:
-                  CHECK(false, "the old change type can not be " + std::to_string((uint8_t)op) + " when add prod change")
+                  CHECK(false, "the old change type can not be " + std::to_string((uint8_t)op) + " when del prod change: " + producer_name.to_string())
                   break;
             }
          } else {
@@ -137,11 +137,11 @@ namespace eosiosystem {
             CHECK(itr != idx.end(), string(title) + ", pos not found! steps:" + to_string(steps) +
                " expectd:" + prod.name.to_string() + ":" + to_string(prod.elected_votes));
             if (itr->owner == prod.name) {
-               print("found position of prod:", prod.name, prod.elected_votes, " steps:", steps, "\n");
+               print("found position of prod:", prod.name, ":", prod.elected_votes, " steps:", steps, "\n");
                break;
             }
             CHECK(itr->get_elected_votes() == prod.elected_votes && itr->owner < prod.name,
-               string(title) + ", pod mismatch in db! steps:" + to_string(steps) +
+               string(title) + ", prod mismatch in db! steps:" + to_string(steps) +
                " expectd:" + prod.name.to_string() + ":" + to_string(prod.elected_votes) +
                " got:" + itr->owner.to_string() + ":" + to_string(itr->get_elected_votes()));
             steps++;
@@ -151,7 +151,7 @@ namespace eosiosystem {
       }
 
       template<typename index_t>
-      void fetch_prev(index_t &idx, const producer_elected_votes &tail, producer_elected_votes &prev, const char* title) {
+      void fetch_prev(index_t &idx, const producer_elected_votes &tail, producer_elected_votes &prev, bool check_found, const char* title) {
          auto itr = find_pos(idx, tail, title);
          auto begin = idx.begin();
          check(begin != idx.end(), "totalvotepro index of producer table is empty");
@@ -161,20 +161,26 @@ namespace eosiosystem {
             ASSERT(tail < prev);
             eosio::print(title, " updated: ", itr->owner, ":", itr->total_votes, "\n");
          } else {
+            if (check_found) {
+               CHECK(false, string(title) + " not found! tail: " + tail.name.to_string() + ":" + to_string(tail.elected_votes))
+            }
             eosio::print(title, " cleared\n");
             prev.clear();
          }
       }
 
       template<typename index_t>
-      void fetch_next(index_t &idx, const producer_elected_votes &tail, producer_elected_votes &next, const char* title) {
+      void fetch_next(index_t &idx, const producer_elected_votes &tail, producer_elected_votes &next, bool check_found, const char* title) {
          auto itr = find_pos(idx, tail, title);
          itr++;
-         if (itr != idx.end() && itr->ext && itr->get_elected_votes() > 0) {
+         if (itr != idx.end() && itr->ext) {
             next = {itr->owner, itr->total_votes, itr->producer_authority};
             ASSERT(next < tail);
             eosio::print(title, " updated: ", itr->owner, ":", itr->total_votes, "\n");
          } else {
+            if (check_found) {
+               CHECK(false, string(title) + " not found! tail: " + tail.name.to_string() + ":" + to_string(tail.elected_votes))
+            }
             eosio::print(title, " cleared\n");
             next.clear();
          }
@@ -224,9 +230,9 @@ namespace eosiosystem {
       ext.elected_version = 1;
       ext.max_backup_producer_count = max_backup_producer_count;
       auto& meq = ext.main_elected_queue;
-      auto& beq = ext.main_elected_queue;
+      auto& beq = ext.backup_elected_queue;
       auto &main_changes = changes.main_changes;
-      auto &backup_changes = changes.main_changes;
+      auto &backup_changes = changes.backup_changes;
 
       check(_elected_changes.begin() == _elected_changes.end(), "elected change table is not empty" );
 
@@ -272,9 +278,9 @@ namespace eosiosystem {
       meq.last_producer_count =  main_changes.changes.size();
       backup_changes.producer_count = backup_changes.changes.size();
       beq.last_producer_count =  backup_changes.changes.size();
-      uint32_t min_producer_count = ext.max_main_producer_count + min_backup_producer_count;
+      uint32_t min_producer_count = ext.max_main_producer_count + min_backup_producer_count + 1;
 
-      CHECK(main_changes.producer_count + backup_changes.producer_count >= min_producer_count,
+      CHECK(main_changes.producer_count + backup_changes.producer_count + 1 >= min_producer_count,
             "there must be at least " + to_string(min_producer_count) + " valid producers");
 
       auto ret = set_proposed_producers_ex( changes );
@@ -315,9 +321,9 @@ namespace eosiosystem {
             // TODO: update authority??
             auto new_elected_votes = prod->get_elected_votes();
 
-            if (old_elected_votes != new_elected_votes) {
+            // if (old_elected_votes != new_elected_votes) {
                proposed_producer_changes changes;
-               process_elected_producer(*prod, new_elected_votes, new_elected_votes, changes);
+               process_elected_producer(*prod, old_elected_votes, new_elected_votes, changes);
 
                if ( !changes.backup_changes.changes.empty() || !changes.main_changes.changes.empty() ) {
                   auto& ext = _gstate.ext.value();
@@ -327,7 +333,7 @@ namespace eosiosystem {
                         c.changes   = changes;
                   });
                }
-            }
+            // }
          }
       } else {
          _producers.emplace( producer, [&]( producer_info& info ){
@@ -643,14 +649,23 @@ namespace eosiosystem {
       auto &ext  = _gstate.ext.value();
       auto &meq = ext.main_elected_queue;
       auto &beq = ext.backup_elected_queue;
-
-      auto min_producer_count = ext.max_main_producer_count + min_backup_producer_count;
-      ASSERT(meq.last_producer_count + beq.last_producer_count >= min_producer_count);
-      ASSERT(!meq.tail.empty() && !meq.tail_prev.empty() && beq.tail_next.empty() &&
-             !beq.tail.empty() && !beq.tail_prev.empty() && beq.tail_prev < meq.tail_next);
-
       const auto& cur_name = prod_info.owner;
       const auto& producer_authority = prod_info.producer_authority;
+
+      eosio::print("***** beq.last_producer_count=", beq.last_producer_count, "\n");
+      eosio::print("cur prod: ", cur_name, ",", new_votes, ",", old_votes,  "\n");
+      eosio::print("meq tail_prev: ", meq.tail_prev.name, ",", meq.tail_prev.elected_votes, ",", "\n");
+      eosio::print("meq tail: ", meq.tail.name, ",", meq.tail.elected_votes, ",", "\n");
+      eosio::print("meq tail_next: ", meq.tail_next.name, ",", meq.tail_next.elected_votes, ",", "\n");
+      eosio::print("beq tail_prev: ", beq.tail_prev.name, ",", beq.tail_prev.elected_votes, ",", "\n");
+      eosio::print("beq tail: ", beq.tail.name, ",", beq.tail.elected_votes, ",", "\n");
+      eosio::print("beq tail_next: ", beq.tail_next.name, ",", beq.tail_next.elected_votes, ",", "\n");
+
+      auto min_producer_count = ext.max_main_producer_count + min_backup_producer_count + 1;
+      ASSERT(meq.last_producer_count + beq.last_producer_count + 1 >= min_producer_count);
+      ASSERT(!meq.tail.empty() && !meq.tail_prev.empty() && !beq.tail_next.empty() &&
+             !beq.tail.empty() && !beq.tail_prev.empty() && !beq.tail_next.empty() && beq.tail_prev < meq.tail_next);
+
       producer_elected_votes cur_old_prod = {cur_name, old_votes, producer_authority};
       producer_elected_votes cur_new_prod = {cur_name, new_votes, producer_authority};
 
@@ -664,534 +679,300 @@ namespace eosiosystem {
       bool refresh_backup_tail_prev = false; // refresh by backup_tail
       bool refresh_backup_tail_next = false; // refresh by backup_tail
 
-      // eosio::print("***** beq.last_producer_count=", beq.last_producer_count, "\n");
-      // eosio::print("cur prod: ", cur_name, ",", new_votes, ",", old_votes,  "\n");
-      // eosio::print("meq tail: ", meq.tail.name, ",", meq.tail.elected_votes, ",", "\n");
-      // eosio::print("meq tail_prev: ", meq.tail_prev.name, ",", meq.tail_prev.elected_votes, ",", "\n");
-      // eosio::print("meq tail_next: ", meq.tail_next.name, ",", meq.tail_next.elected_votes, ",", "\n");
-      // eosio::print("beq tail: ", beq.tail.name, ",", beq.tail.elected_votes, ",", "\n");
-      // eosio::print("beq tail_prev: ", beq.tail_prev.name, ",", beq.tail_prev.elected_votes, ",", "\n");
-      // eosio::print("beq tail_next: ", beq.tail_next.name, ",", beq.tail_next.elected_votes, ",", "\n");
-      // TODO: refresh all queue position info
+      // refresh queue positions
+      auto idx = _producers.get_index<"totalvotepro"_n>();
 
       ASSERT(meq.last_producer_count > 0 && !meq.tail.empty());
 
-      if (meq.last_producer_count == 1) { // && meq.last_producer_count > 0
-         ASSERT(!meq.tail.empty() && meq.tail_prev.empty())
-         if (cur_name == meq.tail.name) {
-            meq.tail = cur_new_prod;
-            // TODO: need to update cur prod authority to main queue?
-         } else if (cur_new_prod.elected_votes > 0) {
-            if (cur_new_prod > meq.tail) {
-               meq.tail_prev = cur_new_prod;
-            } else {
-               meq.tail_prev = meq.tail;
-               meq.tail = cur_new_prod;
-            }
-
-            producer_change_helper::add(cur_name, producer_authority, main_changes);
-            meq.last_producer_count++;
-         }
-      } else if (cur_old_prod >= meq.tail) { // && meq.last_producer_count > 1
+      if (cur_old_prod >= meq.tail) { //
          ASSERT(!meq.tail_prev.empty())
          // producer was main producer and not main producer tail
 
-         if (cur_new_prod > meq.tail_prev) {
+         if (cur_new_prod >= meq.tail_prev) {
             if (cur_name == meq.tail_prev.name) {
-               if (meq.last_producer_count > 2) {
-                  meq.tail_prev.clear();
-                  refresh_main_tail_prev = true;
-               }
+               meq.tail_prev.clear();
+               refresh_main_tail_prev = true;
             } else if (cur_name == meq.tail.name) {
                meq.tail = meq.tail_prev;
                meq.tail_prev.clear();
                refresh_main_tail_prev = true;
             }
 
-         } else if (cur_new_prod > meq.tail) { // and cur_new_prod <= meq.tail_prev
+         } else if (cur_new_prod >= meq.tail) { // and cur_new_prod <= meq.tail_prev
             if (cur_name == meq.tail.name) {
                meq.tail = cur_new_prod;
             } else if (cur_name == meq.tail_prev.name) {
                meq.tail_prev = cur_new_prod;
+            } else {
+               meq.tail_prev.clear();
+               refresh_main_tail_prev = true;
             }
-         } else { //cur_new_prod <= meq.tail
-            if (meq.tail_next.empty() || cur_new_prod > meq.tail_next) {
-               if (meq.tail_next.empty()) ASSERT(beq.last_producer_count == 0 && beq.tail.empty())
+         } else if (cur_new_prod > meq.tail_next) { //cur_new_prod < meq.tail
+            if (cur_name != meq.tail.name) {
+               meq.tail_prev = meq.tail;
+            }
+            meq.tail = cur_new_prod;
+         } else {// cur_new_prod < meq.tail_next
 
-               if (cur_name != meq.tail.name) {
-                  meq.tail_prev = meq.tail;
-                  meq.tail = cur_new_prod;
-               }
-            } else {// !meq.tail_next.empty() && cur_new_prod < meq.tail_next
-               ASSERT(meq.last_producer_count == ext.max_main_producer_count)
-               // meq-, pop cur prod from main queue
-               producer_change_helper::del(cur_name, main_changes);
-               if (cur_name != meq.tail.name) {
-                  meq.tail_prev = meq.tail;
-               }
-               meq.tail = meq.tail_next;
-               ASSERT(beq.last_producer_count > 0 && !beq.tail.empty())
-               // beq-: del main tail next from backup queue
-               producer_change_helper::del(meq.tail_next.name, backup_changes);
-               // meq+: add main tail next to main queue
-               producer_change_helper::add(meq.tail_next.name, meq.tail_next.authority, main_changes);
+            // meq-, pop cur prod from main queue
+            producer_change_helper::del(cur_name, main_changes);
+            // beq-: del main tail next from backup queue
+            producer_change_helper::del(meq.tail_next.name, backup_changes);
+            // meq+: add main tail next to main queue
+            producer_change_helper::add(meq.tail_next.name, meq.tail_next.authority, main_changes);
+            if (cur_name != meq.tail.name) {
+               meq.tail_prev = meq.tail;
+            }
+            meq.tail = meq.tail_next;
+            ASSERT(beq.last_producer_count > 0 && !beq.tail.empty())
 
-               if (cur_new_prod.elected_votes > 0 && (beq.tail_next.empty() || cur_new_prod > beq.tail_next) ) {
-                  //beq+: add cur prod to backup queue
+            if (cur_new_prod > beq.tail) {
+               if (cur_new_prod < beq.tail_prev) {
+                  beq.tail_prev = cur_new_prod;
+               }
+               // beq+: add cur prod to backup queue
+               producer_change_helper::add(cur_name, producer_authority, backup_changes);
+            } else if (cur_new_prod > beq.tail_next) { // cur_new_prod < beq.tail
+               if (cur_new_prod.elected_votes > 0 || beq.last_producer_count == 3) {
+                  beq.tail_prev = beq.tail;
+                  beq.tail = cur_new_prod;
+                  // beq+: add cur prod to backup queue
                   producer_change_helper::add(cur_name, producer_authority, backup_changes);
-                  if (beq.last_producer_count == 1) {
-                     ASSERT(beq.tail == meq.tail_next && beq.tail_prev.empty())
-                     beq.tail = cur_new_prod;
-                     meq.tail_next = cur_new_prod;
-                  } else if (beq.last_producer_count == 2) {
-                     ASSERT(!beq.tail_prev.empty() && beq.tail_prev == meq.tail_next)
-                     // ASSERT(cur_new_prod.name != beq.tail.name)
-                     if (cur_new_prod > beq.tail) {
-                        beq.tail_prev = cur_new_prod;
-                     } else { // cur_new_prod < beq.tail
-                        beq.tail_prev = beq.tail;
-                        beq.tail = cur_new_prod;
-                     }
-                     meq.tail_next = beq.tail_prev;
-
-                  } else if (beq.last_producer_count == 3) {
-                     ASSERT(!beq.tail_prev.empty() && !(beq.tail_prev == meq.tail_next))
-
-                     if (cur_new_prod > beq.tail_prev) {
-                        meq.tail_next = cur_new_prod;
-                     } else if (cur_new_prod > beq.tail) {
-                        meq.tail_next = beq.tail_prev;
-                        beq.tail_prev = cur_new_prod;
-                     } else { // cur_new_prod < beq.tail
-                        meq.tail_next = beq.tail_prev;
-                        beq.tail_prev = beq.tail;
-                        beq.tail = cur_new_prod;
-                     }
-                  } else { // beq.last_producer_count > 3
-                     ASSERT(!beq.tail_prev.empty() && !beq.tail.empty())
-                     meq.tail_next.clear();
-                     refresh_main_tail_next = true;
-                     if (cur_new_prod < beq.tail) {
-                        beq.tail_prev = beq.tail;
-                        beq.tail = cur_new_prod;
-                     } else if (cur_new_prod < beq.tail_prev) {
-                        beq.tail_prev = cur_new_prod;
-                     }
-                     // no change: beq.last_producer_count
-                  }
-               } else { // cur_new_prod.elected_votes == 0 || cur_new_prod < beq.tail_next
-                  if (beq.last_producer_count == 1) {
-                     ASSERT(beq.tail == meq.tail_next && beq.tail_prev.empty())
-                     beq.tail.clear();
-                     meq.tail_next.clear();
-                  } else if (beq.last_producer_count == 2) {
-                     ASSERT(!beq.tail_prev.empty() && beq.tail_prev == meq.tail_next)
-                     beq.tail_prev.clear();
-                     meq.tail_next = beq.tail;
-                  } else if (beq.last_producer_count == 3) {
-                     ASSERT(!beq.tail_prev.empty() && !(beq.tail_prev == meq.tail_next))
-                     meq.tail_next = beq.tail_prev;
-                  } else if (!beq.tail_next.empty()) {
-                     beq.tail_prev = beq.tail;
-                     beq.tail = beq.tail_next;
-                     beq.tail_next.clear();
-                     refresh_backup_tail_next = true;
-                  }
+               } else { // cur_new_prod.elected_votes <= 0 && beq.last_producer_count
+                  beq.tail_next = cur_new_prod;
+                  beq.last_producer_count--;
+               }
+            } else { // cur_new_prod < beq.tail_next
+               if(beq.tail_next.elected_votes > 0 || beq.last_producer_count == 3) {
+                  beq.tail_prev = beq.tail;
+                  beq.tail = beq.tail_next;
+                  beq.tail_next.clear();
+                  refresh_backup_tail_next = true;
+               } else { // cur_new_prod < beq.tail_next
                   beq.last_producer_count--;
                }
             }
+            meq.tail_next.clear();
+            refresh_main_tail_next = true;
          }
-      } else if (meq.last_producer_count < ext.max_main_producer_count) { // && cur_old_prod < meq.tail
-         ASSERT(cur_name != meq.tail.name && cur_name != meq.tail_prev.name)
-         ASSERT(beq.last_producer_count == 0 && beq.tail.empty())
-         if (cur_new_prod.elected_votes > 0) {
-            // meq+: add cur prod to main queue
-            producer_change_helper::add(cur_name, producer_authority, main_changes);
-            meq.last_producer_count++;
-            if (cur_new_prod < meq.tail) {
-               meq.tail_prev = meq.tail;
-               meq.tail = cur_new_prod;
-            } else if (cur_new_prod < meq.tail_prev) {
-               meq.tail_prev = cur_new_prod;
-            }
+      } else if (cur_new_prod > meq.tail) { // cur_old_prod < meq.tail
+
+         // meq-: del meq.tail from main queue
+         producer_change_helper::del(meq.tail.name, main_changes);
+         // meq+: add cur prod to main queue
+         producer_change_helper::add(cur_name, producer_authority, main_changes);
+         // beq+: add meq.tail to backup queue
+         producer_change_helper::add(meq.tail.name, meq.tail.authority, backup_changes);
+
+         meq.tail_next = meq.tail;
+         if (cur_new_prod > meq.tail_prev) {
+            meq.tail = meq.tail_prev;
+            meq.tail_prev.clear();
+            refresh_main_tail_prev = true;
+         } else { // cur_new_prod < meq.tail_prev && cur_new_prod > meq.tail
+            meq.tail = cur_new_prod;
          }
-      } else { // meq.last_producer_count == ext.max_main_producer_count && cur_old_prod < meq.tail
-         if (cur_new_prod > meq.tail) {
-            // meq-: pop main tail from main queue
-            producer_change_helper::del(meq.tail.name, main_changes);
 
-            // ASSERT(cur_name != meq.tail.name && cur_name != meq.tail_prev.name)
-            auto old_main_tail = meq.tail;
-            if (cur_new_prod > meq.tail_prev) {
-               meq.tail = meq.tail_prev;
-               meq.tail_prev.clear();
-               refresh_main_tail_prev = true;
-            } else { // cur_new_prod > meq.tail
-               meq.tail = cur_new_prod;
+         if (cur_old_prod >= beq.tail) {
+            // beq-: del cur prod from backup queue
+            producer_change_helper::del(cur_name, backup_changes);
+            if (cur_old_prod == beq.tail_prev) {
+                  beq.tail_prev.clear();
+                  refresh_backup_tail_prev = true;
+            } else if (cur_old_prod == beq.tail) {
+               beq.tail = beq.tail_prev;
+               beq.tail_prev.clear();
+               refresh_backup_tail_prev = true;
             }
-
-            ASSERT(ext.max_main_producer_count > 1);
-
-            if (beq.last_producer_count == 0) {
-               ASSERT(meq.tail.empty() && beq.tail_prev.empty() && meq.tail_next.empty())
-               if (old_main_tail.elected_votes > 0) {
-                  beq.tail = old_main_tail;
-                  beq.last_producer_count++;
-               }
-            } else if (beq.last_producer_count == 1) {
-               if (cur_old_prod == beq.tail) {
-                  beq.tail = old_main_tail;
-                  meq.tail_next = old_main_tail;
-               } else {
-                  meq.tail_next = old_main_tail;
-                  beq.tail_prev = old_main_tail;
-                  beq.last_producer_count++;
-               }
-            } else { // beq.last_producer_count > 1
-               ASSERT(!meq.tail.empty() && !beq.tail_prev.empty())
-               if (cur_old_prod >= beq.tail) {
-                  if (cur_old_prod == beq.tail) {
-                     beq.tail = beq.tail_prev;
-                     if (beq.last_producer_count == 2) {
-                        ASSERT(meq.tail_next == beq.tail_prev)
-                        beq.tail_prev = old_main_tail;
-                     } else if (beq.last_producer_count == 3) {
-                        ASSERT(!(meq.tail_next == beq.tail_prev))
-                        beq.tail_prev = meq.tail_next;
-                     } else { // beq.last_producer_count > 3
-                        beq.tail_prev.clear();
-                        refresh_backup_tail_prev = true;
-                     }
-                  } else if (cur_old_prod == beq.tail_prev) {
-                     if (beq.last_producer_count == 2) {
-                        ASSERT(meq.tail_next == beq.tail_prev)
-                        beq.tail_prev = old_main_tail;
-                     } else if (beq.last_producer_count == 3) {
-                        ASSERT(!(meq.tail_next != beq.tail_prev))
-                        beq.tail_prev = meq.tail_next;
-                     } else {
-                        beq.tail_prev.clear();
-                        refresh_backup_tail_prev = true;
-                     }
-                  } else { // cur_old_prod > beq.tail_prev
-                     ASSERT(beq.last_producer_count > 3)
-                  }
-               } else { // cur_old_prod < beq.tail
-                  meq.tail_next = old_main_tail;
-                  if (beq.last_producer_count == ext.max_backup_producer_count) {
-                     // beq-: pop backup tail from backup queue
-                     producer_change_helper::del(beq.tail.name, backup_changes);
-                     beq.tail = beq.tail_prev;
-                     beq.tail_prev.clear();
-                     refresh_backup_tail_prev = true;
-                  } else  {
-                     beq.last_producer_count++;
-                  }
+         } else { // cur_old_prod < beq.tail
+            bool is_pop_tail = false;
+            if (beq.last_producer_count == ext.max_backup_producer_count) {
+               is_pop_tail = true;
+            } else { // beq.last_producer_count < ext.max_backup_producer_count
+               if (cur_old_prod == beq.tail_next) {
+                  queue_helper::fetch_next(idx, beq.tail, beq.tail_next, false, "backup queue tail next");
+                  is_pop_tail = beq.tail_next.empty();
                }
             }
 
-            // process old_main_tail
-            if (old_main_tail.elected_votes != 0) {
-               // beq+: push old_main_tail to backup queue
-               producer_change_helper::add(old_main_tail.name, old_main_tail.authority, backup_changes);
-               meq.tail_next = old_main_tail;
+            if (is_pop_tail) {
+               // beq-: pop backup tail from backup queue
+               producer_change_helper::del(beq.tail.name, backup_changes);
+               beq.tail_next = beq.tail;
+               beq.tail = beq.tail_prev;
+               beq.tail_prev.clear();
+               refresh_backup_tail_prev = true;
             } else {
-               ASSERT(meq.tail_next.empty() && beq.last_producer_count == 0);
+               beq.last_producer_count++;
+            }
+         }
+      } else if (cur_old_prod >= beq.tail) { // && cur_old_prod < meq.tail && cur_new_prod < meq.tail
+
+         if (cur_new_prod >= meq.tail_next) {
+            if (cur_old_prod == beq.tail_prev) {
+               refresh_backup_tail_prev = true;
+            } else if (cur_old_prod == beq.tail) {
+               beq.tail = beq.tail_prev;
+               refresh_backup_tail_prev = true;
+            }
+            meq.tail_next = cur_new_prod;
+         } else if (cur_new_prod >= beq.tail_prev) { // && cur_new_prod < meq.tail_next
+            if (cur_old_prod == meq.tail_next) {
+               refresh_main_tail_next = true;
+            } else if (cur_old_prod == beq.tail_prev) {
+               if (cur_new_prod != beq.tail_prev) {
+                  refresh_backup_tail_prev = true;
+               }
+            } else if (cur_old_prod == beq.tail) {
+               beq.tail = beq.tail_prev;
+               refresh_backup_tail_prev = true;
+            }
+         } else if (cur_new_prod >= beq.tail) { // && cur_new_prod < beq.tail_prev
+            if (cur_old_prod == beq.tail) {
+               beq.tail = cur_new_prod;
+            } else { // cur_old_prod != beq.tail {
+               beq.tail_prev = cur_new_prod;
+               if (cur_old_prod == meq.tail_next) {
+                  meq.tail_next.clear();
+                  refresh_main_tail_next = true;
+               }
             }
 
-         } else { // else cur_old_prod < meq.tail && cur_new_prod < meq.tail
+         } else if ( cur_new_prod > beq.tail_next ) { // && cur_new_prod < beq.tail
+            if (cur_new_prod.elected_votes > 0 || beq.last_producer_count == 3) {
+               if (cur_old_prod != beq.tail) {
+                  beq.tail_prev = beq.tail;
+                  if (cur_old_prod == meq.tail_next) {
+                     refresh_main_tail_next = true;
+                  }
+               }
+               beq.tail = cur_new_prod;
+            } else { // cur_new_prod.elected_votes <= 0 && beq.last_producer_count > 3
+               if (cur_old_prod == beq.tail) {
+                  beq.tail = beq.tail_prev;
+                  refresh_backup_tail_prev = true;
+               } else if (cur_old_prod == beq.tail_prev) {
+                  refresh_backup_tail_prev = true;
+               } else if (cur_old_prod == meq.tail_next) {
+                  refresh_main_tail_next = true;
+               }
 
-            // if (beq.last_producer_count == 0) {
-            //    if (cur_new_prod.elected_votes > 0) {
-            //       beq.tail = cur_new_prod;
-            //       meq.tail_next = cur_new_prod;
-            //       beq.last_producer_count++;
-            //       // TODO: push cur prod to backup queue
-            //    }
-            // } else if (beq.last_producer_count == 1) {
-            //    if (cur_name == beq.tail.name) {
-            //       beq.tail = cur_new_prod;
-            //    }
+               beq.tail_next = cur_new_prod;
+               beq.last_producer_count--;
+               // beq-: del cur prod from backup queue
+               producer_change_helper::del(cur_name, backup_changes);
+            }
+         } else { // cur_new_prod < beq.tail_next
+            if (beq.tail_next.elected_votes > 0 || beq.last_producer_count == 3) {
+               if (cur_old_prod != beq.tail) {
+                  beq.tail_prev = beq.tail;
+                  beq.tail = beq.tail_next;
+               }
+               beq.tail = beq.tail_next;
+               refresh_backup_tail_next = true;
+               if (cur_old_prod == meq.tail_next) {
+                  meq.tail_next.clear();
+                  refresh_main_tail_next = true;
+               }
+               // beq-: del cur prod from backup queue
+               producer_change_helper::del(cur_name, backup_changes);
+               // beq+: add beq.tail_next to backup queue
+               producer_change_helper::add(beq.tail_next.name, beq.tail_next.authority, backup_changes);
+            } else { // beq.tail_next.elected_votes <= 0 && beq.last_producer_count > 3
+               if (cur_old_prod == beq.tail) {
+                  beq.tail = beq.tail_prev;
+                  refresh_backup_tail_prev = true;
+               } else if (cur_old_prod == beq.tail_prev) {
+                  refresh_backup_tail_prev = true;
+               } else if (cur_old_prod == meq.tail_next) {
+                  refresh_main_tail_next = true;
+               }
 
-            // }
-            ASSERT(ext.max_backup_producer_count > 3)
+               beq.last_producer_count--;
+               // beq-: del cur prod from backup queue
+               producer_change_helper::del(cur_name, backup_changes);
+            }
+         }
+      } else { // cur_old_prod < beq.tail && cur_new_prod < meq.tail
 
-            if (beq.last_producer_count == 0) {
-               if (cur_new_prod.elected_votes > 0) {
-                  beq.tail = cur_new_prod;
+         if (cur_new_prod >= beq.tail) {
+            ASSERT(cur_new_prod != beq.tail)
+            // beq+: add cur prod to backup queue
+            producer_change_helper::add(cur_name, producer_authority, backup_changes);
+
+            if ( beq.last_producer_count < ext.max_backup_producer_count &&
+                 cur_old_prod != beq.tail_next &&
+                 beq.tail.elected_votes > 0 )
+            {
+               beq.last_producer_count++;
+               if (cur_new_prod < beq.tail_prev) {
+                  beq.tail_prev = cur_new_prod;
+               } else if (cur_new_prod > meq.tail_next) { // cur_new_prod > beq.tail_prev
                   meq.tail_next = cur_new_prod;
-                  beq.last_producer_count++;
-                  // beq+: push cur prod to backup queue
-                  producer_change_helper::add(cur_name, producer_authority, backup_changes);
                }
-            } else if (beq.last_producer_count == 1) {
-               if (cur_new_prod.elected_votes > 0) {
-                  if (cur_name == beq.tail.name) {
-                     beq.tail = cur_new_prod;
+               if (cur_old_prod == beq.tail_next) {
+                  refresh_backup_tail_next = true;
+               }
+            } else {
+               // beq-: pop beq.tail from backup queue
+               producer_change_helper::del(beq.tail.name, backup_changes);
+               beq.tail_next = beq.tail;
+               if (cur_new_prod < beq.tail_prev) {
+                  beq.tail = cur_new_prod;
+               } else { // cur_new_prod > beq.tail_prev
+                  beq.tail = beq.tail_prev;
+                  refresh_backup_tail_prev = true;
+
+                  if (cur_new_prod > meq.tail_next) { // cur_new_prod > beq.tail_prev
                      meq.tail_next = cur_new_prod;
-                  } else {
-                     if (cur_new_prod > beq.tail) {
-                        beq.tail_prev = cur_new_prod;
-                        meq.tail_next = cur_new_prod;
-                     } else { // cur_old_prod < beq.tail
-                        beq.tail_prev = beq.tail;
-                        meq.tail_next = beq.tail;
-                        beq.tail = cur_new_prod;
-                     }
-                     beq.last_producer_count++;
-                     // beq+: add cur prod to backup queue
-                     producer_change_helper::add(cur_name, producer_authority, backup_changes);
-                  }
-               } else { // cur_new_prod.elected_votes <= 0
-                  if (cur_name == beq.tail.name) {
-                     beq.tail.clear();
-                     meq.tail_next.clear();
-                     // beq-: del cur prod from backup queue
-                     producer_change_helper::add(cur_name, producer_authority, backup_changes);
                   }
                }
+            }
 
-            } else { // beq.last_producer_count > 1
-               ASSERT(!beq.tail.empty() && !beq.tail_prev.empty() && !meq.tail_next.empty())
-               if (cur_old_prod >= beq.tail) {
-                  if (beq.last_producer_count == 2) {
-                     ASSERT(beq.tail_prev == meq.tail_next)
-                     if (cur_old_prod == beq.tail_prev) {
-                        if (cur_new_prod > beq.tail) {
-                           beq.tail_prev = cur_new_prod;
-                           meq.tail_next = cur_new_prod;
-                        } else if (cur_new_prod.elected_votes > 0) { // cur_old_prod < beq.tail
-                           beq.tail_prev = meq.tail;
-                           meq.tail_next = meq.tail;
-                           beq.tail = cur_new_prod;
-                        } else { // cur_new_prod.elected_votes <= 0
-                           beq.tail_prev.clear();
-                           meq.tail_next = meq.tail;
-                        }
-                     } else if (cur_old_prod == beq.tail) {
-                        if (cur_new_prod > beq.tail_prev) {
-                           beq.tail = beq.tail_prev;
-                           beq.tail_prev = cur_new_prod;
-                           meq.tail_next = cur_new_prod;
-                        } else if (cur_new_prod.elected_votes > 0) { // && cur_new_prod < beq.tail_prev
-                           beq.tail = cur_new_prod;
-                        } else { // cur_new_prod.elected_votes <= 0
-                           beq.tail = beq.tail_prev;
-                           meq.tail_next = beq.tail_prev;
-                           beq.tail_prev.clear();
-                           beq.last_producer_count--;
-                           // beq-: del cur prod from backup queue
-                           producer_change_helper::del(cur_name, backup_changes);
-                        }
-                     }
-                  } else if (beq.last_producer_count == 3) {
-                     ASSERT(beq.tail_prev != meq.tail_next)
-
-                     if (cur_old_prod == meq.tail_next) {
-                        if (cur_new_prod > beq.tail_prev) {
-                           meq.tail_next = cur_new_prod;
-                        } else if (cur_new_prod > beq.tail) {
-                           meq.tail_next = beq.tail_prev;
-                           beq.tail_prev = cur_new_prod;
-                        } else if (cur_new_prod.elected_votes > 0) { // && cur_new_prod < beq.tail
-                           meq.tail_next = beq.tail_prev;
-                           beq.tail_prev = meq.tail;
-                           meq.tail = cur_new_prod;
-                        } else { // cur_new_prod.elected_votes <= 0
-                           meq.tail_next = beq.tail_prev;
-                           beq.last_producer_count--;
-                           // beq-: del cur prod from backup queue
-                           producer_change_helper::del(cur_name, backup_changes);
-                        }
-                     } else if (cur_old_prod == beq.tail_prev) {
-                        if (cur_new_prod > meq.tail_next) {
-                           beq.tail_prev = meq.tail_next;
-                           meq.tail_next = cur_new_prod;
-                        } else if (cur_new_prod > beq.tail) { // && cur_new_prod < beq.tail_prev
-                           beq.tail_prev = cur_new_prod;
-                        } else if (cur_new_prod.elected_votes > 0) { // && cur_new_prod < beq.tail
-                           beq.tail_prev = meq.tail;
-                           meq.tail = cur_new_prod;
-                        } else { // cur_new_prod.elected_votes <= 0
-                           beq.tail_prev = meq.tail_next;
-                           beq.last_producer_count--;
-                           // beq-: del cur prod from backup queue
-                           producer_change_helper::del(cur_name, backup_changes);
-                        }
-                     } else if (cur_old_prod == beq.tail) {
-                        if (cur_new_prod > meq.tail_next) {
-                           beq.tail = beq.tail_prev;
-                           beq.tail_prev = meq.tail_next;
-                           meq.tail_next = cur_new_prod;
-                        } else if (cur_new_prod > beq.tail_prev) { // && cur_new_prod < meq.tail_next
-                           beq.tail = beq.tail_prev;
-                           beq.tail_prev = cur_new_prod;
-                        } else if (cur_new_prod.elected_votes > 0) { // && cur_new_prod < beq.tail
-                           meq.tail = cur_new_prod;
-                        } else { // cur_new_prod.elected_votes <= 0
-                           beq.tail = beq.tail_prev;
-                           beq.tail_prev = meq.tail_next;
-                           beq.last_producer_count--;
-                           // beq-: del cur prod from backup queue
-                           producer_change_helper::del(cur_name, backup_changes);
-                        }
-                     }
-                  } else { // beq.last_producer_count > 3
-                     if (cur_new_prod >= meq.tail_next) {
-                        if (cur_old_prod == beq.tail_prev) {
-                           beq.tail_prev.clear();
-                           refresh_backup_tail_prev = true;
-                        } else if (cur_old_prod == beq.tail) {
-                           beq.tail = beq.tail_prev;
-                           beq.tail_prev.clear();
-                           refresh_backup_tail_prev = true;
-                        }
-                        meq.tail_next = cur_new_prod;
-                     } else if (cur_new_prod >= beq.tail_prev) { // && cur_new_prod < meq.tail_next
-                        if (cur_old_prod == meq.tail_next) {
-                           meq.tail_next.clear();
-                           refresh_main_tail_next = true;
-                        } else if (cur_old_prod == beq.tail_prev) {
-                           if (cur_new_prod != beq.tail_prev) {
-                              beq.tail_prev.clear();
-                              refresh_backup_tail_prev = true;
-                           }
-                        } else if (cur_old_prod == beq.tail) {
-                           beq.tail = beq.tail_prev;
-                           beq.tail_prev.clear();
-                           refresh_backup_tail_prev = true;
-                        }
-                     } else if (cur_new_prod >= beq.tail) { // cur_new_prod < beq.tail_prev
-                        if (cur_old_prod == beq.tail) {
-                           beq.tail = cur_new_prod;
-                        } else if (cur_old_prod == beq.tail_prev) {
-                           beq.tail_prev = cur_new_prod;
-                        } else { // cur_old_prod > beq.beq.tail_prev
-                           beq.tail_prev = cur_new_prod;
-                           if (cur_old_prod == meq.tail_next) {
-                              meq.tail_next.clear();
-                              refresh_main_tail_next = true;
-                           }
-                        }
-
-                     // cur_new_prod < beq.tail && cur_new_prod.elected_votes > 0
-                     } else if ( (beq.tail_next.empty() && cur_new_prod.elected_votes > 0) ||
-                                 (!beq.tail_next.empty() && cur_new_prod > beq.tail_next )) {
-                        if (cur_old_prod == meq.tail_next) {
-                           meq.tail_next.clear();
-                           refresh_main_tail_next = true;
-                           beq.tail = cur_new_prod;
-                        } else if (cur_old_prod == beq.tail_prev) {
-                           beq.tail_prev = beq.tail;
-                           beq.tail = cur_new_prod;
-                        } else if (cur_old_prod == beq.tail) {
-                           beq.tail = cur_new_prod;
-                        } else {
-                           beq.tail_prev = beq.tail;
-                           beq.tail = cur_new_prod;
-                        }
-                     } else if (!beq.tail_next.empty() && cur_new_prod < beq.tail_next ) {
-                        ASSERT(beq.last_producer_count == ext.max_backup_producer_count)
-                        if (cur_old_prod >= beq.tail_prev) {
-                           beq.tail_prev = beq.tail;
-                           if (cur_old_prod == meq.tail_next) {
-                              meq.tail_next.clear();
-                              refresh_main_tail_next = true;
-                           }
-                        }
-
-                        // beq-: del cur prod from backup queue
-                        producer_change_helper::del(cur_name, backup_changes);
-                        // beq+: add beq.tail_next to backup queue
-                        producer_change_helper::add(beq.tail_next.name, beq.tail_next.authority, backup_changes);
-                        beq.tail = beq.tail_next;
-                        beq.tail_next.clear();
-                        refresh_backup_tail_next = true;
-                     } else { // beq.tail_next.empty() && cur_new_prod.elected_votes <= 0)
-                        beq.last_producer_count--;
-                        // beq-: del cur prod from backup queue
-                        producer_change_helper::del(cur_name, backup_changes);
-                        if (cur_old_prod == meq.tail_next) {
-                           meq.tail_next.clear();
-                           refresh_main_tail_next = true;
-                        } else if (cur_old_prod == beq.tail_prev) {
-                           beq.tail_prev.clear();
-                           refresh_backup_tail_prev = true;
-                        } else if (cur_old_prod == beq.tail) {
-                           beq.tail = beq.tail_prev;
-                           beq.tail_prev.clear();
-                           refresh_backup_tail_prev = true;
-                        }
-                     }
-                  }
-               } else { // cur_old_prod < beq.tail
-
-                  if (beq.last_producer_count < ext.max_backup_producer_count) {
-                     ASSERT(beq.tail_next.empty());
-                     if (cur_new_prod.elected_votes > 0) {
-                        beq.last_producer_count++;
-                        if (cur_new_prod < beq.tail) {
-                           beq.tail_prev = beq.tail;
-                           beq.tail = cur_new_prod;
-                        } else if (cur_new_prod < beq.tail_prev) {
-                           beq.tail_prev = cur_new_prod;
-                        } else if (cur_new_prod > meq.tail_next) {
-                           meq.tail_next = cur_new_prod;
-                        }
-                     }
-                  } else { // beq.last_producer_count == ext.max_backup_producer_count
-
-                     if (cur_new_prod > beq.tail) {
-                        // beq-: del beq.tail from backup queue
-                        producer_change_helper::del(beq.tail.name, backup_changes);
-                        beq.tail_next = beq.tail;
-                        if (cur_new_prod < beq.tail_prev) { // && cur_new_prod >= beq.tail
-                           beq.tail = cur_new_prod;
-                        } else { // cur_new_prod > meq.tail_prev
-                           beq.tail = beq.tail_prev;
-                           beq.tail_prev.clear();
-                           refresh_backup_tail_prev = true;
-                           if (cur_new_prod > meq.tail_prev) {
-                              meq.tail_next = cur_new_prod;
-                           }
-                        }
-
-                     } else { // cur_new_prod < beq.tail)
-                        if (  (beq.tail_next.empty() && cur_new_prod.elected_votes > 0) ||
-                              (!beq.tail_next.empty() && cur_new_prod > beq.tail_next) ) {
-                           beq.tail_next = cur_new_prod;
-                        } else {
-                           if (cur_name == beq.tail_next.name) {
-                              beq.tail_next.clear();
-                              refresh_backup_tail_next = true;
-                           }
-                        }
-                     }
-                  }
-               }
+         } else if (cur_new_prod >= beq.tail_next) { // cur_new_prod < beq.tail
+            if ( beq.last_producer_count < ext.max_backup_producer_count &&
+               cur_old_prod != beq.tail_next &&
+               cur_new_prod.elected_votes > 0 )
+            {
+               // beq+: add cur prod to backup queue
+               producer_change_helper::add(cur_name, producer_authority, backup_changes);
+               beq.last_producer_count++;
+               beq.tail_prev = beq.tail;
+               beq.tail = cur_new_prod;
+            } else { // beq.last_producer_count == ext.max_backup_producer_count || cur_old_prod == beq.tail_next || cur_new_prod.elected_votes <= 0
+               beq.tail_next = cur_new_prod;
+            }
+         } else { // cur_new_prod < beq.tail_next
+            if ( beq.last_producer_count < ext.max_backup_producer_count &&
+               cur_old_prod != beq.tail_next &&
+               beq.tail_next.elected_votes > 0 )
+            {
+               // beq+: add cur prod to backup queue
+               producer_change_helper::add(cur_name, producer_authority, backup_changes);
+               beq.last_producer_count++;
+               beq.tail_prev = beq.tail;
+               beq.tail = beq.tail_next;
+               beq.tail_next = cur_new_prod;
+            } else if (cur_old_prod == beq.tail_next) {
+               refresh_backup_tail_next = true;
             }
          }
       }
 
-      // refresh queue positions
-      auto idx = _producers.get_index<"totalvotepro"_n>();
-      auto begin = idx.begin();
-      check(begin != idx.end(), "totalvotepro index of producer table is empty");
-
       if (refresh_main_tail_prev) {
-         queue_helper::fetch_prev(idx, meq.tail, meq.tail_prev, "main queue tail prev");
+         queue_helper::fetch_prev(idx, meq.tail, meq.tail_prev, true, "main queue tail prev");
       }
 
       if (refresh_main_tail_next) {
-         queue_helper::fetch_next(idx, meq.tail, meq.tail_next, "main queue tail next");
+         queue_helper::fetch_next(idx, meq.tail, meq.tail_next, true, "main queue tail next");
       }
 
       if (refresh_backup_tail_prev) {
-         queue_helper::fetch_prev(idx, beq.tail, beq.tail_prev, "main queue tail prev");
+         queue_helper::fetch_prev(idx, beq.tail, beq.tail_prev, true, "backup queue tail prev");
       }
 
       if (refresh_backup_tail_next) {
-         queue_helper::fetch_next(idx, beq.tail, beq.tail_next, "main queue tail next");
+         queue_helper::fetch_next(idx, beq.tail, beq.tail_next, true, "backup queue tail next");
       }
 
    }

@@ -46,10 +46,10 @@ static float128_t by_votes_prod(const name& owner, double elected_votes, uint8_t
    if (elected_votes < 0.0) elected_votes = 0.0;
    static constexpr uint64_t uint64_max = std::numeric_limits<uint64_t>::max();
    float128_t reversed = to_softfloat128(elected_votes) + to_softfloat128(uint64_max - owner.to_uint64_t()) / to_softfloat128(uint64_max);
-   wdump( (to_softfloat128(elected_votes)) );
-   wdump( (owner)(owner.to_uint64_t()) (uint64_max - owner.to_uint64_t()) (to_softfloat128(uint64_max - owner.to_uint64_t()) / to_softfloat128(uint64_max)) );
-   wdump( (to_softfloat128(elected_votes) + to_softfloat128(uint64_max - owner.to_uint64_t()) / to_softfloat128(uint64_max)) );
-   wdump( (reversed) );
+   // wdump( (to_softfloat128(elected_votes)) );
+   // wdump( (owner)(owner.to_uint64_t()) (uint64_max - owner.to_uint64_t()) (to_softfloat128(uint64_max - owner.to_uint64_t()) / to_softfloat128(uint64_max)) );
+   // wdump( (to_softfloat128(elected_votes) + to_softfloat128(uint64_max - owner.to_uint64_t()) / to_softfloat128(uint64_max)) );
+   // wdump( (reversed) );
 
    return is_active ? to_softfloat128(0) - reversed : f128_positive_infinity() - reversed;
 }
@@ -112,10 +112,10 @@ FC_REFLECT( amax_global_state_ext, (elected_version)(max_main_producer_count)(ma
                                    (main_elected_queue)(backup_elected_queue) )
 
 struct producer_info_ext {
-   uint8_t        elected_version   = 0;
+   // uint8_t        elected_version   = 0;
    double         elected_votes     = 0;
 };
-FC_REFLECT( producer_info_ext, (elected_version)(elected_votes))
+FC_REFLECT( producer_info_ext, /*(elected_version)*/(elected_votes))
 
 struct producer_info {
    name                                                     owner;
@@ -288,8 +288,8 @@ struct producer_change_tester : eosio_system_tester {
          data.resize( itr2->value.size() );
          memcpy( data.data(), itr2->value.data(), itr2->value.size() );
          producer_info info = fc::raw::unpack<producer_info>(data);
-         if (info.ext.value.elected_version < min_elected_version) {
-            wdump( (info.owner) (info.ext.value.elected_version)(info.ext.value.elected_votes));
+         if (info.ext.value.elected_votes <= 0) {
+            wdump( (info.owner) (info.ext.value.elected_votes));
             break;
          }
          ret.push_back({info.owner, info.total_votes, info.producer_authority});
@@ -405,26 +405,26 @@ BOOST_FIXTURE_TEST_CASE(init_elects_test, producer_change_tester) try {
    BOOST_REQUIRE_EQUAL(gpo.proposed_schedule.producers.size(), 0);
    BOOST_REQUIRE_EQUAL(gpo.proposed_schedule_change.version, 1);
    BOOST_REQUIRE_EQUAL(gpo.proposed_schedule_change.main_changes.producer_count, 21);
-   BOOST_REQUIRE_EQUAL(gpo.proposed_schedule_change.backup_changes.producer_count, 0);
+   BOOST_REQUIRE_EQUAL(gpo.proposed_schedule_change.backup_changes.producer_count, 3);
 
    produce_block();
    // wdump( (get_global_state()) );
    BOOST_REQUIRE( get_global_state()["ext"].is_object() );
    auto ext = get_ext(get_global_state()["ext"]);
 
-   // wdump( (ext) );
+   wdump( (ext) );
    BOOST_REQUIRE_EQUAL(ext.elected_version, 1);
    BOOST_REQUIRE_EQUAL(ext.max_main_producer_count, 21);
    BOOST_REQUIRE_EQUAL(ext.max_backup_producer_count, 43);
    BOOST_REQUIRE_EQUAL(ext.main_elected_queue.last_producer_count, 21);
-   BOOST_REQUIRE_EQUAL(ext.backup_elected_queue.last_producer_count, 0);
+   BOOST_REQUIRE_EQUAL(ext.backup_elected_queue.last_producer_count, 3);
 
    producer_change_helper::elected_version = 1;
    auto elected_producers = get_elected_producers(producer_map);
    auto elected_producers_in_db = get_elected_producers_from_db(ext.elected_version);
    // wdump(  (elected_producers) );
-   wdump(  (elected_producers_in_db) );
-   BOOST_REQUIRE_EQUAL(elected_producers_in_db.size(), 21);
+   // wdump(  (elected_producers_in_db) );
+   // BOOST_REQUIRE_EQUAL(elected_producers_in_db.size(), 21);
 
    BOOST_REQUIRE( vector_matched(elected_producers, elected_producers_in_db, 21) );
 
@@ -432,22 +432,32 @@ BOOST_FIXTURE_TEST_CASE(init_elects_test, producer_change_tester) try {
    // wdump( (ext.main_elected_queue.tail_prev)(elected_producers[19]) );
    BOOST_REQUIRE(ext.main_elected_queue.tail_prev     == elected_producers[19]);
    BOOST_REQUIRE(ext.main_elected_queue.tail          == elected_producers[20]);
-   BOOST_REQUIRE(ext.main_elected_queue.tail_next.empty());
-   BOOST_REQUIRE(ext.backup_elected_queue.tail.empty());
-   BOOST_REQUIRE(ext.backup_elected_queue.tail_prev.empty());
-   BOOST_REQUIRE(ext.backup_elected_queue.tail_next.empty());
+   BOOST_REQUIRE(ext.main_elected_queue.tail_next     == elected_producers[21]);
+   BOOST_REQUIRE(ext.backup_elected_queue.tail_prev   == elected_producers[22]);
+   BOOST_REQUIRE(ext.backup_elected_queue.tail        == elected_producers[23]);
+   BOOST_REQUIRE(ext.backup_elected_queue.tail_next   == elected_producers[24]);
 
-   auto beq_tail = elected_producers.back();
-   regproducer( beq_tail.name );
+   regproducer( elected_producers[24].name );
    produce_block();
    ext = get_ext(get_global_state()["ext"]);
 
-   // wdump( (ext) );
-   BOOST_REQUIRE_EQUAL(ext.backup_elected_queue.last_producer_count, 1);
-   BOOST_REQUIRE(ext.backup_elected_queue.tail        == beq_tail);
-   BOOST_REQUIRE(ext.main_elected_queue.tail_next     == beq_tail);
-   BOOST_REQUIRE(ext.backup_elected_queue.tail_prev.empty());
-   BOOST_REQUIRE(ext.backup_elected_queue.tail_next.empty());
+   wdump( (ext) );
+   BOOST_REQUIRE_EQUAL(ext.backup_elected_queue.last_producer_count, 3);
+   BOOST_REQUIRE(ext.backup_elected_queue.tail_prev   == elected_producers[22]);
+   BOOST_REQUIRE(ext.backup_elected_queue.tail        == elected_producers[23]);
+   BOOST_REQUIRE(ext.backup_elected_queue.tail_next   == elected_producers[24]);
+
+   regproducer( elected_producers[25].name );
+   produce_block();
+   ext = get_ext(get_global_state()["ext"]);
+
+   wdump( (ext) );
+   BOOST_REQUIRE_EQUAL(ext.backup_elected_queue.last_producer_count, 4);
+   BOOST_REQUIRE(ext.main_elected_queue.tail_next     == elected_producers[21]);
+   BOOST_REQUIRE(ext.backup_elected_queue.tail_prev   == elected_producers[23]);
+   wdump( (ext.backup_elected_queue.tail)(elected_producers[24]) );
+   BOOST_REQUIRE(ext.backup_elected_queue.tail        == elected_producers[24]);
+   BOOST_REQUIRE(ext.backup_elected_queue.tail_next   == elected_producers[25]);
 
    producer_map = {};
    for (size_t i = 0; i < voters.size(); i++) {
