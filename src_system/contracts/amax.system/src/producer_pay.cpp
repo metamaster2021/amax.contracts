@@ -35,8 +35,8 @@ namespace eosiosystem {
       const auto ct = current_time_point();
       if ( _gstate.inflation_start_time != time_point() && ct >= _gstate.inflation_start_time ) {
          // TODO: block inflation
-         // int64_t periods = (ct - _gstate.inflation_start_time).count() / (4 * useconds_per_year); 
-         // int64_t inflation_per_block = periods >= 0 && periods < 62 ? 
+         // int64_t periods = (ct - _gstate.inflation_start_time).count() / (4 * useconds_per_year);
+         // int64_t inflation_per_block = periods >= 0 && periods < 62 ?
          //       _gstate.initial_inflation_per_block.amount / power(2, periods) : 0;
          // if (inflation_per_block > 0 ) {
          //    auto prod = _producers.find( producer.value );
@@ -47,7 +47,7 @@ namespace eosiosystem {
          //    }
          // }
       }
-      
+
       /// only update block producers once every minute
       if( timestamp.slot - _gstate.last_producer_schedule_update.slot > blocks_per_minute ) {
          update_elected_producers( timestamp );
@@ -79,7 +79,7 @@ namespace eosiosystem {
       check( prod.active(), "producer does not have an active key" );
 
       check( _gstate.thresh_activated_stake_time != time_point(),
-                    "cannot claim rewards until the chain is activated (at least 15% of all tokens participate in voting)" );
+                    "cannot claim rewards until the chain is activated (at least 5% of all tokens participate in voting)" );
 
 
       const auto ct = current_time_point();

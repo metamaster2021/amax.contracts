@@ -298,6 +298,27 @@ struct producer_change_tester : eosio_system_tester {
       return vector<producer_elected_votes>(ret.begin(), ret.begin() + sz);
    }
 
+   void get_producer_schedule(const vector<producer_elected_votes>& elected_producers, uint32_t main_producer_count,
+            uint32_t backup_producer_count, vector<producer_authority> &main_schedule,
+            flat_map<name, block_signing_authority> &backup_schedule) {
+      main_schedule.clear();
+      backup_schedule.clear();
+      for (size_t i = 0; i < main_producer_count; i++) {
+         main_schedule.push_back({elected_producers[i].name, elected_producers[i].authority});
+      }
+      std::sort(main_schedule.begin(), main_schedule.end(), []( const auto& lhs, const auto& rhs ) {
+         return lhs.producer_name < rhs.producer_name; // sort by producer name
+      } );
+      for (size_t i = main_producer_count; i < main_producer_count + backup_producer_count; i++) {
+         backup_schedule.emplace(elected_producers[i].name, elected_producers[i].authority);
+      }
+   }
+
+   producer_authority calc_main_scheduled_producer( const vector<producer_authority> &producers, block_timestamp_type t ) {
+      auto index = t.slot % (producers.size() * config::producer_repetitions);
+      index /= config::producer_repetitions;
+      return producers[index];
+   }
 
    template<typename T>
    inline bool vector_matched( const std::vector<T>& a, const std::vector<T>& b, size_t sz ) {
@@ -365,12 +386,13 @@ BOOST_FIXTURE_TEST_CASE(init_elects_test, producer_change_tester) try {
          produce_block();
    }
 
-   auto votes_started = core_sym::from_string("1000000.0000");
+   auto total_staked = core_sym::min_activated_stake;
    for (size_t i = 0; i < voters.size(); i++) {
       auto const& voter = voters[i];
       auto& voter_info = voter_map[voter];
-      voter_info.staked = CORE_ASSET(votes_started.get_amount() * (i + 1) );
-      voter_info.net = asset(voter_info.staked.get_amount() / 2, CORE_SYMBOL);;
+      double base_amount = total_staked.get_amount() / (2.0 * voters.size());
+      voter_info.staked = CORE_ASSET(base_amount * (1.0 + (i + 1.0) / voters.size()) );
+      voter_info.net = CORE_ASSET(voter_info.staked.get_amount() / 2);
       voter_info.cpu = voter_info.staked - voter_info.net;
       // wdump( (voters[i]) (ram_asset) (net) (cpu ));
       create_account_with_resources( voter, config::system_account_name, 10 * 1024);
@@ -412,7 +434,7 @@ BOOST_FIXTURE_TEST_CASE(init_elects_test, producer_change_tester) try {
    BOOST_REQUIRE( get_global_state()["ext"].is_object() );
    auto ext = get_ext(get_global_state()["ext"]);
 
-   wdump( (ext) );
+   // wdump( (ext) );
    BOOST_REQUIRE_EQUAL(ext.elected_version, 1);
    BOOST_REQUIRE_EQUAL(ext.max_main_producer_count, 21);
    BOOST_REQUIRE_EQUAL(ext.max_backup_producer_count, 43);
@@ -436,6 +458,57 @@ BOOST_FIXTURE_TEST_CASE(init_elects_test, producer_change_tester) try {
    BOOST_REQUIRE(ext.backup_elected_queue.tail_prev   == elected_producers[22]);
    BOOST_REQUIRE(ext.backup_elected_queue.tail        == elected_producers[23]);
    BOOST_REQUIRE(ext.backup_elected_queue.tail_next   == elected_producers[24]);
+
+   produce_block();
+   auto hbs = control->head_block_state();
+   auto header_exts = hbs->header_exts;
+   wdump( (hbs));
+
+   BOOST_REQUIRE(!gpo.proposed_schedule_block_num);
+   BOOST_REQUIRE_EQUAL( header_exts.count(producer_schedule_change_extension_v2::extension_id()) , 1 );
+   const auto& new_producer_schedule = header_exts.lower_bound(producer_schedule_change_extension_v2::extension_id())->second.get<producer_schedule_change_extension_v2>();
+
+   wdump((new_producer_schedule));
+   BOOST_REQUIRE_EQUAL(new_producer_schedule.version, 1);
+   BOOST_REQUIRE_EQUAL(new_producer_schedule.main_changes.producer_count, 21);
+   BOOST_REQUIRE_EQUAL(new_producer_schedule.backup_changes.producer_count, 3);
+
+   BOOST_REQUIRE_EQUAL( hbs->pending_schedule.schedule_lib_num, control->head_block_num() );
+   BOOST_REQUIRE( hbs->pending_schedule.schedule.contains<producer_schedule_change>());
+   const auto& change = hbs->pending_schedule.schedule.get<producer_schedule_change>();
+   BOOST_REQUIRE_EQUAL( change.version, 1 );
+   BOOST_REQUIRE_EQUAL(change.main_changes.producer_count, 21);
+   BOOST_REQUIRE_EQUAL(change.backup_changes.producer_count, 3);
+
+
+   produce_block();
+   hbs = control->head_block_state();
+   header_exts =  hbs->header_exts;
+   BOOST_REQUIRE_EQUAL( header_exts.count(producer_schedule_change_extension_v2::extension_id()) , 0 );
+   BOOST_REQUIRE( hbs->pending_schedule.schedule.contains<uint32_t>());
+   vector<producer_authority>                main_schedule;
+   flat_map<name, block_signing_authority>   backup_schedule;
+   get_producer_schedule(elected_producers, 21, 3, main_schedule, backup_schedule);
+
+   auto active_schedule = hbs->active_schedule;
+
+   BOOST_REQUIRE_EQUAL( hbs->header.producer, N(amax) );
+   BOOST_REQUIRE_EQUAL( active_schedule.version, 1 );
+   wdump((active_schedule.producers));
+   wdump((main_schedule));
+   BOOST_REQUIRE( active_schedule.producers == main_schedule);
+
+   BOOST_REQUIRE( hbs->active_backup_schedule.schedule && !hbs->active_backup_schedule.pre_schedule );
+   BOOST_REQUIRE( hbs->active_backup_schedule.schedule == hbs->active_backup_schedule.get_schedule() );
+   auto active_backup_schedule = *hbs->active_backup_schedule.schedule;
+
+   BOOST_REQUIRE_EQUAL( active_backup_schedule.version, 1 );
+   BOOST_REQUIRE( active_backup_schedule.producers == backup_schedule);
+
+   produce_blocks(1);
+   hbs = control->head_block_state();
+   BOOST_REQUIRE( !hbs->active_backup_schedule.schedule && hbs->active_backup_schedule.pre_schedule );
+   BOOST_REQUIRE_EQUAL( hbs->header.producer, calc_main_scheduled_producer(main_schedule, hbs->header.timestamp).producer_name );
 
    regproducer( elected_producers[24].name );
    produce_block();
