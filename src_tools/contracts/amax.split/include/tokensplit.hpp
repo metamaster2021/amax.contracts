@@ -19,7 +19,8 @@ public:
 
     tokensplit(eosio::name receiver, eosio::name code, datastream<const char*> ds):
         contract(receiver, code, ds),
-        _global(get_self(), get_self().value)
+        _global(get_self(), get_self().value),
+        _db(_self)
     {
         _gstate = _global.exists() ? _global.get() : global_t{};
     }
@@ -31,9 +32,12 @@ public:
 public:
     ACTION init();
 
-   [[eosio::on_notify("*::transfer")]]
-   void ontransfer(const name& from, const name& to, const asset& quant, const string& memo);
+    ACTION addplan(const name& plan_sender_contract, const symbol& token_symbol, const bool& split_by_rate);
+    ACTION setplan(const name& plan_sender_contract, const uint64_t& plan_id, const vector<split_unit_s>& conf);
+    ACTION delplan(const name& plan_sender_contract, const uint64_t& plan_id);
 
+    [[eosio::on_notify("*::transfer")]]
+    void ontransfer(const name& from, const name& to, const asset& quant, const string& memo);
 
 }; //contract split
 

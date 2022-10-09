@@ -37,19 +37,21 @@ struct xchain_conf_s {
 
 NTBL("global") global_t {
     eosio::name admin = "armoniaadmin"_n;
+    uint64_t    last_plan_id; 
 
-    EOSLIB_SERIALIZE( global_t, (admin))
+    EOSLIB_SERIALIZE( global_t, (admin)(last_plan_id) )
 };
 typedef eosio::singleton< "global"_n, global_t > global_singleton;
 
 struct split_unit_s {
     eosio::name token_receiver;
-    uint64_t token_split_amount; //rate or amount
+    uint64_t token_split_amount; //rate or amount, amount must contain precision
 };
 
 //scope: sender account (usually a smart contract)
 TBL split_plan_t {
     uint64_t                    id;        //PK
+    symbol                      token_symbol;
     bool                        split_by_rate   = false;  //rate boost by 10000
     std::vector<split_unit_s>   split_conf;     //receiver -> rate_or_amount
 

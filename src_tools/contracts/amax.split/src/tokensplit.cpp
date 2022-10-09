@@ -29,6 +29,40 @@ void tokensplit::init() {
     // _global.remove();
 }
 
+void tokensplit::addplan(const name& plan_sender_contract, const symbol& token_symbol, const bool& split_by_rate) {
+    require_auth( _gstate.admin );
+
+    auto plan = split_plan_t( ++_gstate.last_plan_id );
+    CHECK( !_db.get( plan_sender_contract.value, plan ), "plan already exists!" )
+
+    plan.token_symbol = token_symbol;
+    plan.split_by_rate = split_by_rate;
+
+    _db.set( plan_sender_contract.value, plan );
+
+}
+
+void tokensplit::setplan(const name& plan_sender_contract, const uint64_t& plan_id, const vector<split_unit_s>& conf) {
+    require_auth( _gstate.admin );
+
+    auto plan = split_plan_t( plan_id );
+    CHECK( !_db.get( plan_sender_contract.value, plan ), "plan already exists!" )
+
+    plan.split_conf = conf;
+
+    _db.set( plan_sender_contract.value, plan );
+
+}
+
+void tokensplit::delplan(const name& plan_sender_contract, const uint64_t& plan_id) {
+    require_auth( _gstate.admin );
+
+    auto plan = split_plan_t( plan_id );
+    CHECK( !_db.get( plan_sender_contract.value, plan ), "plan already exists!" )
+    _db.del( plan_sender_contract.value, plan );
+
+}
+
 /**
  * @brief send nasset tokens into nftone marketplace
  *
@@ -41,7 +75,7 @@ void tokensplit::init() {
 void tokensplit::ontransfer(const name& from, const name& to, const asset& quant, const string& memo) {
     if(_self == from || to != _self) return;
 
-    check(quant.amount > 0, "must transfer positive quantity: " + quant.to_string());
+    CHECK( quant.amount > 0, "must transfer positive quantity: " + quant.to_string() )
 
     auto token_bank = get_first_receiver();
 
@@ -51,14 +85,16 @@ void tokensplit::ontransfer(const name& from, const name& to, const asset& quant
     
     auto split_plan = split_plan_t( plan_id );
     CHECK( _db.get( from.value, split_plan ), "split plan not found for: " + to_string( plan_id ) + "@" + from.to_string() )
+    CHECK( split_plan.token_symbol == quant.symbol, "incoming symbol mismatches with split plan symbol" )
+    auto split_size = split_plan.split_conf.size();
+    CHECK( split_size >= 1, "split conf size must be at least 1" )
 
     auto current_quant = quant;
-    auto i = 0;
-    for( ; i < split_plan.split_conf.size() - 1; i++ ) {
+    for( size_t i = 1; i < split_size; i++ ) {
         auto to = split_plan.split_conf[i].token_receiver;
         auto amount = split_plan.split_conf[i].token_split_amount;
         auto tokens = asset( 0, quant.symbol );
-        tokens.amount = ( split_plan.split_by_rate ) ? mul( quant.amount, amount, PCT_BOOST ) : amount * get_precision( quant );
+        tokens.amount = ( split_plan.split_by_rate ) ? mul( quant.amount, amount, PCT_BOOST ) : mul( amount, get_precision(quant.symbol), PCT_BOOST );
 
         if (tokens.amount > 0) {
             TRANSFER( token_bank, to, tokens, "" )
@@ -69,7 +105,7 @@ void tokensplit::ontransfer(const name& from, const name& to, const asset& quant
             break;
     }
 
-    auto last_to = split_plan.split_conf[i].token_receiver;
+    auto last_to = split_plan.split_conf[0].token_receiver;
     if (current_quant.amount > 0)
         TRANSFER( token_bank, last_to, current_quant, "" )
 
