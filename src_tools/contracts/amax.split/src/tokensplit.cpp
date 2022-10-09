@@ -38,7 +38,7 @@ void tokensplit::addplan(const name& plan_sender_contract, const symbol& token_s
     plan.token_symbol = token_symbol;
     plan.split_by_rate = split_by_rate;
 
-    _db.set( plan_sender_contract.value, plan );
+    _db.set( plan_sender_contract.value, plan, false );
 
 }
 
