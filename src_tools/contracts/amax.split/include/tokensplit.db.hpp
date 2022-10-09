@@ -62,7 +62,7 @@ TBL split_plan_t {
 
     typedef multi_index<"splitplans"_n, split_plan_t > tbl_t;
 
-    EOSLIB_SERIALIZE( split_plan_t, (id)(split_by_rate)(split_conf) )
+    EOSLIB_SERIALIZE( split_plan_t, (id)(token_symbol)(split_by_rate)(split_conf) )
 };
 
 } //namespace amax
