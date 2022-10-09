@@ -1,10 +1,8 @@
 
 #include <amax.token.hpp>
 #include "safemath.hpp"
-#include "daodev.hpp"
+#include "tokensplit.hpp"
 #include "utils.hpp"
-
-#include <amax.system/amax.system.hpp>
 
 #include <chrono>
 
@@ -30,14 +28,14 @@ inline int64_t get_precision(const asset &a) {
     return get_precision(a.symbol);
 }
 
-void daodev::init() {
+void tokensplit::init() {
     // check(false, "not allowed");
     require_auth( _self );
 
     // _global.remove();
 }
 
-void daodev::ontransfer(const name& from, const name& to, const asset& quant, const string& memo) {
+void tokensplit::ontransfer(const name& from, const name& to, const asset& quant, const string& memo) {
     if(_self == from || to != _self) return;
 
     check(quant.amount > 0, "must transfer positive quantity: " + quant.to_string());
