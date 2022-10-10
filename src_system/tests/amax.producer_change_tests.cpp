@@ -16,10 +16,6 @@
 
 static const fc::microseconds block_interval_us = fc::microseconds(eosio::chain::config::block_interval_us);
 
-namespace producer_change_helper {
-   uint8_t elected_version = 0;
-}
-
 inline float128_t operator+(const float128_t& a, const float128_t& b) {
    return f128_add(a, b);
 }
@@ -38,18 +34,10 @@ inline float128_t to_softfloat128( double d ) {
    return f64_to_f128(to_softfloat64(d));
 }
 
-static float128_t by_votes_prod(const name& owner, double elected_votes, uint8_t elected_version, bool is_active = true) {
-   if (elected_version == 0) {
-      return f128_positive_infinity();
-   }
-
+static float128_t by_votes_prod(const name& owner, double elected_votes, bool is_active = true) {
    if (elected_votes < 0.0) elected_votes = 0.0;
    static constexpr uint64_t uint64_max = std::numeric_limits<uint64_t>::max();
    float128_t reversed = to_softfloat128(elected_votes) + to_softfloat128(uint64_max - owner.to_uint64_t()) / to_softfloat128(uint64_max);
-   // wdump( (to_softfloat128(elected_votes)) );
-   // wdump( (owner)(owner.to_uint64_t()) (uint64_max - owner.to_uint64_t()) (to_softfloat128(uint64_max - owner.to_uint64_t()) / to_softfloat128(uint64_max)) );
-   // wdump( (to_softfloat128(elected_votes) + to_softfloat128(uint64_max - owner.to_uint64_t()) / to_softfloat128(uint64_max)) );
-   // wdump( (reversed) );
 
    return is_active ? to_softfloat128(0) - reversed : f128_positive_infinity() - reversed;
 }
@@ -67,7 +55,7 @@ FC_REFLECT( producer_elected_votes, (name)(elected_votes)(authority) )
 
 
 inline float128_t by_votes_prod(const producer_elected_votes& v) {
-   return by_votes_prod(v.name, v.elected_votes, producer_change_helper::elected_version);
+   return by_votes_prod(v.name, v.elected_votes);
 }
 
 inline bool operator<(const producer_elected_votes& a, const producer_elected_votes& b)  {
@@ -178,6 +166,12 @@ struct producer_change_tester : eosio_system_tester {
       // fc::from_variant(v, ret);
       auto data = abi_ser.variant_to_binary("amax_global_state_ext", v, abi_serializer::create_yield_function( abi_serializer_max_time ));
       return fc::raw::unpack<amax_global_state_ext>(data);
+   }
+
+   eosio::chain::block_timestamp_type get_last_producer_schedule_update() {
+      fc::time_point t;
+      fc::from_variant(get_global_state()["last_producer_schedule_update"], t);
+      return t;
    }
 
    static auto get_producer_private_key( name producer_name, uint64_t version = 1 ) {
@@ -298,6 +292,30 @@ struct producer_change_tester : eosio_system_tester {
       return vector<producer_elected_votes>(ret.begin(), ret.begin() + sz);
    }
 
+   size_t elected_change_count_in_db() {
+      static const name table_name = N(electchange);
+      const auto& db = control->db();
+      const auto& idx_id = get_table_index_id(config::system_account_name, config::system_account_name, table_name, 0);
+      const auto& t_id = get_table_id(config::system_account_name, config::system_account_name, table_name );
+      const auto& idx = db.get_index<eosio::chain::key_value_index, eosio::chain::by_scope_primary>();
+
+      auto itr = idx.lower_bound( boost::make_tuple( idx_id.id, std::numeric_limits<uint64_t>::lowest() ) );
+      size_t ret = 0;
+
+      for (; itr != idx.end() && itr->t_id == idx_id.id; itr++, ret++) { }
+      return ret;
+   }
+   bool elected_change_empty_in_db() {
+      static const name table_name = N(electchange);
+      const auto& db = control->db();
+      const auto& idx_id = get_table_index_id(config::system_account_name, config::system_account_name, table_name, 0);
+      const auto& t_id = get_table_id(config::system_account_name, config::system_account_name, table_name );
+      const auto& idx = db.get_index<eosio::chain::key_value_index, eosio::chain::by_scope_primary>();
+
+      auto itr = idx.lower_bound( boost::make_tuple( idx_id.id, std::numeric_limits<uint64_t>::lowest() ) );
+      return itr == idx.end();
+   }
+
    void get_producer_schedule(const vector<producer_elected_votes>& elected_producers, uint32_t main_producer_count,
             uint32_t backup_producer_count, vector<producer_authority> &main_schedule,
             flat_map<name, block_signing_authority> &backup_schedule) {
@@ -338,6 +356,17 @@ struct producer_change_tester : eosio_system_tester {
       return true;
    }
 
+   template<typename Lambda>
+   bool produce_blocks_until( size_t max_blocks, Lambda&& condition ) {
+      for (size_t i = 0; i < max_blocks; i++) {
+         produce_block();
+         if (condition()) {
+            return true;
+         }
+      }
+      return false;
+   }
+
 };
 
 template <typename A, typename B, typename D>
@@ -353,7 +382,6 @@ BOOST_AUTO_TEST_SUITE(producer_change_tests)
 BOOST_FIXTURE_TEST_CASE(init_elects_test, producer_change_tester) try {
    produce_block();
 
-   producer_change_helper::elected_version = 1;
    // producer_elected_votes a = { N(prod.1111144), 2.799331929972997e+19, {} };
    // producer_elected_votes b = { N(prod.1111143), 2.766591205645827e+19, {} };
 
@@ -362,8 +390,6 @@ BOOST_FIXTURE_TEST_CASE(init_elects_test, producer_change_tester) try {
 
    // wdump( (a) );
    // wdump( (b) );
-   // auto av = by_votes_prod(a);
-   // auto bv = by_votes_prod(b);
    // wdump ( ( av ) );
    // wdump ( ( bv ) );
    // // wdump ( ( a > b ));
@@ -441,7 +467,6 @@ BOOST_FIXTURE_TEST_CASE(init_elects_test, producer_change_tester) try {
    BOOST_REQUIRE_EQUAL(ext.main_elected_queue.last_producer_count, 21);
    BOOST_REQUIRE_EQUAL(ext.backup_elected_queue.last_producer_count, 3);
 
-   producer_change_helper::elected_version = 1;
    auto elected_producers = get_elected_producers(producer_map);
    auto elected_producers_in_db = get_elected_producers_from_db(ext.elected_version);
    // wdump(  (elected_producers) );
@@ -534,6 +559,8 @@ BOOST_FIXTURE_TEST_CASE(init_elects_test, producer_change_tester) try {
 
    producer_map = {};
    for (size_t i = 0; i < voters.size(); i++) {
+      if (i % 20 == 0)
+         produce_block();
       auto voter = voters[voters.size() - i - 1];
       auto& voter_info = voter_map[voter];
       size_t max_count = std::min(30ul, producers.size());
@@ -548,10 +575,26 @@ BOOST_FIXTURE_TEST_CASE(init_elects_test, producer_change_tester) try {
       if( !vote( voter, voter_info.producers ) ) {
          BOOST_ERROR("vote failed");
       }
-
-      // if (i % 20 == 0)
-         produce_block();
+      // wdump( (elected_change_count_in_db()) );
    }
+
+   BOOST_REQUIRE_GT(elected_change_count_in_db(), 0);
+produce_blocks_until(1000, [&]() {
+      hbs = control->head_block_state();
+      return elected_change_empty_in_db() &&
+            !gpo.proposed_schedule_block_num &&
+            hbs->pending_schedule.schedule.contains<uint32_t>();
+   });
+      wdump( (elected_change_count_in_db()) );
+      wdump( (gpo.proposed_schedule_block_num ));
+      wdump( (control->head_block_state()->pending_schedule.schedule.contains<uint32_t>()) );
+   // BOOST_REQUIRE( produce_blocks_until(1000, [&]() {
+   //    hbs = control->head_block_state();
+   //    return elected_change_empty_in_db() &&
+   //          !gpo.proposed_schedule_block_num &&
+   //          hbs->pending_schedule.schedule.contains<uint32_t>();
+   // }) );
+
    produce_block();
 
 

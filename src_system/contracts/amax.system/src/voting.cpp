@@ -219,7 +219,7 @@ namespace eosiosystem {
          "cannot initelects until the chain is activated (at least 5% of all tokens participate in voting)");
       check(max_backup_producer_count >= min_backup_producer_count,
          "max_backup_producer_count must >= " + to_string(min_backup_producer_count));
-      check(!_gstate.ext.has_value(), "elected producer has been initialized");
+      check(!_gstate.is_init_elects(), "elected producer has been initialized");
 
       auto block_time = current_block_time();
 
@@ -382,24 +382,6 @@ namespace eosiosystem {
    }
 
    void system_contract::update_elected_producers( const block_timestamp& block_time ) {
-      _gstate.last_producer_schedule_update = block_time;
-
-      static const uint32_t max_flush_elected_rows = 10;
-      static const uint32_t min_flush_elected_changes = 300;
-
-      if (_gstate.ext.has_value()) {
-         auto &ext = _gstate.ext.value();
-         proposed_producer_changes changes;
-         auto itr = _elected_changes.rbegin();
-         for (auto itr = _elected_changes.begin(); itr != _elected_changes.end(); ++itr) {
-            producer_change_helper::merge(itr->changes, changes);
-            if (changes.main_changes.changes.size() + changes.backup_changes.changes.size() >= min_flush_elected_changes ) {
-               break;
-            }
-         }
-         eosio::set_proposed_producers(changes);
-         return;
-      }
 
       auto idx = _producers.get_index<"prototalvote"_n>();
 
@@ -435,6 +417,34 @@ namespace eosiosystem {
       if( set_proposed_producers( producers ) >= 0 ) {
          _gstate.last_producer_schedule_size = static_cast<decltype(_gstate.last_producer_schedule_size)>( top_producers.size() );
       }
+   }
+
+   void system_contract::update_elected_producers( const block_timestamp& block_time ) {
+
+      static const uint32_t max_flush_elected_rows = 10;
+      static const uint32_t min_flush_elected_changes = 300;
+      static const uint32_t max_flush_elected_changes = 1000;
+
+      proposed_producer_changes changes;
+      // use empty changes to check that the native proposed producers is in a settable state
+      if (eosio::set_proposed_producers(changes) < 0) {
+         return;
+      }
+
+      auto &ext = _gstate.ext.value();
+      uint32_t rows = 0;
+      for (auto itr = _elected_changes.begin(); rows < max_flush_elected_rows && itr != _elected_changes.end(); ++rows, ++itr) {
+         producer_change_helper::merge(itr->changes, changes);
+         if (changes.main_changes.changes.size() + changes.backup_changes.changes.size() >= min_flush_elected_changes ) {
+            break;
+         }
+      }
+      if (eosio::set_proposed_producers(changes) > 0) {
+         for (auto itr = _elected_changes.begin(), size_t i = 0; i < rows && itr != _elected_changes.end(); ++i) {
+            itr = _elected_changes.erase(itr);
+         }
+
+      };
    }
 
    double stake2vote( int64_t staked ) {

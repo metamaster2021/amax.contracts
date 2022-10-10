@@ -57,11 +57,8 @@ namespace eosio {
          (char*)packed_changes.data(), packed_changes.size());
    }
 
-   inline std::optional<uint64_t> set_proposed_producers( const proposed_producer_changes& changes ) {
-      int64_t ret = set_proposed_producers_ex(changes);
-      if (ret >= 0)
-        return static_cast<uint64_t>(ret);
-      return {};
+   inline int64_t set_proposed_producers( const proposed_producer_changes& changes ) {
+      return set_proposed_producers_ex(changes);
    }
 }
 
