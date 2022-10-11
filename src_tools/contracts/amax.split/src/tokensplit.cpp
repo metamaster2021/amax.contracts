@@ -58,7 +58,7 @@ void tokensplit::delplan(const name& plan_sender_contract, const uint64_t& plan_
     require_auth( _gstate.admin );
 
     auto plan = split_plan_t( plan_id );
-    CHECK( !_db.get( plan_sender_contract.value, plan ), "plan already exists!" )
+    CHECK( _db.get( plan_sender_contract.value, plan ), "plan not found!" )
     _db.del( plan_sender_contract.value, plan );
 
 }
