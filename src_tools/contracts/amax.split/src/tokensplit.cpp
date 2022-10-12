@@ -69,7 +69,9 @@ void tokensplit::delplan(const name& plan_sender_contract, const uint64_t& plan_
  * @param from
  * @param to
  * @param quantity
- * @param memo: plan:$plan_id
+ * @param memo: plan:$plan_id:$boost
+ *   - plan_id: split plan ID
+ *   - boost: boost for absolute split quantity 
  *
  */
 void tokensplit::ontransfer(const name& from, const name& to, const asset& quant, const string& memo) {
@@ -80,8 +82,9 @@ void tokensplit::ontransfer(const name& from, const name& to, const asset& quant
     auto token_bank = get_first_receiver();
 
     vector<string_view> memo_params = split(memo, ":");
-    CHECK( memo_params.size() == 2 && memo_params[0] == "plan", "memo format err" )
+    CHECK( memo_params.size() == 3 && memo_params[0] == "plan", "memo format err" )
     auto plan_id = to_uint64(memo_params[1], "split plan");
+    auto boost = to_uint64(memo_params[2], "split boost");
     
     auto split_plan = split_plan_t( plan_id );
     CHECK( _db.get( from.value, split_plan ), "split plan not found for: " + to_string( plan_id ) + "@" + from.to_string() )
@@ -94,7 +97,7 @@ void tokensplit::ontransfer(const name& from, const name& to, const asset& quant
         auto to = split_plan.split_conf[i].token_receiver;
         auto amount = split_plan.split_conf[i].token_split_amount;
         auto tokens = asset( 0, quant.symbol );
-        tokens.amount = ( split_plan.split_by_rate ) ? mul( quant.amount, amount, PCT_BOOST ) : mul( amount, get_precision(quant.symbol), PCT_BOOST );
+        tokens.amount = ( split_plan.split_by_rate ) ? mul( quant.amount, amount, PCT_BOOST ) : mul( amount * boost, get_precision(quant.symbol), PCT_BOOST );
 
         if (tokens.amount > 0) {
             TRANSFER( token_bank, to, tokens, "" )
