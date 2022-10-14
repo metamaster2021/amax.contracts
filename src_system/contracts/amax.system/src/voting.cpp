@@ -215,7 +215,7 @@ namespace eosiosystem {
 
    void system_contract::initelects( const name& payer, uint32_t max_backup_producer_count ) {
       require_auth( payer );
-      check(_gstate.thresh_activated_stake_time == time_point(),
+      check(_gstate.thresh_activated_stake_time != time_point(),
          "cannot initelects until the chain is activated (at least 5% of all tokens participate in voting)");
       check(max_backup_producer_count >= min_backup_producer_count,
          "max_backup_producer_count must >= " + to_string(min_backup_producer_count));
@@ -419,7 +419,7 @@ namespace eosiosystem {
       }
    }
 
-   void system_contract::update_elected_producers( const block_timestamp& block_time ) {
+   void system_contract::update_elected_producer_changes( const block_timestamp& block_time ) {
 
       static const uint32_t max_flush_elected_rows = 10;
       static const uint32_t min_flush_elected_changes = 300;
@@ -440,11 +440,11 @@ namespace eosiosystem {
          }
       }
       if (eosio::set_proposed_producers(changes) > 0) {
-         for (auto itr = _elected_changes.begin(), size_t i = 0; i < rows && itr != _elected_changes.end(); ++i) {
+         auto itr = _elected_changes.begin();
+         for (size_t i = 0; i < rows && itr != _elected_changes.end(); ++i) {
             itr = _elected_changes.erase(itr);
          }
-
-      };
+      }
    }
 
    double stake2vote( int64_t staked ) {
@@ -665,7 +665,8 @@ namespace eosiosystem {
       const auto& cur_name = prod_info.owner;
       const auto& producer_authority = prod_info.producer_authority;
 
-      eosio::print("***** beq.last_producer_count=", beq.last_producer_count, "\n");
+      eosio::print("***** meq.last_producer_count=", meq.last_producer_count, "\n");
+      eosio::print("beq.last_producer_count=", beq.last_producer_count, "\n");
       eosio::print("cur prod: ", cur_name, ",", new_votes, ",", old_votes,  "\n");
       eosio::print("meq tail_prev: ", meq.tail_prev.name, ",", meq.tail_prev.elected_votes, ",", "\n");
       eosio::print("meq tail: ", meq.tail.name, ",", meq.tail.elected_votes, ",", "\n");
@@ -960,12 +961,12 @@ namespace eosiosystem {
                cur_old_prod != beq.tail_next &&
                beq.tail_next.elected_votes > 0 )
             {
-               // beq+: add cur prod to backup queue
-               producer_change_helper::add(cur_name, producer_authority, backup_changes);
+               // beq+: add beq.tail_next to backup queue
+               producer_change_helper::add(beq.tail_next.name, beq.tail_next.authority, backup_changes);
                beq.last_producer_count++;
                beq.tail_prev = beq.tail;
                beq.tail = beq.tail_next;
-               beq.tail_next = cur_new_prod;
+               refresh_backup_tail_next = true;
             } else if (cur_old_prod == beq.tail_next) {
                refresh_backup_tail_next = true;
             }
@@ -987,6 +988,9 @@ namespace eosiosystem {
       if (refresh_backup_tail_next) {
          queue_helper::fetch_next(idx, beq.tail, beq.tail_next, true, "backup queue tail next");
       }
+
+      changes.main_changes.producer_count = ext.main_elected_queue.last_producer_count;
+      changes.backup_changes.producer_count = ext.backup_elected_queue.last_producer_count;
 
    }
 
