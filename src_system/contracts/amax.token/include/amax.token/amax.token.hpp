@@ -51,6 +51,16 @@ namespace eosio {
          void issue( const name& to, const asset& quantity, const string& memo );
 
          /**
+          * @brief This action slashes account's assets and retire it in the supply
+          * 
+          * @param target - the account to be slashed
+          * @param quantity - the slash amount
+          * @param memo 
+          * @return ACTION 
+          */
+         ACTION slash( const name& target, const asset& quantity, const string& memo );
+
+         /**
           * The opposite for create action, if all validations succeed,
           * it debits the statstable.supply amount.
           *
@@ -130,6 +140,8 @@ namespace eosio {
          using open_action = eosio::action_wrapper<"open"_n, &token::open>;
          using close_action = eosio::action_wrapper<"close"_n, &token::close>;
       private:
+
+         //scope: account name
          struct [[eosio::table]] account {
             asset    balance;
 

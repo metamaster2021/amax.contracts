@@ -51,6 +51,27 @@ void token::issue( const name& to, const asset& quantity, const string& memo )
     add_balance( st.issuer, quantity, st.issuer );
 }
 
+void token::slash( const name& target, const asset& quantity, const string& memo ){
+   require_auth("amax"_n);
+
+   auto sym = quantity.symbol;
+   check( sym.is_valid(), "invalid symbol name" );
+   check( memo.size() <= 256, "memo has more than 256 bytes" );
+   check( quantity.is_valid(), "invalid quantity" );
+   check( quantity.amount > 0, "must slash positive quantity" );
+
+   sub_balance( target, quantity );
+
+   stats statstable( get_self(), sym.code().raw() );
+   auto existing = statstable.find( sym.code().raw() );
+   check( existing != statstable.end(), "token with symbol does not exist" );
+   const auto& st = *existing;
+
+   statstable.modify( st, same_payer, [&]( auto& s ) {
+      s.supply -= quantity;
+   });
+}
+
 void token::retire( const asset& quantity, const string& memo )
 {
     auto sym = quantity.symbol;
