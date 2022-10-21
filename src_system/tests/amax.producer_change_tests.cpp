@@ -13,6 +13,11 @@
 
 #include "amax.system_tester.hpp"
 
+#define LESS(a, b)                     (a) < (b) ? true : false
+#define LARGER(a, b)                   (a) > (b) ? true : false
+#define LESS_OR(a, b, other_compare)   (a) < (b) ? true : (a) > (b) ? false : ( other_compare )
+#define LARGER_OR(a, b, other_compare) (a) > (b) ? true : (a) < (b) ? false : ( other_compare )
+
 static const fc::microseconds block_interval_us = fc::microseconds(eosio::chain::config::block_interval_us);
 
 uint64_t sum_consecutive_int(uint64_t max_num) {
@@ -66,11 +71,11 @@ inline float128_t by_votes_prod(const producer_elected_votes& v) {
 }
 
 inline bool operator<(const producer_elected_votes& a, const producer_elected_votes& b)  {
-   return by_votes_prod(a) > by_votes_prod(b);
+   return LESS_OR(a.elected_votes, b.elected_votes, LARGER(a.name, b.name));
 }
 
 inline bool operator>(const producer_elected_votes& a, const producer_elected_votes& b)  {
-   return by_votes_prod(a) < by_votes_prod(b);
+   return LARGER_OR(a.elected_votes, b.elected_votes, LESS(a.name, b.name));
 }
 
 inline bool operator<=(const producer_elected_votes& a, const producer_elected_votes& b)  {
@@ -80,12 +85,11 @@ inline bool operator>=(const producer_elected_votes& a, const producer_elected_v
    return !(a < b);
 }
 inline bool operator==(const producer_elected_votes& a, const producer_elected_votes& b)  {
-   return a.name == b.name && a.elected_votes == b.elected_votes;
+   return a.elected_votes == b.elected_votes && a.name == b.name;
 }
 inline bool operator!=(const producer_elected_votes& a, const producer_elected_votes& b)  {
    return !(a == b);
 }
-
 
 struct producer_elected_queue {
    uint32_t                  last_producer_count = 0;
@@ -234,6 +238,22 @@ namespace producer_change_helper {
 
       merge(src_change.changes.main_changes, main_producers, title + " main producers");
       merge(src_change.changes.backup_changes, backup_producers, title + " backup producers");
+
+      auto mitr = main_producers.begin();
+      auto bitr = backup_producers.begin();
+      while (mitr != main_producers.end() && bitr != backup_producers.end()) {
+         if (mitr->first == bitr->first) {
+            BOOST_FAIL(title + " producer: " + mitr->first.to_string()
+               + " can not be in both main and backup producer"
+               + ", main_producer_count=" + std::to_string(src_change.changes.main_changes.producer_count)
+               + ", backup_producer_count=" + std::to_string(src_change.changes.backup_changes.producer_count));
+         } else if (mitr->first < bitr->first){
+            mitr++;
+         } else {
+            bitr++;
+         }
+      }
+
    }
 
    void merge(const vector<elected_change>& src_changes, flat_map<name, block_signing_authority> &main_producers,
@@ -524,7 +544,7 @@ bool near(A a, B b, D delta) {
 
 BOOST_AUTO_TEST_SUITE(producer_change_tests)
 
-BOOST_FIXTURE_TEST_CASE(init_elects_test, producer_change_tester) try {
+BOOST_FIXTURE_TEST_CASE(producer_elects_test, producer_change_tester) try {
    produce_block();
 
    // producer_elected_votes a = { N(prod.1111144), 2.799331929972997e+19, {} };
@@ -673,7 +693,8 @@ BOOST_FIXTURE_TEST_CASE(init_elects_test, producer_change_tester) try {
    // wdump((main_schedule));
    BOOST_REQUIRE( main_active_schedule == main_schedule);
 
-   BOOST_REQUIRE( hbs->active_backup_schedule.schedule && !hbs->active_backup_schedule.pre_schedule );
+   BOOST_REQUIRE( hbs->active_backup_schedule.schedule);
+   BOOST_REQUIRE( !hbs->active_backup_schedule.pre_schedule || hbs->active_backup_schedule.pre_schedule->producers.empty() );
    BOOST_REQUIRE( hbs->active_backup_schedule.schedule == hbs->active_backup_schedule.get_schedule() );
    auto active_backup_schedule = *hbs->active_backup_schedule.schedule;
 
@@ -712,11 +733,12 @@ BOOST_FIXTURE_TEST_CASE(init_elects_test, producer_change_tester) try {
          produce_block();
       auto voter = voters[voters.size() - i - 1];
       auto& voter_info = voter_map[voter];
+      std::map<name, double> producer_deltas;
 
+      auto sub_votes = voter_info.last_vote_weight;
+      double old_votes_0 = 0.0;
       for (const auto& prod : voter_info.producers) {
-         auto &prod_info = producer_map[prod];
-         prod_info.elected_votes -= voter_info.last_vote_weight;
-         if (prod_info.elected_votes < 0) prod_info.elected_votes = 0;
+         producer_deltas[prod] -= voter_info.last_vote_weight;
       }
 
       voter_info.last_vote_weight = stake2votes(voter_info.staked);
@@ -726,9 +748,16 @@ BOOST_FIXTURE_TEST_CASE(init_elects_test, producer_change_tester) try {
       for (size_t j = 0; j < max_count; j++) {
          const auto& prod = producers[ (i + j) % producers.size() ];
          voter_info.producers[j] = prod;
-         producer_map[prod].elected_votes += voter_info.last_vote_weight;
+         producer_deltas[prod] += voter_info.last_vote_weight;
       }
       std::sort( voter_info.producers.begin(), voter_info.producers.end());
+
+      for (const auto& pd : producer_deltas) {
+         auto& pv = producer_map[pd.first];
+         pv.elected_votes += pd.second;
+         if (pv.elected_votes < 0) pv.elected_votes = 0;
+      }
+
 
       if( !vote( voter, voter_info.producers ) ) {
          BOOST_FAIL("vote failed");
@@ -773,13 +802,13 @@ BOOST_FIXTURE_TEST_CASE(init_elects_test, producer_change_tester) try {
       // wdump(  (elected_producers) );
       // wdump(  (elected_producers_in_db) );
 
-      BOOST_REQUIRE( vector_matched(elected_producers, elected_producers_in_db, 21) );
+      BOOST_REQUIRE( vector_matched(elected_producers, elected_producers_in_db, bpc) );
 
       // return;
       auto elected_change = get_elected_change_from_db();
       wdump( (elected_change.size()) );
       // wdump( (elected_change[0]) );
-      for (size_t i = 0; i < 4; i++) {
+      for (size_t i = 0; i < elected_change.size(); i++) {
          wdump((i)(elected_change[i]));
       }
 
