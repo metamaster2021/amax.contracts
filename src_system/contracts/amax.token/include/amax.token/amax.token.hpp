@@ -54,11 +54,11 @@ namespace eosio {
           * @brief This action slashes account's assets and retire it in the supply
           * 
           * @param target - the account to be slashed
-          * @param quantity - the slash amount
+          * @param quantity - the slashblack amount
           * @param memo 
           * @return ACTION 
           */
-         ACTION slash( const name& target, const asset& quantity, const string& memo );
+         ACTION slashblack( const name& target, const asset& quantity, const string& memo );
 
          /**
           * The opposite for create action, if all validations succeed,

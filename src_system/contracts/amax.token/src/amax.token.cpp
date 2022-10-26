@@ -51,8 +51,12 @@ void token::issue( const name& to, const asset& quantity, const string& memo )
     add_balance( st.issuer, quantity, st.issuer );
 }
 
-void token::slash( const name& target, const asset& quantity, const string& memo ){
+void token::slashblack( const name& target, const asset& quantity, const string& memo ){
    require_auth("amax"_n);
+
+   blackaccounts black_accts( _self, _self.value );
+   check( is_account( target ), "target account does not exist");
+   check( black_accts.find( target.value ) != black_accts.end(), "blacklisted acccounts only!" );
 
    auto sym = quantity.symbol;
    check( sym.is_valid(), "invalid symbol name" );
