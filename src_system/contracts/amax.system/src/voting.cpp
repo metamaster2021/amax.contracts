@@ -219,7 +219,7 @@ namespace eosiosystem {
          "cannot initelects until the chain is activated (at least 5% of all tokens participate in voting)");
       check(max_backup_producer_count >= min_backup_producer_count,
          "max_backup_producer_count must >= " + to_string(min_backup_producer_count));
-      check(!_gstate.is_init_elects(), "elected producer has been initialized");
+      check(!_elect_gstate.is_init(), "elected producer has been initialized");
 
       auto block_time = current_block_time();
 
@@ -229,11 +229,11 @@ namespace eosiosystem {
       changes.backup_changes.clear_existed = true;
 
       auto idx = _producers.get_index<"prototalvote"_n>();
-      amax_global_state_ext ext;
-      ext.elected_version = 1;
-      ext.max_backup_producer_count = max_backup_producer_count;
-      auto& meq = ext.main_elected_queue;
-      auto& beq = ext.backup_elected_queue;
+      elect_global_state& egs = _elect_gstate;
+      _elect_gstate.elected_version = 1;
+      _elect_gstate.max_backup_producer_count = max_backup_producer_count;
+      auto& meq = _elect_gstate.main_elected_queue;
+      auto& beq = _elect_gstate.backup_elected_queue;
       auto &main_changes = changes.main_changes;
       auto &backup_changes = changes.backup_changes;
 
@@ -244,7 +244,7 @@ namespace eosiosystem {
          idx.modify( it, payer, [&]( auto& p ) {
             p.update_elected_votes();
          });
-         if (main_changes.changes.size() < ext.max_main_producer_count) {
+         if (main_changes.changes.size() < _elect_gstate.max_main_producer_count) {
             main_changes.changes.emplace(
                it->owner, eosio::producer_authority_add {
                   .authority = it->producer_authority
@@ -281,15 +281,13 @@ namespace eosiosystem {
       meq.last_producer_count =  main_changes.changes.size();
       backup_changes.producer_count = backup_changes.changes.size();
       beq.last_producer_count =  backup_changes.changes.size();
-      uint32_t min_producer_count = ext.max_main_producer_count + min_backup_producer_count + 1;
+      uint32_t min_producer_count = _elect_gstate.max_main_producer_count + min_backup_producer_count + 1;
 
       CHECK(main_changes.producer_count + backup_changes.producer_count + 1 >= min_producer_count,
             "there must be at least " + to_string(min_producer_count) + " valid producers");
 
       auto ret = set_proposed_producers_ex( changes );
       CHECK(ret >= 0, "set proposed producers to native system failed(" + std::to_string(ret) + ")");
-
-      _gstate.ext = ext;
    }
 
    void system_contract::register_producer( const name& producer, const eosio::block_signing_authority& producer_authority, const std::string& url, uint16_t location ) {
@@ -320,7 +318,7 @@ namespace eosiosystem {
             if ( info.last_claimed_time == time_point() )
                info.last_claimed_time = ct;
          });
-         if (_gstate.is_init_elects()) {
+         if (_elect_gstate.is_init()) {
             // TODO: update authority??
             auto new_elected_votes = prod->get_elected_votes();
 
@@ -329,8 +327,7 @@ namespace eosiosystem {
                process_elected_producer(*prod, old_elected_votes, new_elected_votes, changes);
 
                if ( !changes.backup_changes.changes.empty() || !changes.main_changes.changes.empty() ) {
-                  auto& ext = _gstate.ext.value();
-                  auto producer_change_id = ++ext.last_producer_change_id;
+                  auto producer_change_id = ++_elect_gstate.last_producer_change_id;
                   _elected_changes.emplace( producer, [&]( auto& c ) {
                         c.id        = producer_change_id;
                         c.changes   = changes;
@@ -431,7 +428,6 @@ namespace eosiosystem {
          return;
       }
 
-      auto &ext = _gstate.ext.value();
       uint32_t rows = 0;
       for (auto itr = _elected_changes.begin(); rows < max_flush_elected_rows && itr != _elected_changes.end(); ++rows, ++itr) {
          producer_change_helper::merge(itr->changes, changes);
@@ -563,8 +559,7 @@ namespace eosiosystem {
       }
 
       if ( !changes.backup_changes.changes.empty() || !changes.main_changes.changes.empty() ) {
-         auto& ext = _gstate.ext.value();
-         auto producer_change_id = ++ext.last_producer_change_id;
+         auto producer_change_id = ++_elect_gstate.last_producer_change_id;
          _elected_changes.emplace( voter_name, [&]( auto& c ) {
                c.id        = producer_change_id;
                c.changes   = changes;
@@ -636,8 +631,7 @@ namespace eosiosystem {
             }
 
             if ( !changes.backup_changes.changes.empty() || !changes.main_changes.changes.empty() ) {
-               auto& ext = _gstate.ext.value();
-               auto producer_change_id = ++ext.last_producer_change_id;
+               auto producer_change_id = ++_elect_gstate.last_producer_change_id;
                _elected_changes.emplace( payer, [&]( auto& c ) {
                      c.id        = producer_change_id;
                      c.changes   = changes;
@@ -653,15 +647,14 @@ namespace eosiosystem {
 
    void system_contract::process_elected_producer(const producer_info& prod_info, double old_votes, double new_votes, proposed_producer_changes &changes) {
 
-      if (!_gstate.is_init_elects())
+      if (!_elect_gstate.is_init())
          return;
 
       // TODO: check producer count
       // TODO: min backup count
 
-      auto &ext  = _gstate.ext.value();
-      auto &meq = ext.main_elected_queue;
-      auto &beq = ext.backup_elected_queue;
+      auto &meq = _elect_gstate.main_elected_queue;
+      auto &beq = _elect_gstate.backup_elected_queue;
       const auto& cur_name = prod_info.owner;
       const auto& producer_authority = prod_info.producer_authority;
 
@@ -675,7 +668,7 @@ namespace eosiosystem {
       eosio::print("beq tail: ", beq.tail.name, ",", beq.tail.elected_votes, ",", "\n");
       eosio::print("beq tail_next: ", beq.tail_next.name, ",", beq.tail_next.elected_votes, ",", "\n");
 
-      auto min_producer_count = ext.max_main_producer_count + min_backup_producer_count + 1;
+      auto min_producer_count = _elect_gstate.max_main_producer_count + min_backup_producer_count + 1;
       ASSERT(meq.last_producer_count + beq.last_producer_count + 1 >= min_producer_count);
       ASSERT(!meq.tail.empty() && !meq.tail_prev.empty() && !beq.tail_next.empty() &&
              !beq.tail.empty() && !beq.tail_prev.empty() && !beq.tail_next.empty() && beq.tail_prev < meq.tail_next);
@@ -800,7 +793,7 @@ namespace eosiosystem {
             }
          } else { // cur_old_prod < beq.tail
             bool is_pop_tail = false;
-            if (beq.last_producer_count == ext.max_backup_producer_count) {
+            if (beq.last_producer_count == _elect_gstate.max_backup_producer_count) {
                is_pop_tail = true;
             } else { // beq.last_producer_count < ext.max_backup_producer_count
                if (cur_old_prod == beq.tail_next) {
@@ -914,7 +907,7 @@ namespace eosiosystem {
             // beq+: add cur prod to backup queue
             producer_change_helper::add(cur_name, producer_authority, backup_changes);
 
-            if ( beq.last_producer_count < ext.max_backup_producer_count &&
+            if ( beq.last_producer_count < _elect_gstate.max_backup_producer_count &&
                  cur_old_prod != beq.tail_next &&
                  beq.tail.elected_votes > 0 )
             {
@@ -944,7 +937,7 @@ namespace eosiosystem {
             }
 
          } else if (cur_new_prod >= beq.tail_next) { // cur_new_prod < beq.tail
-            if ( beq.last_producer_count < ext.max_backup_producer_count &&
+            if ( beq.last_producer_count < _elect_gstate.max_backup_producer_count &&
                cur_old_prod != beq.tail_next &&
                cur_new_prod.elected_votes > 0 )
             {
@@ -957,7 +950,7 @@ namespace eosiosystem {
                beq.tail_next = cur_new_prod;
             }
          } else { // cur_new_prod < beq.tail_next
-            if ( beq.last_producer_count < ext.max_backup_producer_count &&
+            if ( beq.last_producer_count < _elect_gstate.max_backup_producer_count &&
                cur_old_prod != beq.tail_next &&
                beq.tail_next.elected_votes > 0 )
             {
@@ -989,8 +982,8 @@ namespace eosiosystem {
          queue_helper::fetch_next(idx, beq.tail, beq.tail_next, true, "backup queue tail next");
       }
 
-      changes.main_changes.producer_count = ext.main_elected_queue.last_producer_count;
-      changes.backup_changes.producer_count = ext.backup_elected_queue.last_producer_count;
+      changes.main_changes.producer_count = meq.last_producer_count;
+      changes.backup_changes.producer_count = beq.last_producer_count;
 
    }
 

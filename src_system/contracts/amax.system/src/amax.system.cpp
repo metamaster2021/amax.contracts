@@ -16,6 +16,7 @@ namespace eosiosystem {
     _voters(get_self(), get_self().value),
     _producers(get_self(), get_self().value),
     _global(get_self(), get_self().value),
+    _elect_global(get_self(), get_self().value),
     _rammarket(get_self(), get_self().value),
     _rexpool(get_self(), get_self().value),
     _rexretpool(get_self(), get_self().value),
@@ -26,6 +27,7 @@ namespace eosiosystem {
     _elected_changes(get_self(), get_self().value)
    {
       _gstate  = _global.exists() ? _global.get() : get_default_parameters();
+      _elect_gstate  = _elect_global.exists() ? _elect_global.get() : elect_global_state();
    }
 
    symbol system_contract::get_core_symbol(const name& self) {
@@ -49,6 +51,7 @@ namespace eosiosystem {
 
    system_contract::~system_contract() {
       _global.set( _gstate, get_self() );
+      _elect_global.set( _elect_gstate, get_self() );
    }
 
    void system_contract::setram( uint64_t max_ram_size ) {

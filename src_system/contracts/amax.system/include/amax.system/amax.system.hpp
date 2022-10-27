@@ -191,25 +191,6 @@ namespace eosiosystem {
       EOSLIB_SERIALIZE( producer_elected_votes, (name)(elected_votes)(authority) )
    };
 
-   struct producer_elected_queue {
-      uint32_t                  last_producer_count = 0;
-      producer_elected_votes    tail;
-      producer_elected_votes    tail_prev;
-      producer_elected_votes    tail_next;
-      EOSLIB_SERIALIZE( producer_elected_queue, (last_producer_count)(tail)(tail_prev)(tail_next) )
-   };
-
-   struct amax_global_state_ext {
-      uint8_t                    elected_version            = 0;
-      uint32_t                   max_main_producer_count    = 21;
-      uint32_t                   max_backup_producer_count  = 10000;
-      uint64_t                   last_producer_change_id    = 0;
-      producer_elected_queue     main_elected_queue;
-      producer_elected_queue     backup_elected_queue;
-      EOSLIB_SERIALIZE( amax_global_state_ext, (elected_version)(max_main_producer_count)(max_backup_producer_count)
-                                               (last_producer_change_id)(main_elected_queue)(backup_elected_queue))
-   };
-
    // Defines new global state parameters.
    struct [[eosio::table("global"), eosio::contract("amax.system")]] amax_global_state : eosio::blockchain_parameters {
       uint64_t free_ram()const { return max_ram_size - total_ram_bytes_reserved; }
@@ -232,9 +213,6 @@ namespace eosiosystem {
       asset             initial_inflation_per_block;  // initial inflation per block
       name              reward_dispatcher;            // block inflation reward dispatcher
       uint8_t           revision = 0; ///< used to track version updates in the future.
-      std::optional<amax_global_state_ext> ext;
-
-      bool is_init_elects() const  { return ext && ext->elected_version > 0; }
 
       // explicit serialization macro is not necessary, used here only to improve compilation time
       EOSLIB_SERIALIZE_DERIVED( amax_global_state, eosio::blockchain_parameters,
@@ -244,9 +222,45 @@ namespace eosiosystem {
                                 (last_producer_schedule_size)(total_producer_vote_weight)(last_name_close)
                                 (new_ram_per_block)(last_ram_increase)
                                 (inflation_start_time)(initial_inflation_per_block)(reward_dispatcher)
-                                (revision)(ext)
+                                (revision)
       )
    };
+   typedef eosio::singleton< "global"_n, amax_global_state >   global_state_singleton;
+
+   struct producer_elected_queue {
+      uint32_t                  last_producer_count = 0;
+      producer_elected_votes    tail;
+      producer_elected_votes    tail_prev;
+      producer_elected_votes    tail_next;
+      EOSLIB_SERIALIZE( producer_elected_queue, (last_producer_count)(tail)(tail_prev)(tail_next) )
+   };
+
+   struct amax_global_state_ext {
+      uint8_t                    elected_version            = 0;
+      uint32_t                   max_main_producer_count    = 21;
+      uint32_t                   max_backup_producer_count  = 10000;
+      uint64_t                   last_producer_change_id    = 0;
+      producer_elected_queue     main_elected_queue;
+      producer_elected_queue     backup_elected_queue;
+      EOSLIB_SERIALIZE( amax_global_state_ext, (elected_version)(max_main_producer_count)(max_backup_producer_count)
+                                               (last_producer_change_id)(main_elected_queue)(backup_elected_queue))
+   };
+
+   // Defines elect global state parameters.
+   struct [[eosio::table("electglobal"), eosio::contract("amax.system")]] elect_global_state {
+      uint8_t                    elected_version            = 0;
+      uint32_t                   max_main_producer_count    = 21;
+      uint32_t                   max_backup_producer_count  = 10000;
+      uint64_t                   last_producer_change_id    = 0;
+      producer_elected_queue     main_elected_queue;
+      producer_elected_queue     backup_elected_queue;
+      EOSLIB_SERIALIZE( elect_global_state, (elected_version)(max_main_producer_count)(max_backup_producer_count)
+                                            (last_producer_change_id)(main_elected_queue)(backup_elected_queue))
+
+      bool is_init() const  { return elected_version > 0; }
+   };
+
+   typedef eosio::singleton< "electglobal"_n, elect_global_state >   elect_global_state_singleton;
 
    inline eosio::block_signing_authority convert_to_block_signing_authority( const eosio::public_key& producer_key ) {
       return eosio::block_signing_authority_v0{ .threshold = 1, .keys = {{producer_key, 1}} };
@@ -361,8 +375,6 @@ namespace eosiosystem {
                                indexed_by<"prototalvote"_n, const_mem_fun<producer_info, double, &producer_info::by_votes>  >,
                                indexed_by<"totalvotepro"_n, const_mem_fun<producer_info, long double, &producer_info::by_votes_prod>  >
                              > producers_table;
-
-   typedef eosio::singleton< "global"_n, amax_global_state >   global_state_singleton;
 
    struct [[eosio::table, eosio::contract("amax.system")]] user_resources {
       name          owner;
@@ -710,18 +722,20 @@ namespace eosiosystem {
    class [[eosio::contract("amax.system")]] system_contract : public native {
 
       private:
-         voters_table             _voters;
-         producers_table          _producers;
-         global_state_singleton   _global;
-         amax_global_state       _gstate;
-         rammarket                _rammarket;
-         rex_pool_table           _rexpool;
-         rex_return_pool_table    _rexretpool;
-         rex_return_buckets_table _rexretbuckets;
-         rex_fund_table           _rexfunds;
-         rex_balance_table        _rexbalance;
-         rex_order_table          _rexorders;
-         elected_change_table     _elected_changes;
+         voters_table                  _voters;
+         producers_table               _producers;
+         global_state_singleton        _global;
+         amax_global_state             _gstate;
+         elect_global_state_singleton  _elect_global;
+         elect_global_state            _elect_gstate;
+         rammarket                     _rammarket;
+         rex_pool_table                _rexpool;
+         rex_return_pool_table         _rexretpool;
+         rex_return_buckets_table      _rexretbuckets;
+         rex_fund_table                _rexfunds;
+         rex_balance_table             _rexbalance;
+         rex_order_table               _rexorders;
+         elected_change_table          _elected_changes;
 
       public:
          static constexpr eosio::name active_permission{"active"_n};

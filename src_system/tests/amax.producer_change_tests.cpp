@@ -99,18 +99,18 @@ struct producer_elected_queue {
 };
 FC_REFLECT( producer_elected_queue, (last_producer_count)(tail)(tail_prev)(tail_next) )
 
-struct amax_global_state_ext {
+struct elect_global_state {
    uint8_t                    elected_version            = 0;
    uint32_t                   max_main_producer_count    = 21;
    uint32_t                   max_backup_producer_count  = 10000;
    uint64_t                   last_producer_change_id    = 0;
    producer_elected_queue     main_elected_queue;
    producer_elected_queue     backup_elected_queue;
+
+   bool is_init() const  { return elected_version > 0; }
 };
-FC_REFLECT( amax_global_state_ext, (elected_version)(max_main_producer_count)(max_backup_producer_count)(last_producer_change_id)
-                                   (main_elected_queue)(backup_elected_queue) )
-
-
+FC_REFLECT( elect_global_state, (elected_version)(max_main_producer_count)(max_backup_producer_count)
+                                (last_producer_change_id)(main_elected_queue)(backup_elected_queue) )
 
 struct amax_global_state: public eosio::chain::chain_config {
    uint64_t free_ram()const { return max_ram_size - total_ram_bytes_reserved; }
@@ -133,10 +133,6 @@ struct amax_global_state: public eosio::chain::chain_config {
    asset             initial_inflation_per_block;  // initial inflation per block
    name              reward_dispatcher;            // block inflation reward dispatcher
    uint8_t           revision = 0; ///< used to track version updates in the future.
-   fc::optional<amax_global_state_ext> ext;
-
-   bool is_init_elects() const  { return ext && ext->elected_version > 0; }
-
 };
 
 FC_REFLECT_DERIVED( amax_global_state, (eosio::chain::chain_config),
@@ -146,7 +142,7 @@ FC_REFLECT_DERIVED( amax_global_state, (eosio::chain::chain_config),
                   (last_producer_schedule_size)(total_producer_vote_weight)(last_name_close)
                   (new_ram_per_block)(last_ram_increase)
                   (inflation_start_time)(initial_inflation_per_block)(reward_dispatcher)
-                  (revision)(ext)
+                  (revision)
 )
 
 struct producer_info_ext {
@@ -313,17 +309,23 @@ struct producer_change_tester : eosio_system_tester {
       );
    }
 
-   amax_global_state get_global_state() {
-      vector<char> data = get_row_by_account( config::system_account_name, config::system_account_name, N(global), N(global) );
+   template<typename T>
+   T get_row_by_account(const name& code, const name& scope, const name& table, const account_name& act ) const {
+      vector<char> data = base_tester::get_row_by_account( code, scope, table, act );
       if (!data.empty()) {
-         return fc::raw::unpack<amax_global_state>(data);
+         return fc::raw::unpack<T>(data);
       }
-      return amax_global_state();
+      return T();
    }
 
-   amax_global_state_ext get_global_state_ext() {
-      auto gs = get_global_state();
-      return gs.ext ? *gs.ext : amax_global_state_ext{};
+   amax_global_state get_global_state() {
+      return get_row_by_account<amax_global_state>( config::system_account_name, config::system_account_name,
+         N(global), N(global) );
+   }
+
+   elect_global_state get_elect_global_state() {
+      return get_row_by_account<elect_global_state>( config::system_account_name, config::system_account_name,
+         N(electglobal), N(electglobal) );
    }
 
    static auto get_producer_private_key( name producer_name, uint64_t version = 1 ) {
@@ -547,24 +549,6 @@ BOOST_AUTO_TEST_SUITE(producer_change_tests)
 BOOST_FIXTURE_TEST_CASE(producer_elects_test, producer_change_tester) try {
    produce_block();
 
-   // producer_elected_votes a = { N(prod.1111144), 2.799331929972997e+19, {} };
-   // producer_elected_votes b = { N(prod.1111143), 2.766591205645827e+19, {} };
-
-   // producer_elected_votes a = { N(prod.111111x), 3.196586051809321e+19, {} };
-   // producer_elected_votes b = { N(prod.111112n), 3.196586051809321e+19, {} };
-
-   // wdump( (a) );
-   // wdump( (b) );
-   // wdump ( ( av ) );
-   // wdump ( ( bv ) );
-   // // wdump ( ( a > b ));
-   // // wdump ( ( a < b ));
-   // wdump ( ( av > bv ));
-   // wdump ( ( av < bv ));
-
-   // return;
-
-   // wdump( (producers) );
    produce_block();
    auto ram_asset = core_sym::from_string("10000.0000");
    for (size_t i = 0; i < producers.size(); i++) {
@@ -611,14 +595,15 @@ BOOST_FIXTURE_TEST_CASE(producer_elects_test, producer_change_tester) try {
    const auto& gpo = control->get_global_properties();
 
    auto gstate = get_global_state();
-   BOOST_REQUIRE( !gstate.ext );
+   auto elect_gstate = get_elect_global_state();
+   BOOST_REQUIRE_EQUAL( elect_gstate.elected_version, 0 );
 
    wdump( (gstate.thresh_activated_stake_time) );
    BOOST_REQUIRE( gstate.thresh_activated_stake_time == control->pending_block_time() );
 
    initelects(config::system_account_name, 43);
-   gstate = get_global_state();
-   BOOST_REQUIRE( gstate.ext );
+   elect_gstate = get_elect_global_state();
+   BOOST_REQUIRE_EQUAL( elect_gstate.elected_version, 1 );
    BOOST_REQUIRE(gpo.proposed_schedule_block_num);
    BOOST_REQUIRE_EQUAL(*gpo.proposed_schedule_block_num, control->head_block_num() + 1);
    BOOST_REQUIRE_EQUAL(gpo.proposed_schedule.version, 0);
@@ -629,31 +614,27 @@ BOOST_FIXTURE_TEST_CASE(producer_elects_test, producer_change_tester) try {
 
    produce_block();
 
-   // wdump( (get_global_state()) );
-   gstate = get_global_state();
-   BOOST_REQUIRE( gstate.ext );
-   auto gs_ext = *gstate.ext;
-
-   // wdump( (gs_ext) );
-   BOOST_REQUIRE_EQUAL(gs_ext.elected_version, 1);
-   BOOST_REQUIRE_EQUAL(gs_ext.max_main_producer_count, 21);
-   BOOST_REQUIRE_EQUAL(gs_ext.max_backup_producer_count, 43);
-   BOOST_REQUIRE_EQUAL(gs_ext.main_elected_queue.last_producer_count, 21);
-   BOOST_REQUIRE_EQUAL(gs_ext.backup_elected_queue.last_producer_count, 3);
+   elect_gstate = get_elect_global_state();
+   // wdump( (elect_gstate) );
+   BOOST_REQUIRE_EQUAL(elect_gstate.elected_version, 1);
+   BOOST_REQUIRE_EQUAL(elect_gstate.max_main_producer_count, 21);
+   BOOST_REQUIRE_EQUAL(elect_gstate.max_backup_producer_count, 43);
+   BOOST_REQUIRE_EQUAL(elect_gstate.main_elected_queue.last_producer_count, 21);
+   BOOST_REQUIRE_EQUAL(elect_gstate.backup_elected_queue.last_producer_count, 3);
 
    auto elected_producers = get_elected_producers(producer_map);
-   auto elected_producers_in_db = get_elected_producers_from_db(gs_ext.elected_version);
+   auto elected_producers_in_db = get_elected_producers_from_db(elect_gstate.elected_version);
    // wdump(  (elected_producers) );
    // wdump(  (elected_producers_in_db) );
    BOOST_REQUIRE( vector_matched(elected_producers, elected_producers_in_db, 21) );
 
-   // wdump( (gs_ext.main_elected_queue.tail_prev)(elected_producers[19]) );
-   BOOST_REQUIRE(gs_ext.main_elected_queue.tail_prev     == elected_producers[19]);
-   BOOST_REQUIRE(gs_ext.main_elected_queue.tail          == elected_producers[20]);
-   BOOST_REQUIRE(gs_ext.main_elected_queue.tail_next     == elected_producers[21]);
-   BOOST_REQUIRE(gs_ext.backup_elected_queue.tail_prev   == elected_producers[22]);
-   BOOST_REQUIRE(gs_ext.backup_elected_queue.tail        == elected_producers[23]);
-   BOOST_REQUIRE(gs_ext.backup_elected_queue.tail_next   == elected_producers[24]);
+   // wdump( (elect_gstate.main_elected_queue.tail_prev)(elected_producers[19]) );
+   BOOST_REQUIRE(elect_gstate.main_elected_queue.tail_prev     == elected_producers[19]);
+   BOOST_REQUIRE(elect_gstate.main_elected_queue.tail          == elected_producers[20]);
+   BOOST_REQUIRE(elect_gstate.main_elected_queue.tail_next     == elected_producers[21]);
+   BOOST_REQUIRE(elect_gstate.backup_elected_queue.tail_prev   == elected_producers[22]);
+   BOOST_REQUIRE(elect_gstate.backup_elected_queue.tail        == elected_producers[23]);
+   BOOST_REQUIRE(elect_gstate.backup_elected_queue.tail_next   == elected_producers[24]);
 
    produce_block();
    auto hbs = control->head_block_state();
@@ -708,25 +689,25 @@ BOOST_FIXTURE_TEST_CASE(producer_elects_test, producer_change_tester) try {
 
    regproducer( elected_producers[24].name );
    produce_block();
-   gs_ext = get_global_state_ext();
+   elect_gstate = get_elect_global_state();
 
-   // wdump( (gs_ext) );
-   BOOST_REQUIRE_EQUAL(gs_ext.backup_elected_queue.last_producer_count, 3);
-   BOOST_REQUIRE(gs_ext.backup_elected_queue.tail_prev   == elected_producers[22]);
-   BOOST_REQUIRE(gs_ext.backup_elected_queue.tail        == elected_producers[23]);
-   BOOST_REQUIRE(gs_ext.backup_elected_queue.tail_next   == elected_producers[24]);
+   // wdump( (elect_gstate) );
+   BOOST_REQUIRE_EQUAL(elect_gstate.backup_elected_queue.last_producer_count, 3);
+   BOOST_REQUIRE(elect_gstate.backup_elected_queue.tail_prev   == elected_producers[22]);
+   BOOST_REQUIRE(elect_gstate.backup_elected_queue.tail        == elected_producers[23]);
+   BOOST_REQUIRE(elect_gstate.backup_elected_queue.tail_next   == elected_producers[24]);
 
    regproducer( elected_producers[25].name );
    produce_block();
-   gs_ext = get_global_state_ext();
+   elect_gstate = get_elect_global_state();
 
-   // wdump( (gs_ext) );
-   BOOST_REQUIRE_EQUAL(gs_ext.backup_elected_queue.last_producer_count, 4);
-   BOOST_REQUIRE(gs_ext.main_elected_queue.tail_next     == elected_producers[21]);
-   BOOST_REQUIRE(gs_ext.backup_elected_queue.tail_prev   == elected_producers[23]);
-   // wdump( (gs_ext.backup_elected_queue.tail)(elected_producers[24]) );
-   BOOST_REQUIRE(gs_ext.backup_elected_queue.tail        == elected_producers[24]);
-   BOOST_REQUIRE(gs_ext.backup_elected_queue.tail_next   == elected_producers[25]);
+   // wdump( (elect_gstate) );
+   BOOST_REQUIRE_EQUAL(elect_gstate.backup_elected_queue.last_producer_count, 4);
+   BOOST_REQUIRE(elect_gstate.main_elected_queue.tail_next     == elected_producers[21]);
+   BOOST_REQUIRE(elect_gstate.backup_elected_queue.tail_prev   == elected_producers[23]);
+   // wdump( (elect_gstate.backup_elected_queue.tail)(elected_producers[24]) );
+   BOOST_REQUIRE(elect_gstate.backup_elected_queue.tail        == elected_producers[24]);
+   BOOST_REQUIRE(elect_gstate.backup_elected_queue.tail_next   == elected_producers[25]);
 
    for (size_t i = 0; i < voters.size(); i++) {
       if (i % 20 == 0)
@@ -768,10 +749,10 @@ BOOST_FIXTURE_TEST_CASE(producer_elects_test, producer_change_tester) try {
    {
       hbs = control->head_block_state();
       elected_producers = get_elected_producers(producer_map);
-      elected_producers_in_db = get_elected_producers_from_db(gs_ext.elected_version);
-      gs_ext = get_global_state_ext();
-      auto& meq = gs_ext.main_elected_queue;
-      auto& beq = gs_ext.backup_elected_queue;
+      elected_producers_in_db = get_elected_producers_from_db(elect_gstate.elected_version);
+      elect_gstate = get_elect_global_state();
+      auto& meq = elect_gstate.main_elected_queue;
+      auto& beq = elect_gstate.backup_elected_queue;
 
       // for (size_t i = 0; i < elected_producers_in_db.size(); i++)
       // {
@@ -785,19 +766,19 @@ BOOST_FIXTURE_TEST_CASE(producer_elects_test, producer_change_tester) try {
       //    wdump( (i) (elected_producers[i]));
       // }
 
-      // wdump((gs_ext));
+      // wdump((elect_gstate));
 
-      BOOST_REQUIRE_EQUAL(gs_ext.main_elected_queue.last_producer_count, 21);
-      BOOST_REQUIRE_GT(gs_ext.backup_elected_queue.last_producer_count, 3);
-      auto bpc = gs_ext.main_elected_queue.last_producer_count + gs_ext.backup_elected_queue.last_producer_count;
+      BOOST_REQUIRE_EQUAL(elect_gstate.main_elected_queue.last_producer_count, 21);
+      BOOST_REQUIRE_GT(elect_gstate.backup_elected_queue.last_producer_count, 3);
+      auto bpc = elect_gstate.main_elected_queue.last_producer_count + elect_gstate.backup_elected_queue.last_producer_count;
 
-      BOOST_REQUIRE(gs_ext.main_elected_queue.tail_prev     == elected_producers_in_db[19]);
-      BOOST_REQUIRE(gs_ext.main_elected_queue.tail          == elected_producers_in_db[20]);
-      BOOST_REQUIRE(gs_ext.main_elected_queue.tail_next     == elected_producers_in_db[21]);
+      BOOST_REQUIRE(elect_gstate.main_elected_queue.tail_prev     == elected_producers_in_db[19]);
+      BOOST_REQUIRE(elect_gstate.main_elected_queue.tail          == elected_producers_in_db[20]);
+      BOOST_REQUIRE(elect_gstate.main_elected_queue.tail_next     == elected_producers_in_db[21]);
 
-      BOOST_REQUIRE(gs_ext.backup_elected_queue.tail_prev   == elected_producers_in_db[bpc-2]);
-      BOOST_REQUIRE(gs_ext.backup_elected_queue.tail        == elected_producers_in_db[bpc-1]);
-      BOOST_REQUIRE(gs_ext.backup_elected_queue.tail_next   == elected_producers_in_db[bpc]);
+      BOOST_REQUIRE(elect_gstate.backup_elected_queue.tail_prev   == elected_producers_in_db[bpc-2]);
+      BOOST_REQUIRE(elect_gstate.backup_elected_queue.tail        == elected_producers_in_db[bpc-1]);
+      BOOST_REQUIRE(elect_gstate.backup_elected_queue.tail_next   == elected_producers_in_db[bpc]);
 
       // wdump(  (elected_producers) );
       // wdump(  (elected_producers_in_db) );
@@ -823,8 +804,8 @@ BOOST_FIXTURE_TEST_CASE(producer_elects_test, producer_change_tester) try {
       // wdump((backup_schedule));
 
 
-      get_producer_schedule(elected_producers, gs_ext.main_elected_queue.last_producer_count,
-         gs_ext.backup_elected_queue.last_producer_count, main_schedule, backup_schedule);
+      get_producer_schedule(elected_producers, elect_gstate.main_elected_queue.last_producer_count,
+         elect_gstate.backup_elected_queue.last_producer_count, main_schedule, backup_schedule);
 
       producer_change_helper::merge(elected_change, main_schedule_merged, backup_schedule_merged);
 

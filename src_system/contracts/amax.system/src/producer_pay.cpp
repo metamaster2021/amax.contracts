@@ -50,7 +50,7 @@ namespace eosiosystem {
 
       /// only update block producers once every minute
       if( timestamp.slot > _gstate.last_producer_schedule_update.slot + blocks_per_minute ) {
-         if (_gstate.is_init_elects()) {
+         if (_elect_gstate.is_init()) {
             update_elected_producer_changes( timestamp );
          } else {
             update_elected_producers( timestamp );
