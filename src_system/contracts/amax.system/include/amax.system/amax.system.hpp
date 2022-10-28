@@ -318,6 +318,14 @@ namespace eosiosystem {
          return ext ? (ext->elected_votes > 0 ? ext->elected_votes : 0) : 0;
       }
 
+      inline producer_elected_info get_elected_info() const {
+         return producer_elected_info{
+            .name = owner,
+            .elected_votes = get_elected_votes(),
+            .authority = producer_authority
+         };
+      }
+
       void update_elected_votes() {
          if (ext) {
             ext->elected_votes   = total_votes;
@@ -1524,7 +1532,8 @@ namespace eosiosystem {
             powerup_order_table& orders, uint32_t max_items, int64_t& net_delta_available,
             int64_t& cpu_delta_available);
 
-         void process_elected_producer(const producer_info& prod_info, double old_votes, double new_votes, proposed_producer_changes &changes);
+         void process_elected_producer(const producer_elected_info& prod_old,
+                           const producer_elected_info& prod_new, proposed_producer_changes &changes);
    };
 
 }
