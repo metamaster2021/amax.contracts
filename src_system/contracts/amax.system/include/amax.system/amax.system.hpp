@@ -152,7 +152,7 @@ namespace eosiosystem {
 
    typedef eosio::multi_index< "bidrefunds"_n, bid_refund > bid_refund_table;
 
-   struct producer_elected_votes {
+   struct producer_elected_info {
       eosio::name             name;
       double                  elected_votes = 0.0;
       eosio::block_signing_authority authority;
@@ -167,28 +167,28 @@ namespace eosiosystem {
          return !bool(name);
       }
 
-      inline friend bool operator<(const producer_elected_votes& a, const producer_elected_votes& b)  {
+      inline friend bool operator<(const producer_elected_info& a, const producer_elected_info& b)  {
          return LESS_OR(a.elected_votes, b.elected_votes, LARGER(a.name, b.name));
       }
 
-      inline friend bool operator>(const producer_elected_votes& a, const producer_elected_votes& b)  {
+      inline friend bool operator>(const producer_elected_info& a, const producer_elected_info& b)  {
          return LARGER_OR(a.elected_votes, b.elected_votes, LESS(a.name, b.name));
       }
 
-      inline friend bool operator<=(const producer_elected_votes& a, const producer_elected_votes& b)  {
+      inline friend bool operator<=(const producer_elected_info& a, const producer_elected_info& b)  {
           return !(a > b);
       }
-      inline friend bool operator>=(const producer_elected_votes& a, const producer_elected_votes& b)  {
+      inline friend bool operator>=(const producer_elected_info& a, const producer_elected_info& b)  {
          return !(a < b);
       }
-      inline friend bool operator==(const producer_elected_votes& a, const producer_elected_votes& b)  {
+      inline friend bool operator==(const producer_elected_info& a, const producer_elected_info& b)  {
          return a.elected_votes == b.elected_votes && a.name == b.name;
       }
-      inline friend bool operator!=(const producer_elected_votes& a, const producer_elected_votes& b)  {
+      inline friend bool operator!=(const producer_elected_info& a, const producer_elected_info& b)  {
          return !(a == b);
       }
 
-      EOSLIB_SERIALIZE( producer_elected_votes, (name)(elected_votes)(authority) )
+      EOSLIB_SERIALIZE( producer_elected_info, (name)(elected_votes)(authority) )
    };
 
    // Defines new global state parameters.
@@ -229,9 +229,9 @@ namespace eosiosystem {
 
    struct producer_elected_queue {
       uint32_t                  last_producer_count = 0;
-      producer_elected_votes    tail;
-      producer_elected_votes    tail_prev;
-      producer_elected_votes    tail_next;
+      producer_elected_info     tail;
+      producer_elected_info     tail_prev;
+      producer_elected_info     tail_next;
       EOSLIB_SERIALIZE( producer_elected_queue, (last_producer_count)(tail)(tail_prev)(tail_next) )
    };
 

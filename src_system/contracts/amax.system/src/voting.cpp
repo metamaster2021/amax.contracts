@@ -32,13 +32,6 @@ namespace eosiosystem {
    using std::to_string;
    using std::string;
 
-   // inline bool operator<(const producer_elected_votes& a, const producer_elected_votes& b);
-   // inline bool operator>(const producer_elected_votes& a, const producer_elected_votes& b);
-   // inline bool operator<=(const producer_elected_votes& a, const producer_elected_votes& b);
-   // inline bool operator>=(const producer_elected_votes& a, const producer_elected_votes& b);
-   // inline bool operator==(const producer_elected_votes& a, const producer_elected_votes& b);
-   // inline bool operator!=(const producer_elected_votes& a, const producer_elected_votes& b);
-
    static constexpr uint32_t min_backup_producer_count = 3;
    namespace producer_change_helper {
 
@@ -128,7 +121,7 @@ namespace eosiosystem {
    namespace queue_helper {
 
       template<typename index_t>
-      auto find_pos(index_t &idx, const producer_elected_votes &prod, const char* title) {
+      auto find_pos(index_t &idx, const producer_elected_info &prod, const char* title) {
          auto itr = idx.lower_bound(producer_info::by_votes_prod(prod.name, prod.elected_votes, true));
 
          size_t steps = 1;
@@ -151,7 +144,7 @@ namespace eosiosystem {
       }
 
       template<typename index_t>
-      void fetch_prev(index_t &idx, const producer_elected_votes &tail, producer_elected_votes &prev, bool check_found, const char* title) {
+      void fetch_prev(index_t &idx, const producer_elected_info &tail, producer_elected_info &prev, bool check_found, const char* title) {
          auto itr = find_pos(idx, tail, title);
          auto begin = idx.begin();
          check(begin != idx.end(), "totalvotepro index of producer table is empty");
@@ -170,7 +163,7 @@ namespace eosiosystem {
       }
 
       template<typename index_t>
-      void fetch_next(index_t &idx, const producer_elected_votes &tail, producer_elected_votes &next, bool check_found, const char* title) {
+      void fetch_next(index_t &idx, const producer_elected_info &tail, producer_elected_info &next, bool check_found, const char* title) {
          auto itr = find_pos(idx, tail, title);
          itr++;
          if (itr != idx.end() && itr->ext) {
@@ -187,31 +180,6 @@ namespace eosiosystem {
       }
 
    }
-
-   // inline long double by_votes_prod(const producer_elected_votes& v) {
-   //    return producer_info::by_votes_prod(v.name, v.elected_votes);
-   // }
-
-   // inline bool operator<(const producer_elected_votes& a, const producer_elected_votes& b)  {
-   //    return by_votes_prod(a) > by_votes_prod(b);
-   // }
-
-   // inline bool operator>(const producer_elected_votes& a, const producer_elected_votes& b)  {
-   //    return by_votes_prod(a) < by_votes_prod(b);
-   // }
-
-   // inline bool operator<=(const producer_elected_votes& a, const producer_elected_votes& b)  {
-   //       return !(a > b);
-   // }
-   // inline bool operator>=(const producer_elected_votes& a, const producer_elected_votes& b)  {
-   //    return !(a < b);
-   // }
-   // inline bool operator==(const producer_elected_votes& a, const producer_elected_votes& b)  {
-   //    return a.name == b.name && a.elected_votes == b.elected_votes;
-   // }
-   // inline bool operator!=(const producer_elected_votes& a, const producer_elected_votes& b)  {
-   //    return !(a == b);
-   // }
 
    void system_contract::initelects( const name& payer, uint32_t max_backup_producer_count ) {
       require_auth( payer );
@@ -673,8 +641,8 @@ namespace eosiosystem {
       ASSERT(!meq.tail.empty() && !meq.tail_prev.empty() && !beq.tail_next.empty() &&
              !beq.tail.empty() && !beq.tail_prev.empty() && !beq.tail_next.empty() && beq.tail_prev < meq.tail_next);
 
-      producer_elected_votes cur_old_prod = {cur_name, old_votes, producer_authority};
-      producer_elected_votes cur_new_prod = {cur_name, new_votes, producer_authority};
+      producer_elected_info cur_old_prod = {cur_name, old_votes, producer_authority};
+      producer_elected_info cur_new_prod = {cur_name, new_votes, producer_authority};
 
       // elected_change_table prod_change_tbl(get_self(), get_self().value);
       // elected_change change;

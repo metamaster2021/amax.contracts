@@ -54,7 +54,7 @@ static float128_t by_votes_prod(const name& owner, double elected_votes, bool is
    return is_active ? to_softfloat128(0) - reversed : f128_positive_infinity() - reversed;
 }
 
-struct producer_elected_votes {
+struct producer_elected_info {
    name                    name;
    double                  elected_votes = 0.0;
    block_signing_authority authority;
@@ -63,39 +63,39 @@ struct producer_elected_votes {
    }
 
 };
-FC_REFLECT( producer_elected_votes, (name)(elected_votes)(authority) )
+FC_REFLECT( producer_elected_info, (name)(elected_votes)(authority) )
 
 
-inline float128_t by_votes_prod(const producer_elected_votes& v) {
+inline float128_t by_votes_prod(const producer_elected_info& v) {
    return by_votes_prod(v.name, v.elected_votes);
 }
 
-inline bool operator<(const producer_elected_votes& a, const producer_elected_votes& b)  {
+inline bool operator<(const producer_elected_info& a, const producer_elected_info& b)  {
    return LESS_OR(a.elected_votes, b.elected_votes, LARGER(a.name, b.name));
 }
 
-inline bool operator>(const producer_elected_votes& a, const producer_elected_votes& b)  {
+inline bool operator>(const producer_elected_info& a, const producer_elected_info& b)  {
    return LARGER_OR(a.elected_votes, b.elected_votes, LESS(a.name, b.name));
 }
 
-inline bool operator<=(const producer_elected_votes& a, const producer_elected_votes& b)  {
+inline bool operator<=(const producer_elected_info& a, const producer_elected_info& b)  {
       return !(a > b);
 }
-inline bool operator>=(const producer_elected_votes& a, const producer_elected_votes& b)  {
+inline bool operator>=(const producer_elected_info& a, const producer_elected_info& b)  {
    return !(a < b);
 }
-inline bool operator==(const producer_elected_votes& a, const producer_elected_votes& b)  {
+inline bool operator==(const producer_elected_info& a, const producer_elected_info& b)  {
    return a.elected_votes == b.elected_votes && a.name == b.name;
 }
-inline bool operator!=(const producer_elected_votes& a, const producer_elected_votes& b)  {
+inline bool operator!=(const producer_elected_info& a, const producer_elected_info& b)  {
    return !(a == b);
 }
 
 struct producer_elected_queue {
    uint32_t                  last_producer_count = 0;
-   producer_elected_votes    tail;
-   producer_elected_votes    tail_prev;
-   producer_elected_votes    tail_next;
+   producer_elected_info    tail;
+   producer_elected_info    tail_prev;
+   producer_elected_info    tail_next;
 };
 FC_REFLECT( producer_elected_queue, (last_producer_count)(tail)(tail_prev)(tail_next) )
 
@@ -291,7 +291,7 @@ struct producer_change_tester : eosio_system_tester {
 
    vector<account_name> producers = gen_producer_names(100, N(prod.1111111).to_uint64_t());
    vector<account_name> voters = gen_producer_names(100, N(voter.111111).to_uint64_t());
-   fc::flat_map<name, producer_elected_votes> producer_map;
+   fc::flat_map<name, producer_elected_info> producer_map;
    fc::flat_map<name, voter_info_t> voter_map;
 
 
@@ -386,19 +386,19 @@ struct producer_change_tester : eosio_system_tester {
                                 );
    }
 
-   vector<producer_elected_votes> get_elected_producers(fc::flat_map<name, producer_elected_votes> &producer_map,
+   vector<producer_elected_info> get_elected_producers(fc::flat_map<name, producer_elected_info> &producer_map,
                      size_t max_size = -1) {
-      vector<producer_elected_votes> ret;
+      vector<producer_elected_info> ret;
       ret.reserve(producer_map.size());
       for (const auto& p : producer_map) {
          ret.push_back(p.second);
       }
-      std::sort( ret.begin(), ret.end(), []( const producer_elected_votes& a, const producer_elected_votes& b ) {
+      std::sort( ret.begin(), ret.end(), []( const producer_elected_info& a, const producer_elected_info& b ) {
          return a > b;
       } );
 
       auto sz = std::min(max_size, producer_map.size());
-      return vector<producer_elected_votes>(ret.begin(), ret.begin() + sz);
+      return vector<producer_elected_info>(ret.begin(), ret.begin() + sz);
    }
 
    const table_id_object* find_table_index_id( const name& code, const name& scope, const name& table, uint64_t index_pos ) {
@@ -419,8 +419,8 @@ struct producer_change_tester : eosio_system_tester {
       return *idx_id;
    }
 
-   vector<producer_elected_votes> get_elected_producers_from_db(uint8_t min_elected_version, size_t max_size = -1) {
-      vector<producer_elected_votes> ret;
+   vector<producer_elected_info> get_elected_producers_from_db(uint8_t min_elected_version, size_t max_size = -1) {
+      vector<producer_elected_info> ret;
       const auto& db = control->db();
       const auto& idx_id = get_table_index_id(config::system_account_name, config::system_account_name, N(producers), 1);
       const auto& t_id = get_table_id(config::system_account_name, config::system_account_name, N(producers) );
@@ -443,7 +443,7 @@ struct producer_change_tester : eosio_system_tester {
          ret.push_back({info.owner, info.total_votes, info.producer_authority});
       }
       auto sz = std::min(max_size, ret.size());
-      return vector<producer_elected_votes>(ret.begin(), ret.begin() + sz);
+      return vector<producer_elected_info>(ret.begin(), ret.begin() + sz);
    }
 
    vector<elected_change> get_elected_change_from_db() {
@@ -486,7 +486,7 @@ struct producer_change_tester : eosio_system_tester {
       return true;
    }
 
-   void get_producer_schedule(const vector<producer_elected_votes>& elected_producers, uint32_t main_producer_count,
+   void get_producer_schedule(const vector<producer_elected_info>& elected_producers, uint32_t main_producer_count,
             uint32_t backup_producer_count, flat_map<name, block_signing_authority> &main_schedule,
             flat_map<name, block_signing_authority> &backup_schedule) {
       main_schedule.clear();
