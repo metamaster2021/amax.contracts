@@ -304,8 +304,6 @@ namespace eosiosystem {
                             ignore<authority> owner,
                             ignore<authority> active ) {
 
-      // //TODO: to be removed
-      // check( creator == get_self(), "not allowed to create now" );
       check( !token::is_blacklisted("amax.token"_n, creator), "blacklisted" );
 
       if( creator != get_self() ) {
