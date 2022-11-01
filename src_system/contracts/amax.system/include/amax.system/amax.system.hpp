@@ -235,17 +235,6 @@ namespace eosiosystem {
       EOSLIB_SERIALIZE( producer_elected_queue, (last_producer_count)(tail)(tail_prev)(tail_next) )
    };
 
-   struct amax_global_state_ext {
-      uint8_t                    elected_version            = 0;
-      uint32_t                   max_main_producer_count    = 21;
-      uint32_t                   max_backup_producer_count  = 10000;
-      uint64_t                   last_producer_change_id    = 0;
-      producer_elected_queue     main_elected_queue;
-      producer_elected_queue     backup_elected_queue;
-      EOSLIB_SERIALIZE( amax_global_state_ext, (elected_version)(max_main_producer_count)(max_backup_producer_count)
-                                               (last_producer_change_id)(main_elected_queue)(backup_elected_queue))
-   };
-
    // Defines elect global state parameters.
    struct [[eosio::table("electglobal"), eosio::contract("amax.system")]] elect_global_state {
       uint8_t                    elected_version            = 0;
@@ -291,7 +280,7 @@ namespace eosiosystem {
       uint64_t primary_key()const { return owner.value;                             }
       double   by_votes()const    { return is_active ? -total_votes : total_votes;  }
 
-      static long double   by_votes_prod(const name& owner, double elected_votes, bool is_active = true) {
+      static long double   by_elected_prod(const name& owner, double elected_votes, bool is_active = true) {
          if (elected_votes < 0.0) elected_votes = 0.0;
          static constexpr uint64_t uint64_max = std::numeric_limits<uint64_t>::max();
          long double reversed = elected_votes + ( (double)(uint64_max - owner.value) / uint64_max);
@@ -299,8 +288,8 @@ namespace eosiosystem {
          return is_active ? -reversed : std::numeric_limits<long double>::max() - reversed;
       }
 
-      long double by_votes_prod() const {
-         return ext ? by_votes_prod(owner, ext->elected_votes, is_active)
+      long double by_elected_prod() const {
+         return ext ? by_elected_prod(owner, ext->elected_votes, is_active)
                     : std::numeric_limits<long double>::max();
       }
 
@@ -326,10 +315,10 @@ namespace eosiosystem {
          };
       }
 
-      void update_elected_votes() {
+      void update_elected_votes(bool emplacing = false) {
          if (ext) {
             ext->elected_votes   = total_votes;
-         } else {
+         } else if (emplacing) {
             ext.emplace(producer_info_ext{ total_votes });
          }
       }
@@ -381,7 +370,7 @@ namespace eosiosystem {
 
    typedef eosio::multi_index< "producers"_n, producer_info,
                                indexed_by<"prototalvote"_n, const_mem_fun<producer_info, double, &producer_info::by_votes>  >,
-                               indexed_by<"totalvotepro"_n, const_mem_fun<producer_info, long double, &producer_info::by_votes_prod>  >
+                               indexed_by<"electedprod"_n, const_mem_fun<producer_info, long double, &producer_info::by_elected_prod>, /*Nullable*/ true >
                              > producers_table;
 
    struct [[eosio::table, eosio::contract("amax.system")]] user_resources {

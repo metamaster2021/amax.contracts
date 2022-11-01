@@ -140,7 +140,7 @@ namespace eosiosystem {
 
       template<typename index_t>
       auto find_pos(index_t &idx, const producer_elected_info &prod, const char* title) {
-         auto itr = idx.lower_bound(producer_info::by_votes_prod(prod.name, prod.elected_votes, true));
+         auto itr = idx.lower_bound(producer_info::by_elected_prod(prod.name, prod.elected_votes, true));
 
          size_t steps = 1;
          while(true) {
@@ -165,7 +165,7 @@ namespace eosiosystem {
       void fetch_prev(index_t &idx, const producer_elected_info &tail, producer_elected_info &prev, bool check_found, const char* title) {
          auto itr = find_pos(idx, tail, title);
          auto begin = idx.begin();
-         check(begin != idx.end(), "totalvotepro index of producer table is empty");
+         check(begin != idx.end(), "electedprod index of producer table is empty");
          if (itr != begin) {
             itr--;
             prev = {itr->owner, itr->total_votes, itr->producer_authority};
@@ -215,6 +215,7 @@ namespace eosiosystem {
       changes.backup_changes.clear_existed = true;
 
       auto idx = _producers.get_index<"prototalvote"_n>();
+      auto elect_idx = _producers.get_index<"electedprod"_n>();
       elect_global_state& egs = _elect_gstate;
       _elect_gstate.elected_version = 1;
       _elect_gstate.max_backup_producer_count = max_backup_producer_count;
@@ -228,7 +229,10 @@ namespace eosiosystem {
       // TODO: need using location to order producers?
       for( auto it = idx.cbegin(); it != idx.cend() && 0 < it->total_votes && it->active(); ++it ) {
          idx.modify( it, payer, [&]( auto& p ) {
-            p.update_elected_votes();
+            p.update_elected_votes(true);
+            if (elect_idx.iterator_to(p) == elect_idx.end()) {
+               elect_idx.emplace_index(p, payer);
+            }
          });
          if (main_changes.changes.size() < _elect_gstate.max_main_producer_count) {
             main_changes.changes.emplace(
@@ -292,7 +296,7 @@ namespace eosiosystem {
       }, producer_authority );
 
       if ( prod != _producers.end() ) {
-         auto old_elected_votes = prod->get_elected_votes();
+         auto elect_idx = _producers.get_index<"electedprod"_n>();
          auto elected_info_old = prod->get_elected_info();
          _producers.modify( prod, producer, [&]( producer_info& info ){
             info.producer_key       = producer_key;
@@ -300,22 +304,26 @@ namespace eosiosystem {
             info.url                = url;
             info.location           = location;
             info.producer_authority = producer_authority;
-            info.update_elected_votes();
-
+            info.update_elected_votes(true);
             if ( info.last_claimed_time == time_point() )
                info.last_claimed_time = ct;
+
+            if (elect_idx.iterator_to(info) == elect_idx.end()) {
+               elect_idx.emplace_index(info, producer);
+            }
          });
          if (_elect_gstate.is_init()) {
-               proposed_producer_changes changes;
-               process_elected_producer(elected_info_old, prod->get_elected_info(), changes);
+            ASSERT(prod->ext && elect_idx.iterator_to(*prod) != elect_idx.end());
+            proposed_producer_changes changes;
+            process_elected_producer(elected_info_old, prod->get_elected_info(), changes);
 
-               if ( !changes.backup_changes.changes.empty() || !changes.main_changes.changes.empty() ) {
-                  auto producer_change_id = ++_elect_gstate.last_producer_change_id;
-                  _elected_changes.emplace( producer, [&]( auto& c ) {
-                        c.id        = producer_change_id;
-                        c.changes   = changes;
-                  });
-               }
+            if ( !changes.backup_changes.changes.empty() || !changes.main_changes.changes.empty() ) {
+               auto producer_change_id = ++_elect_gstate.last_producer_change_id;
+               _elected_changes.emplace( producer, [&]( auto& c ) {
+                     c.id        = producer_change_id;
+                     c.changes   = changes;
+               });
+            }
          }
       } else {
          _producers.emplace( producer, [&]( producer_info& info ){
@@ -512,6 +520,7 @@ namespace eosiosystem {
          }
       }
 
+      auto elect_idx = _producers.get_index<"electedprod"_n>();
       proposed_producer_changes changes;
       const auto ct = current_time_point();
       double delta_change_rate         = 0.0;
@@ -532,7 +541,10 @@ namespace eosiosystem {
                _gstate.total_producer_vote_weight += pd.second.first;
                //check( p.total_votes >= 0, "something bad happened" );
             });
-            process_elected_producer(elected_info_old, pitr->get_elected_info(), changes);
+            if (_elect_gstate.is_init() && pitr->ext) {
+               ASSERT(elect_idx.iterator_to(*pitr) != elect_idx.end());
+               process_elected_producer(elected_info_old, pitr->get_elected_info(), changes);
+            }
          } else {
             if( pd.second.second ) {
                check( false, ( "producer " + pd.first.to_string() + " is not registered" ).data() );
@@ -581,6 +593,8 @@ namespace eosiosystem {
          new_weight += voter.proxied_vote_weight;
       }
 
+      auto elect_idx = _producers.get_index<"electedprod"_n>();
+
       /// don't propagate small changes (1 ~= epsilon)
       if ( fabs( new_weight - voter.last_vote_weight ) > 1 )  {
          if ( voter.proxy ) {
@@ -609,7 +623,10 @@ namespace eosiosystem {
                   _gstate.total_producer_vote_weight += delta;
                });
 
-               process_elected_producer(elected_info_old, prod.get_elected_info(), changes);
+               if (_elect_gstate.is_init() && prod.ext) {
+                  ASSERT(elect_idx.iterator_to(prod) != elect_idx.end());
+                  process_elected_producer(elected_info_old, prod.get_elected_info(), changes);
+               }
             }
 
             if ( !changes.backup_changes.changes.empty() || !changes.main_changes.changes.empty() ) {
@@ -630,11 +647,7 @@ namespace eosiosystem {
    void system_contract::process_elected_producer(const producer_elected_info& prod_old,
                            const producer_elected_info& prod_new, proposed_producer_changes &changes) {
 
-      if (!_elect_gstate.is_init())
-         return;
-
-      // TODO: check producer count
-      // TODO: min backup count
+      ASSERT(_elect_gstate.is_init())
 
       auto &meq = _elect_gstate.main_elected_queue;
       auto &beq = _elect_gstate.backup_elected_queue;
@@ -665,7 +678,7 @@ namespace eosiosystem {
       bool refresh_backup_tail_next = false; // refresh by backup_tail
 
       // refresh queue positions
-      auto idx = _producers.get_index<"totalvotepro"_n>();
+      auto idx = _producers.get_index<"electedprod"_n>();
 
       ASSERT(meq.last_producer_count > 0 && !meq.tail.empty());
 

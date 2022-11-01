@@ -46,7 +46,7 @@ inline float128_t to_softfloat128( double d ) {
    return f64_to_f128(to_softfloat64(d));
 }
 
-static float128_t by_votes_prod(const name& owner, double elected_votes, bool is_active = true) {
+static float128_t by_elected_prod(const name& owner, double elected_votes, bool is_active = true) {
    if (elected_votes < 0.0) elected_votes = 0.0;
    static constexpr uint64_t uint64_max = std::numeric_limits<uint64_t>::max();
    float128_t reversed = to_softfloat128(elected_votes) + to_softfloat128(uint64_max - owner.to_uint64_t()) / to_softfloat128(uint64_max);
@@ -66,8 +66,8 @@ struct producer_elected_info {
 FC_REFLECT( producer_elected_info, (name)(elected_votes)(authority) )
 
 
-inline float128_t by_votes_prod(const producer_elected_info& v) {
-   return by_votes_prod(v.name, v.elected_votes);
+inline float128_t by_elected_prod(const producer_elected_info& v) {
+   return by_elected_prod(v.name, v.elected_votes);
 }
 
 inline bool operator<(const producer_elected_info& a, const producer_elected_info& b)  {
