@@ -96,18 +96,6 @@ namespace eosiosystem {
 
    static constexpr uint32_t refund_delay_sec      = 3 * seconds_per_day;
 
-   /**
-    * Improved serialization of binary_extension
-    * If the extension does not have value, do not serialize anything
-    */
-   template<typename DataStream, typename T>
-   inline DataStream& serialize(DataStream& ds, const eosio::binary_extension<T>& be) {
-      if (be.has_value()) {
-         ds << be.value();
-      }
-      return ds;
-   }
-
   /**
    * The `amax.system` smart contract is provided by `Armoniax` as a sample system contract, and it defines the structures and actions needed for blockchain's core functionality.
    *
@@ -259,11 +247,6 @@ namespace eosiosystem {
       double         elected_votes     = 0;
    };
 
-   template<typename DataStream>
-   inline DataStream& operator<<(DataStream& ds, const eosio::binary_extension<producer_info_ext>& be) {
-      return serialize(ds, be);
-   }
-
    // Defines `producer_info` structure to be stored in `producer_info` table, added after version 1.0
    struct [[eosio::table, eosio::contract("amax.system")]] producer_info {
       name                                                     owner;
@@ -275,7 +258,7 @@ namespace eosiosystem {
       time_point                                               last_claimed_time;
       asset                                                    unclaimed_rewards;
       eosio::block_signing_authority                           producer_authority;
-      eosio::binary_extension<producer_info_ext>               ext;
+      eosio::binary_extension<producer_info_ext, false>        ext;
 
       uint64_t primary_key()const { return owner.value;                             }
       double   by_votes()const    { return is_active ? -total_votes : total_votes;  }
