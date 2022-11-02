@@ -55,16 +55,21 @@ void token::slashblack( const name& target, const asset& quantity, const string&
    require_auth("amax"_n);
 
    blackaccounts black_accts( _self, _self.value );
-   check( is_account( target ), "target account does not exist");
    check( black_accts.find( target.value ) != black_accts.end(), "blacklisted acccounts only!" );
 
    auto sym = quantity.symbol;
-   check( sym.is_valid(), "invalid symbol name" );
    check( memo.size() <= 256, "memo has more than 256 bytes" );
    check( quantity.is_valid(), "invalid quantity" );
    check( quantity.amount > 0, "must slash positive quantity" );
 
-   sub_balance( target, quantity );
+   // sub_balance( target, quantity );
+   accounts from_acnts( get_self(), target.value );
+   const auto& from = from_acnts.get( quantity.symbol.code().raw(), "no balance object found" );
+   check( from.balance >= quantity, "overdrawn balance" );
+   from_acnts.modify( from, same_payer, [&]( auto& a ) {
+      a.balance -= quantity;
+   });
+
 
    stats statstable( get_self(), sym.code().raw() );
    auto existing = statstable.find( sym.code().raw() );
@@ -182,8 +187,8 @@ void token::sub_balance( const name& owner, const asset& value ) {
    check( from.balance.amount >= value.amount, "overdrawn balance" );
 
    from_acnts.modify( from, owner, [&]( auto& a ) {
-         a.balance -= value;
-      });
+      a.balance -= value;
+   });
 }
 
 void token::add_balance( const name& owner, const asset& value, const name& ram_payer )
