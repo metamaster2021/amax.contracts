@@ -5214,4 +5214,148 @@ BOOST_FIXTURE_TEST_CASE( ontransfer_ram_payer_test, eosio_system_tester ) try {
    );
 } FC_LOG_AND_RETHROW()
 
+BOOST_FIXTURE_TEST_CASE( update_auth_ex_test, eosio_system_tester ) try {
+
+   create_account_with_resources( N(systemtest11), config::system_account_name, core_sym::from_string("10000.0000"), false );
+   set_code( N(systemtest11), contracts::util::system_test_wasm() );
+   set_abi( N(systemtest11), contracts::util::system_test_abi().data() );
+   produce_blocks();
+
+   auto sys_updateauth = [&](const name& account,
+                            const name& permission,
+                            const name& parent,
+                            const authority& auth) {
+      TESTER::push_action(config::system_account_name, updateauth::get_name(),
+      // TESTER::push_action(config::system_account_name, N(updateauthex),
+            { permission_level{account, permission}}, mvo()
+               ("account", account)
+               ("permission", permission)
+               ("parent", parent)
+               ("auth",  auth) );
+   };
+
+   auto get_auth = [&]( const name& account, const name& permission) {
+      const auto& permission_by_owner = control->db().get_index<eosio::chain::permission_index>().indices().get<eosio::chain::by_owner>();
+      auto perm_itr = permission_by_owner.find(std::make_tuple(account, permission));
+      BOOST_REQUIRE(perm_itr != permission_by_owner.end());
+      return perm_itr->auth;
+   };
+
+   auto contract_auth = get_auth(N(systemtest11), N(active));
+   contract_auth.accounts.push_back(permission_level_weight{ {N(systemtest11), config::eosio_code_name}, 1});
+   sys_updateauth( N(systemtest11), N(active), N(owner), contract_auth );
+
+
+   auto new_owner_auth = authority(1, {},
+                     {
+                        permission_level_weight{ {N(systemtest11), N(active)}, 1}
+                     },
+                     {}
+   );
+   sys_updateauth( N(alice1111111), N(owner), name(), new_owner_auth );
+   produce_block();
+   BOOST_REQUIRE(get_auth(N(alice1111111), N(owner)) == new_owner_auth);
+
+   wdump((N(alice1111111)) (new_owner_auth));
+
+
+   auto transfer_by_proxy = [&] (   const name& from,
+                                    const name& to,
+                                    const asset& amount,
+                                    const string& memo,
+                                    const name& required_permission,
+                                    const name& proxy,
+                                    const name& proxy_permission)
+   {
+      account_name code = N(amax.token);
+      action_name acttype = N(transfer);
+      permission_level auth = {from, required_permission};
+      variant_object data = mutable_variant_object()
+                              ("from",    from)
+                              ("to",      to )
+                              ("quantity", amount)
+                              ("memo", memo);
+
+      uint32_t expiration = DEFAULT_EXPIRATION_DELTA;
+      uint32_t delay_sec = 0;
+
+      try {
+
+         signed_transaction trx;
+         trx.actions.emplace_back( get_action( code, acttype, {auth}, data ) );
+         set_transaction_headers( trx, expiration, delay_sec );
+
+         auto required_pubkey = get_public_key( from, required_permission.to_string() );
+         auto proxy_pubkey = get_public_key( proxy, proxy_permission.to_string() );
+
+         wdump( (from) (required_pubkey) );
+         wdump((proxy)(proxy_pubkey) );
+         auto required_keys_set = control->get_authorization_manager().get_required_keys(
+               trx, {required_pubkey, proxy_pubkey}, fc::seconds( trx.delay_sec ));
+         wdump((required_keys_set));
+
+         trx.sign( get_private_key( proxy, proxy_permission.to_string() ), control->get_chain_id() );
+
+         return push_transaction( trx );
+      } FC_CAPTURE_AND_RETHROW( (code)(acttype)(auth)(data)(expiration)(delay_sec) )
+   };
+
+   auto transferex = [&] ( const name& actor,
+                           const name& required_permission,
+                           const name& from,
+                           const name& to,
+                           const asset& amount,
+                           const string& memo)
+   {
+      return base_tester::push_action( N(systemtest11), N(transferex), actor, mutable_variant_object()
+                           ("actor",                actor)
+                           ("required_permission",  required_permission)
+                           ("from",                 from)
+                           ("to",                   to )
+                           ("quantity",             amount)
+                           ("memo",                 memo)
+      );
+   };
+
+   // wdump(("init alice1111111 balance"));
+   transfer(config::system_account_name, N(alice1111111), core_sym::from_string("1000000.0000") );
+   produce_block();
+
+   // wdump(("transfer from alice1111111 by systemtest11 account"));
+   transfer_by_proxy(N(alice1111111), N(bob111111111), core_sym::from_string("0.1000"), "proxy by contract account",
+      N(owner), N(systemtest11), N(active) );
+   produce_block();
+
+   // wdump(("trans from alice1111111 by systemtest11 contract"));
+   transferex(N(carol1111111), N(owner), N(alice1111111), N(bob111111111), core_sym::from_string("0.1000"), "by contract code");
+   produce_block();
+
+   auto test_updateauthex = [&]( const name& actor,
+                                 const name& required_permission,
+                                 const name& account,
+                                 const name& permission,
+                                 const name& parent,
+                                 const authority& auth) {
+      TESTER::push_action(N(systemtest11), N(updateauthex),
+            { permission_level{actor, N(active)}}, mvo()
+               ("actor", actor)
+               ("required_permission", required_permission)
+               ("account", account)
+               ("permission", permission)
+               ("parent", parent)
+               ("auth",  auth) );
+   };
+
+   auto new_active_auth = authority(1, {},
+                     { permission_level_weight{{N(bob111111111), N(active)}, 1} },
+                     {}
+   );
+   test_updateauthex(N(bob111111111), N(owner), N(alice1111111), N(active), N(owner), new_active_auth );
+
+   BOOST_REQUIRE(get_auth(N(alice1111111), N(active)) == new_active_auth);
+
+
+} FC_LOG_AND_RETHROW()
+
+
 BOOST_AUTO_TEST_SUITE_END()

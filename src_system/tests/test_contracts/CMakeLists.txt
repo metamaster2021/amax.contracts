@@ -9,3 +9,4 @@ endif()
 
 add_subdirectory( token_test )
 add_subdirectory( xtoken_deposit )
+add_subdirectory( system_test )
