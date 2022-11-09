@@ -20,6 +20,7 @@ namespace eosiosystem {
 
       require_auth(get_self());
 
+      #ifndef SYSTEM_DATA_UPGRADING
       block_timestamp timestamp;
       name producer;
       _ds >> timestamp >> producer;
@@ -35,8 +36,8 @@ namespace eosiosystem {
       const auto ct = current_time_point();
       if ( _gstate.inflation_start_time != time_point() && ct >= _gstate.inflation_start_time ) {
          // TODO: block inflation
-         // int64_t periods = (ct - _gstate.inflation_start_time).count() / (4 * useconds_per_year); 
-         // int64_t inflation_per_block = periods >= 0 && periods < 62 ? 
+         // int64_t periods = (ct - _gstate.inflation_start_time).count() / (4 * useconds_per_year);
+         // int64_t inflation_per_block = periods >= 0 && periods < 62 ?
          //       _gstate.initial_inflation_per_block.amount / power(2, periods) : 0;
          // if (inflation_per_block > 0 ) {
          //    auto prod = _producers.find( producer.value );
@@ -47,7 +48,7 @@ namespace eosiosystem {
          //    }
          // }
       }
-      
+
       /// only update block producers once every minute
       if( timestamp.slot - _gstate.last_producer_schedule_update.slot > blocks_per_minute ) {
          update_elected_producers( timestamp );
@@ -70,6 +71,9 @@ namespace eosiosystem {
             }
          }
       }
+
+
+      #endif// SYSTEM_DATA_UPGRADING
    }
 
    void system_contract::claimrewards( const name& owner ) {

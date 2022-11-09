@@ -24,7 +24,9 @@ namespace eosiosystem {
     _rexbalance(get_self(), get_self().value),
     _rexorders(get_self(), get_self().value)
    {
+      #ifndef SYSTEM_DATA_UPGRADING
       _gstate  = _global.exists() ? _global.get() : get_default_parameters();
+      #endif//SYSTEM_DATA_UPGRADING
    }
 
    symbol system_contract::get_core_symbol(const name& self) {
@@ -47,7 +49,9 @@ namespace eosiosystem {
    }
 
    system_contract::~system_contract() {
+      #ifndef SYSTEM_DATA_UPGRADING
       _global.set( _gstate, get_self() );
+      #endif// SYSTEM_DATA_UPGRADING
    }
 
    void system_contract::setram( uint64_t max_ram_size ) {
@@ -279,7 +283,7 @@ namespace eosiosystem {
    void system_contract::setinflation(  time_point inflation_start_time, const asset& initial_inflation_per_block ) {
       require_auth(get_self());
       check(initial_inflation_per_block.symbol == core_symbol(), "inflation symbol mismatch with core symbol");
-      
+
       const auto& ct = eosio::current_time_point();
       if (_gstate.inflation_start_time != time_point() ) {
          check( ct < _gstate.inflation_start_time, "inflation has been started");
@@ -367,7 +371,7 @@ namespace eosiosystem {
       auto system_token_supply   = eosio::token::get_supply(token_account, core.code() );
       check( system_token_supply.symbol == core, "specified core symbol does not exist (precision mismatch)" );
       check( system_token_supply.amount > 0, "system token supply must be greater than 0" );
-      
+
       _gstate.core_symbol = core;
 
       _rammarket.emplace( get_self(), [&]( auto& m ) {
@@ -382,5 +386,204 @@ namespace eosiosystem {
       token::open_action open_act{ token_account, { {get_self(), active_permission} } };
       open_act.send( rex_account, core, get_self() );
    }
+
+
+#ifdef SYSTEM_DATA_UPGRADING
+   struct eosio_global_state_old : eosio::blockchain_parameters {
+      uint64_t free_ram()const { return max_ram_size - total_ram_bytes_reserved; }
+
+      uint64_t             max_ram_size = 64ll*1024 * 1024 * 1024;
+      uint64_t             total_ram_bytes_reserved = 0;
+      int64_t              total_ram_stake = 0;
+
+      block_timestamp      last_producer_schedule_update;
+      time_point           last_pervote_bucket_fill;
+      int64_t              pervote_bucket = 0;
+      int64_t              perblock_bucket = 0;
+      uint32_t             total_unpaid_blocks = 0; /// all blocks which have been produced but not paid
+      int64_t              total_activated_stake = 0;
+      time_point           thresh_activated_stake_time;
+      uint16_t             last_producer_schedule_size = 0;
+      double               total_producer_vote_weight = 0; /// the sum of all producer votes
+      block_timestamp      last_name_close;
+
+      // explicit serialization macro is not necessary, used here only to improve compilation time
+      EOSLIB_SERIALIZE_DERIVED( eosio_global_state_old, eosio::blockchain_parameters,
+                                (max_ram_size)(total_ram_bytes_reserved)(total_ram_stake)
+                                (last_producer_schedule_update)(last_pervote_bucket_fill)
+                                (pervote_bucket)(perblock_bucket)(total_unpaid_blocks)(total_activated_stake)(thresh_activated_stake_time)
+                                (last_producer_schedule_size)(total_producer_vote_weight)(last_name_close) )
+   };
+
+
+   struct eosio_global_state2_old {
+
+      uint16_t          new_ram_per_block = 0;
+      block_timestamp   last_ram_increase;
+      block_timestamp   last_block_num; /* deprecated */
+      double            total_producer_votepay_share = 0;
+      uint8_t           revision = 0; ///< used to track version updates in the future.
+
+      EOSLIB_SERIALIZE( eosio_global_state2_old, (new_ram_per_block)(last_ram_increase)(last_block_num)
+                        (total_producer_votepay_share)(revision) )
+   };
+
+   struct eosio_global_state3_old {
+      uint8_t reserved = 0;
+      EOSLIB_SERIALIZE(eosio_global_state3_old, (reserved))
+   };
+
+   typedef eosio::singleton< "global"_n, eosio_global_state_old >   global_state_old_singleton;
+   typedef eosio::singleton< "global2"_n, eosio_global_state2_old > global_state2_old_singleton;
+
+   typedef eosio::singleton< "global3"_n, eosio_global_state3_old > global_state3_old_singleton;
+
+   typedef eosio::singleton< "global4"_n, eosio_global_state3_old > global_state4_old_singleton;
+
+
+
+   // Defines `producer_info` structure to be stored in `producer_info` table, added after version 1.0
+   struct producer_info_old {
+      name                                                     owner;
+      double                                                   total_votes = 0;
+      eosio::public_key                                        producer_key; /// a packed public key object
+      bool                                                     is_active = true;
+      std::string                                              url;
+      uint32_t                                                 unpaid_blocks = 0;
+      time_point                                               last_claim_time;
+      uint16_t                                                 location = 0;
+      eosio::binary_extension<eosio::block_signing_authority>  producer_authority; // added in version 1.9.0
+
+      uint64_t primary_key()const { return owner.value;                             }
+      double   by_votes()const    { return is_active ? -total_votes : total_votes;  }
+      bool     active()const      { return is_active;                               }
+      void     deactivate()       { producer_key = public_key(); producer_authority.reset(); is_active = false; }
+
+      template<typename DataStream>
+      friend DataStream& operator << ( DataStream& ds, const producer_info_old& t ) {
+         ds << t.owner
+            << t.total_votes
+            << t.producer_key
+            << t.is_active
+            << t.url
+            << t.unpaid_blocks
+            << t.last_claim_time
+            << t.location;
+
+         if( !t.producer_authority.has_value() ) return ds;
+
+         return ds << t.producer_authority;
+      }
+
+      template<typename DataStream>
+      friend DataStream& operator >> ( DataStream& ds, producer_info_old& t ) {
+         return ds >> t.owner
+                   >> t.total_votes
+                   >> t.producer_key
+                   >> t.is_active
+                   >> t.url
+                   >> t.unpaid_blocks
+                   >> t.last_claim_time
+                   >> t.location
+                   >> t.producer_authority;
+      }
+   };
+
+   struct producer_info2_old {
+      name            owner;
+
+      uint64_t primary_key()const { return owner.value; }
+
+      EOSLIB_SERIALIZE( producer_info2_old, (owner) )
+   };
+
+   typedef eosio::multi_index< "producers"_n, producer_info_old,
+                               indexed_by<"prototalvote"_n, const_mem_fun<producer_info, double, &producer_info::by_votes>  >
+                             > producers_table_old;
+
+   typedef eosio::multi_index< "producers2"_n, producer_info2_old > producers_table2_old;
+
+   void system_contract::upgrade() {
+      require_auth(get_self());
+
+      global_state_old_singleton global_old(get_self(), get_self().value);
+      global_state2_old_singleton global2_old(get_self(), get_self().value);
+      if (global_old.exists()) {
+         check(global2_old.exists(), "Global2 must exist");
+         eosio::print("Upgrading global table ...");
+         eosio_global_state_old gstate_old = global_old.get();
+         eosio_global_state2_old gstate2_old = global2_old.get();
+         (eosio::blockchain_parameters&)_gstate = (eosio::blockchain_parameters&)gstate_old;
+
+         // global old
+         _gstate.core_symbol = eosio::symbol("AMAX", 8);
+         _gstate.max_ram_size = gstate_old.max_ram_size;
+         _gstate.total_ram_bytes_reserved = gstate_old.total_ram_bytes_reserved;
+         _gstate.total_ram_stake = gstate_old.total_ram_stake;
+
+         _gstate.last_producer_schedule_update = gstate_old.last_producer_schedule_update;
+         _gstate.total_activated_stake = gstate_old.total_activated_stake;
+         _gstate.thresh_activated_stake_time = gstate_old.thresh_activated_stake_time;
+         _gstate.last_producer_schedule_size = gstate_old.last_producer_schedule_size;
+         _gstate.total_producer_vote_weight = gstate_old.total_producer_vote_weight; /// the sum of all producer votes
+         _gstate.last_name_close = gstate_old.last_name_close;
+
+         // global2 old
+         _gstate.new_ram_per_block = gstate2_old.new_ram_per_block;
+         _gstate.last_ram_increase = gstate2_old.last_ram_increase;
+
+         _gstate.inflation_start_time = eosio::time_point();         // inflation start time
+         _gstate.initial_inflation_per_block = eosio::asset(0, _gstate.core_symbol);  // initial inflation per block
+         _gstate.reward_dispatcher = eosio::name();            // block inflation reward dispatcher
+         _gstate.revision = 0; ///< used to track version updates in the future.
+
+         global_old.remove();
+         global2_old.remove();
+
+         _global.set(_gstate, get_self());
+      }
+
+      global_state3_old_singleton global3_old(get_self(), get_self().value);
+      if (global3_old.exists()) {
+         global3_old.remove();
+      }
+
+      global_state4_old_singleton global4_old(get_self(), get_self().value);
+      if (global4_old.exists()) {
+         global4_old.remove();
+      }
+
+      std::vector<producer_info> producers_new;
+      producers_table_old prod_table_old(get_self(), get_self().value);
+      producers_new.reserve(30);
+      producer_info prod_new;
+      for (auto old_prod_itr = prod_table_old.begin();  old_prod_itr != prod_table_old.end(); ) {
+         const producer_info_old& prod_old = *old_prod_itr;
+         prod_new.owner = prod_old.owner;
+         prod_new.total_votes = prod_old.total_votes;
+         prod_new.producer_key = prod_old.producer_key;
+         prod_new.is_active = prod_old.is_active;
+         prod_new.url = prod_old.url;
+         prod_new.location = prod_old.location;
+         prod_new.last_claimed_time = prod_old.last_claim_time;
+         prod_new.unclaimed_rewards = eosio::asset(0, _gstate.core_symbol);
+         prod_new.producer_authority = prod_old.producer_authority.value();
+         producers_new.push_back(prod_new);
+         old_prod_itr = prod_table_old.erase(old_prod_itr);
+      }
+
+      for (const auto &prod : producers_new) {
+         _producers.emplace( get_self(), [&]( producer_info& info ) {
+            info = prod;
+         });
+      }
+
+      producers_table2_old prod_table2_old(get_self(), get_self().value);
+      for (auto old_prod2_itr = prod_table2_old.begin();  old_prod2_itr != prod_table2_old.end(); ) {
+         old_prod2_itr = prod_table2_old.erase(old_prod2_itr);
+      }
+   }
+
+#endif// SYSTEM_DATA_UPGRADING
 
 } /// amax.system
