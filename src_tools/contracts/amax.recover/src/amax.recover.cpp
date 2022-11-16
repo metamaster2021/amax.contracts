@@ -36,7 +36,7 @@ using namespace std;
 
       accountaudit_t::idx accountaudits(_self, _self.value);
       auto audit_ptr     = accountaudits.find(account.value);
-      CHECKC( audit_ptr == accountaudits.end(), err::RECORD_EXISTING, "order already exist. ");
+      CHECKC( audit_ptr == accountaudits.end(), err::RECORD_EXISTING, "account already exist. ");
       auto now                   = current_time_point();
 
       accountaudits.emplace( _self, [&]( auto& row ) {
@@ -217,14 +217,13 @@ using namespace std;
 
    void amax_recover::_check_action_auth(const name& admin, const name& action_type) {
 
-      if(!has_auth(_self)) {
-         CHECKC( has_auth(admin), err::NO_AUTH, "no auth for operate" ) 
-      }
-
+      if(has_auth(_self)) 
+         return;
+      
       auditor_t::idx_t auditors(_self, _self.value);
       auto auditor_ptr     = auditors.find(admin.value);
       CHECKC( auditor_ptr != auditors.end(), err::RECORD_NOT_FOUND, "auditor not exist. ");
-      CHECKC( !auditor_ptr->actions.count(action_type), err::NO_AUTH, "no auth for operate ");
+      CHECKC( auditor_ptr->actions.count(action_type), err::NO_AUTH, "no auth for operate ");
    }
 
    void amax_recover::_get_audit_score( const name& action_type, int8_t& score) {
