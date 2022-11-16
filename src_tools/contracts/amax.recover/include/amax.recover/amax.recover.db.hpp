@@ -23,8 +23,8 @@ using namespace eosio;
 #define HASH256(str) sha256(const_cast<char*>(str.c_str()), str.size())
 
 static constexpr uint64_t seconds_per_day                   = 24 * 3600;
-static constexpr uint64_t order_expired                     = seconds_per_day;
-static constexpr uint64_t manual_order_expired              = 3 * seconds_per_day;
+static constexpr uint64_t order_expiry_duration             = seconds_per_day;
+static constexpr uint64_t manual_order_expiry_duration      = 3 * seconds_per_day;
 
 
 static constexpr eosio::name amax_account = "amax"_n;
@@ -34,34 +34,35 @@ static constexpr eosio::name owner = "owner"_n;
 #define TBL struct [[eosio::table, eosio::contract("amax.recover")]]
 #define NTBL(name) struct [[eosio::table(name), eosio::contract("amax.recover")]]
 namespace UpdateActionType {
-    static constexpr eosio::name PUBKEY{"pubkey"_n };
-    static constexpr eosio::name MOBILENO{"mobileno"_n };
-    static constexpr eosio::name ANSWER{"answer"_n };
+    static constexpr eosio::name PUBKEY     {"pubkey"_n };
+    static constexpr eosio::name MOBILENO   {"mobileno"_n };
+    static constexpr eosio::name ANSWER     {"answer"_n };
 }
 
 namespace PayStatus {
-    static constexpr eosio::name PAID{"paid"_n };
-    static constexpr eosio::name NOPAY{"nopay"_n };
+    static constexpr eosio::name PAID       {"paid"_n };
+    static constexpr eosio::name NOPAY      {"nopay"_n };
 }
 
 namespace AuditType {
-    static constexpr eosio::name MOBILENO{"mobileno"_n };
-    static constexpr eosio::name ANSWER{"answer"_n };
-    static constexpr eosio::name DID{"did"_n };
+    static constexpr eosio::name MOBILENO   {"mobileno"_n };
+    static constexpr eosio::name ANSWER     {"answer"_n };
+    static constexpr eosio::name DID        {"did"_n };
 }
 
 namespace ActionPermType {
+    static constexpr eosio::name BINDACCOUNT{"bindaccount"_n };
+    static constexpr eosio::name BINDANSWER{"bindanswer"_n };
+
     static constexpr eosio::name CREATEORDER{"createorder"_n };
-    static constexpr eosio::name CHKANSWER{"chkanswer"_n };
-    static constexpr eosio::name CHKDID{"chkdid"_n };
-    static constexpr eosio::name CHKMANUAL{"chkmanual"_n };
+    static constexpr eosio::name CHKANSWER  {"chkanswer"_n };
+    static constexpr eosio::name CHKDID     {"chkdid"_n };
+    static constexpr eosio::name CHKMANUAL  {"chkmanual"_n };
 }
 
 namespace ManualCheckStatus {
-    static constexpr eosio::name NONEED{"noneed"_n };
-    static constexpr eosio::name NEED{"need"_n };
-    static constexpr eosio::name PASSED{"passed"_n };
-    static constexpr eosio::name FAILED{"failed"_n };
+    static constexpr eosio::name SUCCESS    {"success"_n };
+    static constexpr eosio::name FAILURE    {"failure"_n };
 }
 
 
@@ -69,9 +70,8 @@ namespace ManualCheckStatus {
 NTBL("global") global_t {
     uint8_t                     score_limit;
     uint64_t                    last_order_id;
-    name                        admin;
 
-    EOSLIB_SERIALIZE( global_t, (score_limit)(last_order_id)(admin) )
+    EOSLIB_SERIALIZE( global_t, (score_limit)(last_order_id))
 };
 typedef eosio::singleton< "global"_n, global_t > global_singleton;
 
@@ -91,35 +91,37 @@ TBL accountaudit_t {
     EOSLIB_SERIALIZE( accountaudit_t, (account)(mobile_hash)(answers)(created_at) )
 };
 
-//Scope: nasset.symbol.id
-TBL updateorder_t {
-    uint64_t        id;                 //PK
-    name            account;
-    name            update_action_type;
-    checksum256     new_pubkey;
-    uint8_t         mobile_check_score;        
-    uint8_t         question_check_score;
-    uint8_t         did_check_score;
-    name            manual_check_status;         // -1: need manual check, 0:no pass, 1: not need manual check,2: pass,
+//Scope: default
+TBL recoverorder_t {
+    uint64_t        id                   = 0;                   //PK
+    name            account;                                    //UK
+    name            recover_type;
+    string          recover_target;                             //Eg: pubkey, mobileno
+    int8_t          mobile_check_score   = -1;        
+    int8_t          answer_check_score   = -1;
+    int8_t          did_check_score      = -1;
+    bool            manual_check_required = false;
+    name            manual_check_result;         
     name            pay_status;
     time_point_sec  created_at;
     time_point_sec  expired_at;
     time_point_sec  updated_at;
 
-    updateorder_t() {}
-    updateorder_t(const uint64_t& i): id(i) {}
+    recoverorder_t() {}
+    recoverorder_t(const uint64_t& i): id(i) {}
 
     uint64_t primary_key()const { return id; }
     uint64_t by_account() const { return account.value; }
 
     typedef eosio::multi_index
-    < "updateorders"_n,  updateorder_t,
-        indexed_by<"accountidx"_n, const_mem_fun<updateorder_t, uint64_t, &updateorder_t::by_account> >
+    < "orders"_n,  recoverorder_t,
+        indexed_by<"accountidx"_n, const_mem_fun<recoverorder_t, uint64_t, &recoverorder_t::by_account> >
     > idx_t;
 
-    EOSLIB_SERIALIZE( updateorder_t, (id)(account)(update_action_type)(new_pubkey)
-                                     (new_pubkey)(mobile_check_score)
-                                     (question_check_score)(did_check_score)(manual_check_status)
+    EOSLIB_SERIALIZE( recoverorder_t, (id)(account)(recover_type)
+                                     (recover_target)(mobile_check_score)
+                                     (answer_check_score)(did_check_score)
+                                     (manual_check_required)(manual_check_result)
                                      (pay_status)(created_at)(expired_at)
                                      (updated_at) )
 };

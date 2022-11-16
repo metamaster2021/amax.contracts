@@ -1,5 +1,4 @@
 #include <amax.recover/amax.recover.hpp>
-// #include <amax.system/amax.system.hpp>
 
 #include<math.hpp>
 
@@ -27,15 +26,14 @@ using namespace std;
       return calc_precision(digit);
    }
 
-   void amax_recover::init( const name& admin, const uint8_t& score_limit) {
+   void amax_recover::init( const uint8_t& score_limit ) {
       require_auth( _self );
-      CHECKC( is_account( admin ), err::PARAM_ERROR, "admin account does not exist");
-      _gstate.admin              = admin;
       _gstate.score_limit        = score_limit;
    }
 
-   void amax_recover::bindaccount (const name& account, const checksum256& mobile_hash ) {
-      CHECKC( has_auth(_self) || has_auth(_gstate.admin), err::NO_AUTH, "no auth for operate" )
+   void amax_recover::bindaccount ( const name& admin, const name& account, const checksum256& mobile_hash ) {
+      _check_action_auth(admin, ActionPermType::BINDACCOUNT);
+
       accountaudit_t::idx accountaudits(_self, _self.value);
       auto audit_ptr     = accountaudits.find(account.value);
       CHECKC( audit_ptr == accountaudits.end(), err::RECORD_EXISTING, "order already exist. ");
@@ -44,13 +42,14 @@ using namespace std;
       accountaudits.emplace( _self, [&]( auto& row ) {
          row.account 		   = account;
          row.mobile_hash      = mobile_hash;
-         row.created_at          = now;
+         row.created_at       = now;
       });   
    }
 
-   void amax_recover::bindanswer(const name& account, map<uint8_t, checksum256 >& answers ) {
+   void amax_recover::bindanswer( const name& admin, const name& account, map<uint8_t, checksum256 >& answers ) {
       
-      CHECKC( has_auth(_self) || has_auth(_gstate.admin), err::NO_AUTH, "no auth for operate" )
+      _check_action_auth(admin, ActionPermType::BINDANSWER);
+
       accountaudit_t::idx accountaudits(_self, _self.value);
       auto audit_ptr     = accountaudits.find(account.value);
       CHECKC( audit_ptr != accountaudits.end(), err::RECORD_NOT_FOUND, "order not exist. ");
@@ -64,8 +63,8 @@ using namespace std;
    void amax_recover::createorder(const name& admin,
                         const name& account,
                         const checksum256& mobile_hash,
-                        const checksum256& new_pubkey,
-                        const bool& manual_check_flag) {
+                        const string& recover_target,
+                        const bool& manual_check_required) {
       _check_action_auth(admin, ActionPermType::CREATEORDER);
 
       accountaudit_t::idx accountaudits(_self, _self.value);
@@ -73,17 +72,14 @@ using namespace std;
       CHECKC( audit_ptr != accountaudits.end(), err::RECORD_NOT_FOUND, "account not exist. ");
       CHECKC( mobile_hash == audit_ptr->mobile_hash, err::PARAM_ERROR, "mobile hash check failed" )
 
-
-      updateorder_t::idx_t orders( _self, _self.value );
+      recoverorder_t::idx_t orders( _self, _self.value );
       auto xinto_index 			         = orders.get_index<"accountidx"_n>();
       auto order_itr 			         = orders.find( account.value );
       CHECKC( order_itr == orders.end(), err::RECORD_EXISTING, "order already existed. ");
 
-      name manual_check_status = ManualCheckStatus::NONEED;
-      auto duration_second    = order_expired;
-      if (manual_check_flag) {
-         manual_check_status   = ManualCheckStatus::NEED;
-         duration_second      = manual_order_expired;
+      auto duration_second    = order_expiry_duration;
+      if (manual_check_required) {
+         duration_second      = manual_order_expiry_duration;
       }
 
       _gstate.last_order_id ++;
@@ -95,23 +91,20 @@ using namespace std;
       orders.emplace( _self, [&]( auto& row ) {
          row.id 					      = order_id;
          row.account 			      = account;
-         row.update_action_type     = UpdateActionType::PUBKEY;
-         row.new_pubkey             = new_pubkey;
-         row.mobile_check_score     = mobile_check_score;       
-         row.question_check_score   = -1;         
-         row.did_check_score        = -1;
-         row.manual_check_status    = manual_check_status;
+         row.recover_type           = UpdateActionType::PUBKEY;
+         row.recover_target         = recover_target;
+         row.mobile_check_score     = mobile_check_score;
+         row.manual_check_required  = manual_check_required;
          row.pay_status             = PayStatus::NOPAY;
          row.created_at             = now;
-         row.expired_at             = current_time_point() + eosio::seconds(duration_second);;
-         row.updated_at             = now;
+         row.expired_at             = now + eosio::seconds(duration_second);
       });
    
    }
 
    void amax_recover::chkanswer( const name& admin, const uint64_t& order_id, const name& account, const int8_t& score) {
       _check_action_auth(admin, ActionPermType::CHKANSWER);
-      updateorder_t::idx_t orders(_self, _self.value);
+      recoverorder_t::idx_t orders(_self, _self.value);
       auto order_ptr     = orders.find(order_id);
       CHECKC( order_ptr != orders.end(), err::RECORD_NOT_FOUND, "order not found. ");
       int8_t answer_score_limit = 0;
@@ -127,7 +120,7 @@ using namespace std;
    void amax_recover::chkdid( const name& admin, const uint64_t& order_id, const name& account, const bool& passed) {
       _check_action_auth(admin, ActionPermType::CHKDID);
       
-      updateorder_t::idx_t orders(_self, _self.value);
+      recoverorder_t::idx_t orders(_self, _self.value);
       auto order_ptr     = orders.find(order_id);
       CHECKC( order_ptr != orders.end(), err::RECORD_NOT_FOUND, "order not found. ");
       
@@ -146,35 +139,37 @@ using namespace std;
    void amax_recover::chkmanual( const name& admin, const uint64_t& order_id, const name& account, const bool& passed) {
       _check_action_auth(admin, ActionPermType::CHKMANUAL);
 
-      updateorder_t::idx_t orders(_self, _self.value);
+      recoverorder_t::idx_t orders(_self, _self.value);
       auto order_ptr     = orders.find(order_id);
       CHECKC( order_ptr != orders.end(), err::RECORD_NOT_FOUND, "order not found. ");
 
-      name manual_check_status       = ManualCheckStatus::FAILED;
-      if (passed) manual_check_status   = ManualCheckStatus::PASSED;
+      name manual_check_result       = ManualCheckStatus::FAILURE;
+      if (passed) manual_check_result   = ManualCheckStatus::SUCCESS;
       auto now                = current_time_point();
       orders.modify(*order_ptr, _self, [&]( auto& row ) {
-         row.manual_check_status    = manual_check_status;
+         row.manual_check_result    = manual_check_result;
          row.updated_at             = now;
       });
    }
 
    void amax_recover::closeorder( const name& submitter, const uint64_t& order_id) {
       CHECKC( has_auth(submitter) , err::NO_AUTH, "no auth for operate" )
-      updateorder_t::idx_t orders(_self, _self.value);
+      recoverorder_t::idx_t orders(_self, _self.value);
       auto order_ptr     = orders.find(order_id);
       CHECKC( order_ptr != orders.end(), err::RECORD_NOT_FOUND, "order not found. "); 
       auto total_score = 0;
       if(order_ptr->mobile_check_score > 0 ) total_score += order_ptr->mobile_check_score;
-      if(order_ptr->question_check_score > 0 ) total_score += order_ptr->question_check_score;
+      if(order_ptr->answer_check_score > 0 ) total_score += order_ptr->answer_check_score;
       if(order_ptr->did_check_score > 0 ) total_score += order_ptr->did_check_score;
       CHECKC( total_score < _gstate.score_limit, err::SCORE_NOT_ENOUGH, "score not enough" );
-      CHECKC( order_ptr->manual_check_status == ManualCheckStatus::NEED || order_ptr->manual_check_status == ManualCheckStatus::FAILED ,
-               err::NEED_MANUAL_CHECK, "need manual check" );
-      
-   }
+      if( order_ptr->manual_check_required && order_ptr->manual_check_result == ManualCheckStatus::SUCCESS ) {
+         _update_authex(order_ptr->account, order_ptr->recover_target);
+         orders.erase(order_ptr);
+      } 
 
-   void amax_recover::addauditor( const name& account, const set<name>& actions ) {
+   } 
+
+   void amax_recover::setauditor( const name& account, const set<name>& actions ) {
       auditor_t::idx_t auditors(_self, _self.value);
       auto auditor_ptr     = auditors.find(account.value);
       if( auditor_ptr != auditors.end() ) {
@@ -197,7 +192,7 @@ using namespace std;
       auditors.erase(auditor_ptr);
    }
 
-   void amax_recover::addscore( const name& audit_type, const int8_t& score ) {
+   void amax_recover::setscore( const name& audit_type, const int8_t& score ) {
       auditscore_t::idx_t auditscores(_self, _self.value);
       auto auditscore_ptr     = auditscores.find(audit_type.value);
       if( auditscore_ptr != auditscores.end() ) {
@@ -221,7 +216,10 @@ using namespace std;
    }
 
    void amax_recover::_check_action_auth(const name& admin, const name& action_type) {
-      CHECKC( has_auth(admin), err::NO_AUTH, "no auth for operate" )
+
+      if(!has_auth(_self)) {
+         CHECKC( has_auth(admin), err::NO_AUTH, "no auth for operate" ) 
+      }
 
       auditor_t::idx_t auditors(_self, _self.value);
       auto auditor_ptr     = auditors.find(admin.value);
@@ -237,12 +235,26 @@ using namespace std;
       
    }
 
-   // void amax_recover::_update_authex( const name& account,
-   //                                const authority& auth ) {
-   //    eosiosystem::system_contract::updateauth_action act(amax_account, { {account, owner} });
-   //    act.send( account, "active", "owner"_n, auth);
+   void amax_recover::_update_authex( const name& account,
+                                  const string& pubkey ) {
+      // eosio::public_key key = string_to_public_key( , pubkey)
+      // eosiosystem::authority auth = { 1, {{key, 1}}, {}, {} };
+      // eosiosystem::system_contract::updateauth_action act(amax_account, { {account, owner} });
+      // act.send( account, "active", "owner"_n, auth);
 
+   }
+
+   // eosio::public_key amax_recover::string_to_public_key(unsigned int const key_type, std::string const & public_key_str)
+   // {
+   //    eosio::public_key public_key;
+   //    public_key.type = key_type; // Could be K1 or R1 enum
+   //    for(int i = 0; i < 33; ++i)
+   //    {
+   //       public_key.data.at(i) = public_key_str.at(i);
+   //    }
+   //    return public_key;
    // }
+
 
 
 }//namespace amax

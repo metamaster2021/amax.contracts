@@ -9,19 +9,21 @@
 
 #include <amax.recover/amax.recover.db.hpp>
 #include <wasm_db.hpp>
+#include<amax.system/native.hpp>
+#include<amax.system/amax.system.hpp>
 
 namespace amax {
 
 using std::string;
 using std::vector;
-using namespace wasm::db;
-
+using eosiosystem::authority;
 
 
 #define TRANSFER(bank, to, quantity, memo) \
     {	mtoken::transfer_action act{ bank, { {_self, active_perm} } };\
 			act.send( _self, to, quantity , memo );}
-
+         
+using namespace wasm::db;
 using namespace eosio;
 
 static constexpr name      NFT_BANK    = "did.ntoken"_n;
@@ -82,49 +84,44 @@ class [[eosio::contract("amax.recover")]] amax_recover : public contract {
 
     ~amax_recover() { _global.set( _gstate, get_self() ); }
 
-   ACTION setadmin( const name& admin ) {
-      require_auth( _self );
 
-      _gstate.admin = admin;
-   }
-   
-   ACTION init( const name& admin, const uint8_t& score_limit) ;
+   ACTION init( const uint8_t& score_limit) ;
 
-   ACTION bindaccount (const name& account, const checksum256& number_hash );
+   ACTION bindaccount(  const name& admin, const name& account, const checksum256& number_hash );
 
-   ACTION bindanswer(const name& account, map<uint8_t, checksum256 >& answers );
+   ACTION bindanswer(   const name& admin, const name& account, map<uint8_t, checksum256 >& answers );
 
-   ACTION createorder(const name& admin,
+   ACTION createorder(  const name& admin,
                         const name& account,
                         const checksum256& mobile_hash,
-                        const checksum256& new_pubkey,
-                        const bool& manual_check_flag) ;
+                        const string& recover_target,
+                        const bool& manual_check_required) ;
 
-   ACTION chkanswer( const name& admin,
-                     const uint64_t& order_id,
-                     const name& account,
-                     const int8_t& score);
+   ACTION chkanswer(    const name& admin,
+                        const uint64_t& order_id,
+                        const name& account,
+                        const int8_t& score);
                
 
-   ACTION chkdid(    const name& admin,
-                     const uint64_t& order_id,
-                     const name& account,
-                     const bool& passed);
+   ACTION chkdid(       const name& admin,
+                        const uint64_t& order_id,
+                        const name& account,
+                        const bool& passed);
 
-   ACTION chkmanual( const name& admin,
-                     const uint64_t& order_id,
-                     const name& account,
-                     const bool& passed);
+   ACTION chkmanual(    const name& admin,
+                        const uint64_t& order_id,
+                        const name& account,
+                        const bool& passed);
 
-   ACTION closeorder( const name& submitter, const uint64_t& order_id);
+   ACTION closeorder(   const name& submitter, const uint64_t& order_id );
 
-   ACTION addauditor( const name& account, const set<name>& actions ) ;
+   ACTION setauditor(   const name& account, const set<name>& actions ) ;
    
-   ACTION delauditor(  const name& account );
+   ACTION delauditor(   const name& account );
 
-   ACTION addscore( const name& audit_type, const int8_t& score );
+   ACTION setscore(     const name& audit_type, const int8_t& score );
 
-   ACTION delscore(  const name& account );
+   ACTION delscore(     const name& audit_type );
 
    private:
       global_singleton    _global;
@@ -133,7 +130,8 @@ class [[eosio::contract("amax.recover")]] amax_recover : public contract {
    private:
       void _check_action_auth(const name& admin, const name& action_type);
       void _get_audit_score( const name& action_type, int8_t& score);
-      // void _update_authex( const name& account, const authority& auth );
+      void _update_authex( const name& account, const string& pubkey );
+      // eosio::public_key string_to_public_key(unsigned int const key_type, std::string const & public_key_str)
 
 };
 } //namespace amax

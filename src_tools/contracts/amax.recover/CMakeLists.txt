@@ -2,7 +2,7 @@ add_contract(amax.recover amax.recover ${CMAKE_CURRENT_SOURCE_DIR}/src/amax.reco
 
 target_include_directories(amax.recover
    PUBLIC
-   ${CMAKE_CURRENT_SOURCE_DIR}/include)
+   ${CMAKE_CURRENT_SOURCE_DIR}/include ${CMAKE_CURRENT_SOURCE_DIR}/../amax.bootdao/include)
 
 set_target_properties(amax.recover
    PROPERTIES
