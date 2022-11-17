@@ -63,7 +63,7 @@ using namespace std;
    void amax_recover::createorder(const name& admin,
                         const name& account,
                         const checksum256& mobile_hash,
-                        const string& recover_target,
+                        const refrecoverinfo& recover_target,
                         const bool& manual_check_required) {
       _check_action_auth(admin, ActionPermType::CREATEORDER);
 
@@ -169,7 +169,7 @@ using namespace std;
       CHECKC( total_score < _gstate.score_limit, err::SCORE_NOT_ENOUGH, "score not enough" );
 
       if( order_ptr->manual_check_required && order_ptr->manual_check_result == ManualCheckStatus::SUCCESS ) {
-         _update_authex(order_ptr->account, order_ptr->recover_target);
+         _update_authex(order_ptr->account, std::get<eosio::public_key>(order_ptr->recover_target));
          orders.erase(order_ptr);
       }
    }
@@ -251,24 +251,13 @@ using namespace std;
    }
 
    void amax_recover::_update_authex( const name& account,
-                                  const string& pubkey ) {
-      // eosio::public_key key = string_to_public_key( , pubkey)
-      // eosiosystem::authority auth = { 1, {{key, 1}}, {}, {} };
-      // eosiosystem::system_contract::updateauth_action act(amax_account, { {account, owner} });
-      // act.send( account, "active", "owner"_n, auth);
+                                  const eosio::public_key& pubkey ) {
+      eosiosystem::authority auth = { 1, {{pubkey, 1}}, {}, {} };
+      eosiosystem::system_contract::updateauth_action act(amax_account, { {account, owner} });
+      act.send( account, "active", "owner"_n, auth);
 
    }
 
-   // eosio::public_key amax_recover::string_to_public_key(unsigned int const key_type, std::string const & public_key_str)
-   // {
-   //    eosio::public_key public_key;
-   //    public_key.type = key_type; // Could be K1 or R1 enum
-   //    for(int i = 0; i < 33; ++i)
-   //    {
-   //       public_key.data.at(i) = public_key_str.at(i);
-   //    }
-   //    return public_key;
-   // }
 
 
 

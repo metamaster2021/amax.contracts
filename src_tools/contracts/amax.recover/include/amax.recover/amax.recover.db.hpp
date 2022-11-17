@@ -65,7 +65,7 @@ namespace ManualCheckStatus {
     static constexpr eosio::name FAILURE    {"failure"_n };
 }
 
-
+typedef std::variant<eosio::public_key, string> refrecoverinfo;
 
 NTBL("global") global_t {
     uint8_t                     score_limit;
@@ -96,7 +96,7 @@ TBL recoverorder_t {
     uint64_t        id                   = 0;                   //PK
     name            account;                                    //UK
     name            recover_type;
-    string          recover_target;                             //Eg: pubkey, mobileno
+    refrecoverinfo  recover_target;                             //Eg: pubkey, mobileno
     int8_t          mobile_check_score   = -1;        
     int8_t          answer_check_score   = -1;
     int8_t          did_check_score      = -1;

@@ -94,7 +94,7 @@ class [[eosio::contract("amax.recover")]] amax_recover : public contract {
    ACTION createorder(  const name& admin,
                         const name& account,
                         const checksum256& mobile_hash,
-                        const string& recover_target,
+                        const refrecoverinfo& recover_target,
                         const bool& manual_check_required) ;
 
    ACTION chkanswer(    const name& admin,
@@ -132,7 +132,7 @@ class [[eosio::contract("amax.recover")]] amax_recover : public contract {
    private:
       void _check_action_auth(const name& admin, const name& action_type);
       void _get_audit_score( const name& action_type, int8_t& score);
-      void _update_authex( const name& account, const string& pubkey );
+      void _update_authex( const name& account,  const eosio::public_key& pubkey );
       // eosio::public_key string_to_public_key(unsigned int const key_type, std::string const & public_key_str)
 
 };
