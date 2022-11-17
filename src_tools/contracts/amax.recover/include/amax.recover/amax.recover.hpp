@@ -115,6 +115,8 @@ class [[eosio::contract("amax.recover")]] amax_recover : public contract {
 
    ACTION closeorder(   const name& submitter, const uint64_t& order_id );
 
+   ACTION delorder(     const name& submitter, const uint64_t& order_id );
+
    ACTION setauditor(   const name& account, const set<name>& actions ) ;
    
    ACTION delauditor(   const name& account );

@@ -110,6 +110,7 @@ using namespace std;
       int8_t answer_score_limit = 0;
       _get_audit_score(AuditType::ANSWER, answer_score_limit);
       CHECKC(answer_score_limit >= score, err::PARAM_ERROR, "scores exceed limit")
+      CHECKC(order_ptr->expired_at > current_time_point(), err::TIME_EXPIRED, "order already time expired")
 
       orders.modify(*order_ptr, _self, [&]( auto& row ) {
          row.did_check_score     = score;
@@ -123,6 +124,7 @@ using namespace std;
       recoverorder_t::idx_t orders(_self, _self.value);
       auto order_ptr     = orders.find(order_id);
       CHECKC( order_ptr != orders.end(), err::RECORD_NOT_FOUND, "order not found. ");
+      CHECKC(order_ptr->expired_at > current_time_point(), err::TIME_EXPIRED, "order already time expired")
       
       int8_t score = 0;
       if (passed) {
@@ -142,6 +144,7 @@ using namespace std;
       recoverorder_t::idx_t orders(_self, _self.value);
       auto order_ptr     = orders.find(order_id);
       CHECKC( order_ptr != orders.end(), err::RECORD_NOT_FOUND, "order not found. ");
+      CHECKC(order_ptr->expired_at > current_time_point(), err::TIME_EXPIRED, "order already time expired")
 
       name manual_check_result       = ManualCheckStatus::FAILURE;
       if (passed) manual_check_result   = ManualCheckStatus::SUCCESS;
@@ -157,17 +160,30 @@ using namespace std;
       recoverorder_t::idx_t orders(_self, _self.value);
       auto order_ptr     = orders.find(order_id);
       CHECKC( order_ptr != orders.end(), err::RECORD_NOT_FOUND, "order not found. "); 
+      CHECKC(order_ptr->expired_at > current_time_point(), err::TIME_EXPIRED, "order already time expired")
+
       auto total_score = 0;
       if(order_ptr->mobile_check_score > 0 ) total_score += order_ptr->mobile_check_score;
       if(order_ptr->answer_check_score > 0 ) total_score += order_ptr->answer_check_score;
       if(order_ptr->did_check_score > 0 ) total_score += order_ptr->did_check_score;
       CHECKC( total_score < _gstate.score_limit, err::SCORE_NOT_ENOUGH, "score not enough" );
+
       if( order_ptr->manual_check_required && order_ptr->manual_check_result == ManualCheckStatus::SUCCESS ) {
          _update_authex(order_ptr->account, order_ptr->recover_target);
          orders.erase(order_ptr);
-      } 
+      }
+   }
 
-   } 
+   void amax_recover::delorder( const name& submitter, const uint64_t& order_id) {
+      CHECKC( has_auth(submitter) , err::NO_AUTH, "no auth for operate" )
+      recoverorder_t::idx_t orders(_self, _self.value);
+      auto order_ptr     = orders.find(order_id);
+      CHECKC( order_ptr != orders.end(), err::RECORD_NOT_FOUND, "order not found. "); 
+      auto total_score = 0;
+      CHECKC(order_ptr->expired_at < current_time_point(), err::STATUS_ERROR, "order has not expired")
+      orders.erase(order_ptr);
+   
+   }
 
    void amax_recover::setauditor( const name& account, const set<name>& actions ) {
       auditor_t::idx_t auditors(_self, _self.value);
