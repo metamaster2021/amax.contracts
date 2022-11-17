@@ -102,9 +102,85 @@ public:
 
    action_result action_bindaccount(  const name& admin, const name& account, const string& number_hash ) {
       return push_action(  N(amax.recover), N(bindaccount), mvo()
-           ( "admin", admin)
-           ( "account", account)
-           ( "number_hash", number_hash)
+           ( "admin",         admin)
+           ( "account",       account)
+           ( "number_hash",   number_hash)
+      );
+   }
+
+
+   action_result action_bindanswer( const name& admin, const name& account, map<uint8_t, string>& answers ) {
+      return push_action(  N(amax.recover), N(bindanswer), mvo()
+           ( "admin",      admin)
+           ( "account",    account)
+           ( "answers",    answers)
+      );
+   }
+
+   action_result action_createorder(   const name& admin,
+                                       const name& account,
+                                       const string& mobile_hash,
+                                       const string& recover_target,
+                                       const bool& manual_check_required) {
+      return push_action(  N(amax.recover), N(createorder), mvo()
+           ( "admin",            admin)
+           ( "account",          account)
+           ( "mobile_hash",      mobile_hash)
+           ( "recover_target",   recover_target)
+           ( "manual_check_required", manual_check_required)
+      );
+   }
+
+   action_result action_chkanswer( const name&  admin,
+                        const uint64_t&         order_id,
+                        const name&             account,
+                        const int8_t&           score) {
+      return push_action(  N(amax.recover), N(chkanswer), mvo()
+           ( "admin",      admin)
+           ( "order_id",   order_id)
+           ( "account",    account)
+           ( "score",      score)
+      );
+   }
+               
+
+   action_result action_chkdid( const name& admin,
+                        const uint64_t& order_id,
+                        const name& account,
+                        const bool& passed) {
+      return push_action(  N(amax.recover), N(chkdid), mvo()
+           ( "admin",      admin)
+           ( "order_id",   order_id)
+           ( "account",    account)
+           ( "passed",     passed)
+      );
+
+   }
+
+   action_result action_chkmanual( const name& admin,
+                        const uint64_t& order_id,
+                        const name& account,
+                        const bool& passed) {
+
+      return push_action(  N(amax.recover), N(chkmanual), mvo()
+           ( "admin",      admin)
+           ( "order_id",   order_id)
+           ( "account",    account)
+           ( "passed",     passed)
+      );
+   }
+
+   action_result action_closeorder( const name& submitter, const uint64_t& order_id ) {
+       return push_action(  N(amax.recover), N(closeorder), mvo()
+           ( "submitter", submitter)
+           ( "order_id", order_id)
+      );
+   }
+
+   action_result action_delorder( const name& submitter, const uint64_t& order_id ) {
+      return push_action(  N(amax.recover), N(delorder), mvo()
+           ( "submitter",  submitter)
+           ( "order_id",   order_id)
       );
    }
    

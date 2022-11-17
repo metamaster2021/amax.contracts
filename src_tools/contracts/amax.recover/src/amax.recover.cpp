@@ -60,11 +60,11 @@ using namespace std;
 
    }
 
-   void amax_recover::createorder(const name& admin,
-                        const name& account,
-                        const string& mobile_hash,
-                        const refrecoverinfo& recover_target,
-                        const bool& manual_check_required) {
+   void amax_recover::createorder(const name&   admin,
+                        const name&             account,
+                        const string&           mobile_hash,
+                        const refrecoverinfo&   recover_target,
+                        const bool&             manual_check_required) {
       _check_action_auth(admin, ActionPermType::CREATEORDER);
 
       accountaudit_t::idx accountaudits(_self, _self.value);
@@ -168,8 +168,9 @@ using namespace std;
       if(order_ptr->did_check_score > 0 ) total_score += order_ptr->did_check_score;
       CHECKC( total_score < _gstate.score_limit, err::SCORE_NOT_ENOUGH, "score not enough" );
 
-      if( order_ptr->manual_check_required && order_ptr->manual_check_result == ManualCheckStatus::SUCCESS ) {
-         _update_authex(order_ptr->account, std::get<eosio::public_key>(order_ptr->recover_target));
+      if ( (!order_ptr->manual_check_required) || 
+         (order_ptr->manual_check_required && order_ptr->manual_check_result == ManualCheckStatus::SUCCESS ) ) {
+         // _update_authex(order_ptr->account, std::get<eosio::public_key>(order_ptr->recover_target));
          orders.erase(order_ptr);
       }
    }
@@ -186,10 +187,8 @@ using namespace std;
    }
 
    void amax_recover::setauditor( const name& account, const set<name>& actions ) {
-      print("_____setauditor_____");
       auditor_t::idx_t auditors(_self, _self.value);
       auto auditor_ptr = auditors.find(account.value);
-      print("_____setauditor_____2");
 
       if( auditor_ptr != auditors.end() ) {
          auditors.modify(*auditor_ptr, _self, [&]( auto& row ) {
