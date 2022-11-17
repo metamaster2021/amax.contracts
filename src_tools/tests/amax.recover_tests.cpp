@@ -7,6 +7,7 @@
 #include "Runtime/Runtime.h"
 
 #include <fc/variant_object.hpp>
+#include "amax_recover_base_tester.hpp"
 
 using namespace eosio::testing;
 using namespace eosio;
@@ -17,89 +18,47 @@ using namespace std;
 
 using mvo = fc::mutable_variant_object;
 
-class amax_recover_tester : public tester {
+class amax_recover_tester : public amax_recover_base_tester {
 public:
 
    amax_recover_tester() {
-      produce_blocks( 2 );
-
-      create_accounts( { N(alice), N(bob), N(carol), N(amax.recover) } );
-      produce_blocks( 2 );
-
-      wdump((contracts::recover_wasm()));
-
-      
-      set_code( N(amax.recover), contracts::recover_wasm() );
-
-      set_abi( N(amax.recover), contracts::recover_abi().data() );
-
-      produce_blocks();
-
-      const auto& accnt = control->db().get<account_object,by_name>( N(amax.recover) );
-      abi_def abi;
-      BOOST_REQUIRE_EQUAL(abi_serializer::to_abi(accnt.abi, abi), true);
-      abi_ser.set_abi(abi, abi_serializer::create_yield_function(abi_serializer_max_time));
+      init_contract();
    }
-
-   action_result push_action( const account_name& signer, const action_name &name, const variant_object &data ) {
-      string action_type_name = abi_ser.get_action_type(name);
-
-      action act;
-      act.account = N(amax.recover);
-      act.name    = name;
-      act.data    = abi_ser.variant_to_binary( action_type_name, data, abi_serializer::create_yield_function(abi_serializer_max_time) );
-
-      return base_tester::push_action( std::move(act), signer.to_uint64_t() );
-   }
-
-   fc::variant get_table_auditor( const name& auditor )
-   {
-      vector<char> data = get_row_by_account( N(amax.recover), N(amax.recover), N(auditors), auditor );
-      return data.empty() ? fc::variant() : abi_ser.binary_to_variant( "auditor_t", data, abi_serializer::create_yield_function(abi_serializer_max_time) );
-   }
-
-
-   fc::variant get_table_global( )
-   {
-      vector<char> data = get_row_by_account( N(amax.recover), N(amax.recover), N(global), N(global));
-      return data.empty() ? fc::variant() : abi_ser.binary_to_variant( "global_t", data, abi_serializer::create_yield_function(abi_serializer_max_time) );
-   }
-
-   // fc::variant get_account( account_name acc, const string& symbolname)
-   // {
-   //    auto symb = eosio::chain::symbol::from_string(symbolname);
-   //    auto symbol_code = symb.to_symbol_code().value;
-   //    vector<char> data = get_row_by_account( N(amax.recover), acc, N(accounts), account_name(symbol_code) );
-   //    return data.empty() ? fc::variant() : abi_ser.binary_to_variant( "account", data, abi_serializer::create_yield_function(abi_serializer_max_time) );
-   // }
-
-   action_result action_init( uint8_t score_limit ) {
-      return push_action( N(amax.recover), N(init), mvo()
-           ( "score_limit", score_limit)
+   
+   void init_contract() {
+      action_init( 5 );
+      auto g = get_table_global();
+      REQUIRE_MATCHING_OBJECT( g, mvo()
+         ("score_limit", 5)
+         ("last_order_id", 0)
       );
-   }
+      produce_blocks(1);
 
-   action_result action_setscore( name audit_type, int8_t score ) {
-      return push_action(  N(amax.recover), N(setscore), mvo()
-           ( "audit_type", audit_type)
-           ( "score", score)
-      );
-   }
+      action_setscore(N("mobileno"), 3);
+      produce_blocks(1);
 
-   abi_serializer abi_ser;
+      action_setscore(N("answer"), 3);
+      produce_blocks(1);
+
+      action_setscore(N("did"), 3);
+      produce_blocks(1);
+   }
 };
 
 BOOST_AUTO_TEST_SUITE(amax_recover_tests)
 
 BOOST_FIXTURE_TEST_CASE( init_tests, amax_recover_tester ) try {
-
-   action_init( 5 );
-   auto g = get_table_global();
-   REQUIRE_MATCHING_OBJECT( g, mvo()
-      ("score_limit", 5)
-      ("last_order_id", 0)
-   );
+   set<name> actions = {N(bindaccount), N(bindanswer), N(createorder), N(chkanswer), N(chkdid), N(chkmanual)};
+   action_setauditor(N(admin), actions);
    produce_blocks(1);
+
+   action_bindaccount(N(admin), N(account), "mobile_hash" );
+   produce_blocks(1);
+   std::cout << "--begin--\n";
+
+   auto accaudit = get_table_accaudits(N(account));
+   wdump(("accaudit:")(accaudit));
+   std::cout << "--end--\n";
 
 } FC_LOG_AND_RETHROW()
 

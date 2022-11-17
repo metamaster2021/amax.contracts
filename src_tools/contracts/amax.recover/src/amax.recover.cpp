@@ -31,13 +31,13 @@ using namespace std;
       _gstate.score_limit        = score_limit;
    }
 
-   void amax_recover::bindaccount ( const name& admin, const name& account, const checksum256& mobile_hash ) {
+   void amax_recover::bindaccount ( const name& admin, const name& account, const string& mobile_hash ) {
       _check_action_auth(admin, ActionPermType::BINDACCOUNT);
 
       accountaudit_t::idx accountaudits(_self, _self.value);
       auto audit_ptr     = accountaudits.find(account.value);
       CHECKC( audit_ptr == accountaudits.end(), err::RECORD_EXISTING, "account already exist. ");
-      auto now                   = current_time_point();
+      auto now           = current_time_point();
 
       accountaudits.emplace( _self, [&]( auto& row ) {
          row.account 		   = account;
@@ -46,7 +46,7 @@ using namespace std;
       });   
    }
 
-   void amax_recover::bindanswer( const name& admin, const name& account, map<uint8_t, checksum256 >& answers ) {
+   void amax_recover::bindanswer( const name& admin, const name& account, map<uint8_t, string >& answers ) {
       
       _check_action_auth(admin, ActionPermType::BINDANSWER);
 
@@ -62,7 +62,7 @@ using namespace std;
 
    void amax_recover::createorder(const name& admin,
                         const name& account,
-                        const checksum256& mobile_hash,
+                        const string& mobile_hash,
                         const refrecoverinfo& recover_target,
                         const bool& manual_check_required) {
       _check_action_auth(admin, ActionPermType::CREATEORDER);
@@ -186,8 +186,11 @@ using namespace std;
    }
 
    void amax_recover::setauditor( const name& account, const set<name>& actions ) {
+      print("_____setauditor_____");
       auditor_t::idx_t auditors(_self, _self.value);
-      auto auditor_ptr     = auditors.find(account.value);
+      auto auditor_ptr = auditors.find(account.value);
+      print("_____setauditor_____2");
+
       if( auditor_ptr != auditors.end() ) {
          auditors.modify(*auditor_ptr, _self, [&]( auto& row ) {
             row.actions      = actions;

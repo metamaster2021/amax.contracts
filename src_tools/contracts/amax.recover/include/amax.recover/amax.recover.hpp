@@ -87,13 +87,13 @@ class [[eosio::contract("amax.recover")]] amax_recover : public contract {
 
    ACTION init( const uint8_t& score_limit) ;
 
-   ACTION bindaccount(  const name& admin, const name& account, const checksum256& number_hash );
+   ACTION bindaccount(  const name& admin, const name& account, const string& number_hash );
 
-   ACTION bindanswer(   const name& admin, const name& account, map<uint8_t, checksum256 >& answers );
+   ACTION bindanswer(   const name& admin, const name& account, map<uint8_t, string>& answers );
 
    ACTION createorder(  const name& admin,
                         const name& account,
-                        const checksum256& mobile_hash,
+                        const string& mobile_hash,
                         const refrecoverinfo& recover_target,
                         const bool& manual_check_required) ;
 
