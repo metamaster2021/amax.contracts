@@ -96,7 +96,7 @@ TBL recoverorder_t {
     uint64_t        id                   = 0;                   //PK
     name            account;                                    //UK
     name            recover_type;
-    refrecoverinfo  recover_target;                             //Eg: pubkey, mobileno
+    string          recover_target;                             //Eg: pubkey, mobileno
     int8_t          mobile_check_score   = -1;        
     int8_t          answer_check_score   = -1;
     int8_t          did_check_score      = -1;

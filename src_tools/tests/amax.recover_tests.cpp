@@ -34,13 +34,13 @@ public:
       );
       produce_blocks(1);
 
-      action_setscore(N("mobileno"), 3);
+      action_setscore(N(mobileno), 3);
       produce_blocks(1);
 
-      action_setscore(N("answer"), 3);
+      action_setscore(N(answer), 3);
       produce_blocks(1);
 
-      action_setscore(N("did"), 3);
+      action_setscore(N(did), 3);
       produce_blocks(1);
 
       set<name> actions = {N(bindaccount), N(bindanswer), N(createorder), N(chkanswer), N(chkdid), N(chkmanual)};
@@ -53,6 +53,8 @@ BOOST_AUTO_TEST_SUITE(amax_recover_tests)
 
 BOOST_FIXTURE_TEST_CASE( init_tests, amax_recover_tester ) try {
 
+   // get_table_auditscore("mobileno");
+   // wdump(("accaudit:")(accaudit));
 
    action_bindaccount(N(admin), N(account), "mobile_hash" );
    produce_blocks(1);
@@ -62,24 +64,34 @@ BOOST_FIXTURE_TEST_CASE( init_tests, amax_recover_tester ) try {
 
    map<uint8_t, string> answers = {{1, "answer1"}, {2, "answer2"}};
    action_bindanswer (N(admin), N(account), answers );
+   produce_blocks(1);
+
    std::cout << "action_bindanswer ---- end\n"; 
 
 
-   // action_createorder( N(admin) , N(account),"mobile_hash", "AM8CYknq1nMZxsuz6ZE85ihp8g3ddp4QNfc6nCV9mfBuVmLLeUSp", false);
-   // std::cout << "action_createorder ---- end\n"; 
+   action_createorder( N(admin) , N(account),"mobile_hash", "AM8CYknq1nMZxsuz6ZE85ihp8g3ddp4QNfc6nCV9mfBuVmLLeUSp", false);
+   std::cout << "action_createorder ---- end\n"; 
+   produce_blocks(1);
+
 
    action_chkanswer(N(admin), 1, N(account),2);
    std::cout << "action_chkanswer ---- end\n"; 
+   produce_blocks(1);
+
 
    action_chkdid(N(admin), 1, N(account), true);
    std::cout << "action_chkdid ---- end\n"; 
+   produce_blocks(1);
+
 
    action_chkmanual(N(admin), 1, N(account), true);
    std::cout << "action_chkmanual ---- end\n"; 
+   produce_blocks(1);
 
-   action_closeorder(N(test), 1);
+
+   action_closeorder(N(admin), 1);
    std::cout << "action_closeorder ---- end\n"; 
-
+   produce_blocks(1);
 
 } FC_LOG_AND_RETHROW()
 

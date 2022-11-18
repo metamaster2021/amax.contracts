@@ -61,6 +61,11 @@ public:
       return get_table_common("accountaudit_t", N(accaudits), account);
    }
 
+   fc::variant get_table_auditscore( const name& account )
+   {
+      return get_table_common("auditscore_t", N(auditscores), account);
+   }
+
    fc::variant get_table_global( )
    {
       vector<char> data = get_row_by_account( N(amax.recover), N(amax.recover), N(global), N(global));

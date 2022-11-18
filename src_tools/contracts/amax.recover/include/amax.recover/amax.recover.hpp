@@ -94,7 +94,7 @@ class [[eosio::contract("amax.recover")]] amax_recover : public contract {
    ACTION createorder(  const name& admin,
                         const name& account,
                         const string& mobile_hash,
-                        const refrecoverinfo& recover_target,
+                        const string& recover_target,
                         const bool& manual_check_required) ;
 
    ACTION chkanswer(    const name& admin,

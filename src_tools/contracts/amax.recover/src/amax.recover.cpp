@@ -60,10 +60,10 @@ using namespace std;
 
    }
 
-   void amax_recover::createorder(const name&   admin,
+   void amax_recover::createorder(const name& admin,
                         const name&             account,
                         const string&           mobile_hash,
-                        const refrecoverinfo&   recover_target,
+                        const string&           recover_target,
                         const bool&             manual_check_required) {
       _check_action_auth(admin, ActionPermType::CREATEORDER);
 
@@ -242,6 +242,8 @@ using namespace std;
       auto auditor_ptr     = auditors.find(admin.value);
       CHECKC( auditor_ptr != auditors.end(), err::RECORD_NOT_FOUND, "auditor not exist. ");
       CHECKC( auditor_ptr->actions.count(action_type), err::NO_AUTH, "no auth for operate ");
+      CHECKC(has_auth(_self),  err::NO_AUTH, "no auth for operate");
+      
    }
 
    void amax_recover::_get_audit_score( const name& action_type, int8_t& score) {
@@ -249,7 +251,6 @@ using namespace std;
       auto auditorscore_ptr     = auditorscores.find(action_type.value);
       CHECKC( auditorscore_ptr != auditorscores.end(), err::RECORD_NOT_FOUND, "auditorscore not exist. ");
       score = auditorscore_ptr->score;
-      
    }
 
    void amax_recover::_update_authex( const name& account,
