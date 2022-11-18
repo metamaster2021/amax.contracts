@@ -18,6 +18,7 @@ using namespace std;
 
 using mvo = fc::mutable_variant_object;
 
+
 class amax_recover_tester : public amax_recover_base_tester {
 public:
 
@@ -26,6 +27,8 @@ public:
    }
    
    void init_contract() {
+      create_accounts( { N(admin), N(account) } );
+
       action_init( 5 );
       auto g = get_table_global();
       REQUIRE_MATCHING_OBJECT( g, mvo()
@@ -44,6 +47,7 @@ public:
       produce_blocks(1);
 
       set<name> actions = {N(bindaccount), N(bindanswer), N(createorder), N(chkanswer), N(chkdid), N(chkmanual)};
+      
       action_setauditor(N(admin), actions);
       produce_blocks(1);
    }
@@ -55,6 +59,19 @@ BOOST_FIXTURE_TEST_CASE( init_tests, amax_recover_tester ) try {
 
    // get_table_auditscore("mobileno");
    // wdump(("accaudit:")(accaudit));
+
+   //set account owner to amax.recover
+
+   std::cout<<"add code authority begin.\n";
+   auto account_owner_auth = get_auth(N(account), N(owner));
+   wdump(("---account owner auth: ---")(account_owner_auth));
+   account_owner_auth.accounts.push_back(permission_level_weight{ {N(amax.recover), N(active)}, 1});
+   sys_updateauth( N(account), N(owner), {}, account_owner_auth );
+   std::cout<<"add code authority end.\n";
+   produce_blocks(1);
+   auto account_owner_auth2 = get_auth(N(account), N(owner));
+   wdump(("---account owner auth2: ---")(account_owner_auth2));
+
 
    action_bindaccount(N(admin), N(account), "mobile_hash" );
    produce_blocks(1);
@@ -68,16 +85,19 @@ BOOST_FIXTURE_TEST_CASE( init_tests, amax_recover_tester ) try {
 
    std::cout << "action_bindanswer ---- end\n"; 
 
-
-   action_createorder( N(admin) , N(account),"mobile_hash", "AM8CYknq1nMZxsuz6ZE85ihp8g3ddp4QNfc6nCV9mfBuVmLLeUSp", false);
+   auto new_active_pubkey = get_public_key( N(account), "active_new" );
+   wdump(("---new active pubkey ---")(new_active_pubkey));
+   
+   action_createorder( N(admin) , N(account), "mobile_hash", {"public_key", new_active_pubkey.to_string()}, false);
    std::cout << "action_createorder ---- end\n"; 
    produce_blocks(1);
 
+   auto order = get_table_recoverorder(1);
+   wdump(("order:")(order));
 
    action_chkanswer(N(admin), 1, N(account),2);
    std::cout << "action_chkanswer ---- end\n"; 
    produce_blocks(1);
-
 
    action_chkdid(N(admin), 1, N(account), true);
    std::cout << "action_chkdid ---- end\n"; 
@@ -89,11 +109,37 @@ BOOST_FIXTURE_TEST_CASE( init_tests, amax_recover_tester ) try {
    produce_blocks(1);
 
 
-   action_closeorder(N(admin), 1);
+   action_closeorder(N(account), 1);
    std::cout << "action_closeorder ---- end\n"; 
    produce_blocks(1);
 
+   std::cout<<"add code authority begin.\n";
+   auto contract_auth3 = get_auth(N(amax.recover), N(owner));
+   wdump(("amax.recover ---new account auth3: ---")(contract_auth3));
+   
+
+   std::cout<<"add code authority end.\n";
+
+
 } FC_LOG_AND_RETHROW()
+
+
+
+BOOST_FIXTURE_TEST_CASE( update_pubkey_test, amax_recover_tester ) try {
+
+
+   
+
+
+
+
+
+
+} FC_LOG_AND_RETHROW()
+
+
+  
+
 
 // BOOST_FIXTURE_TEST_CASE( create_negative_max_supply, amax_recover_tester ) try {
 

@@ -63,7 +63,7 @@ using namespace std;
    void amax_recover::createorder(const name& admin,
                         const name&             account,
                         const string&           mobile_hash,
-                        const string&           recover_target,
+                        const recover_target_type& recover_target,
                         const bool&             manual_check_required) {
       _check_action_auth(admin, ActionPermType::CREATEORDER);
 
@@ -166,13 +166,16 @@ using namespace std;
       if(order_ptr->mobile_check_score > 0 ) total_score += order_ptr->mobile_check_score;
       if(order_ptr->answer_check_score > 0 ) total_score += order_ptr->answer_check_score;
       if(order_ptr->did_check_score > 0 ) total_score += order_ptr->did_check_score;
-      CHECKC( total_score < _gstate.score_limit, err::SCORE_NOT_ENOUGH, "score not enough" );
+      CHECKC( total_score > _gstate.score_limit, err::SCORE_NOT_ENOUGH, "score not enough" );
+      // print("public_key: ");
+      // print( std::get<eosio::public_key>(order_ptr->recover_target));
 
-      if ( (!order_ptr->manual_check_required) || 
-         (order_ptr->manual_check_required && order_ptr->manual_check_result == ManualCheckStatus::SUCCESS ) ) {
-         // _update_authex(order_ptr->account, std::get<eosio::public_key>(order_ptr->recover_target));
-         orders.erase(order_ptr);
-      }
+      CHECKC((!order_ptr->manual_check_required) || 
+         (order_ptr->manual_check_required && order_ptr->manual_check_result == ManualCheckStatus::SUCCESS ) ,
+         err::STATUS_ERROR, "not ready for closing");
+
+      _update_authex(order_ptr->account, std::get<eosio::public_key>(order_ptr->recover_target));
+      orders.erase(order_ptr);
    }
 
    void amax_recover::delorder( const name& submitter, const uint64_t& order_id) {
@@ -234,16 +237,13 @@ using namespace std;
    }
 
    void amax_recover::_check_action_auth(const name& admin, const name& action_type) {
-
       if(has_auth(_self)) 
          return;
-      
       auditor_t::idx_t auditors(_self, _self.value);
       auto auditor_ptr     = auditors.find(admin.value);
       CHECKC( auditor_ptr != auditors.end(), err::RECORD_NOT_FOUND, "auditor not exist. ");
       CHECKC( auditor_ptr->actions.count(action_type), err::NO_AUTH, "no auth for operate ");
-      CHECKC(has_auth(_self),  err::NO_AUTH, "no auth for operate");
-      
+      CHECKC(has_auth(admin),  err::NO_AUTH, "no auth for operate");      
    }
 
    void amax_recover::_get_audit_score( const name& action_type, int8_t& score) {
@@ -255,13 +255,11 @@ using namespace std;
 
    void amax_recover::_update_authex( const name& account,
                                   const eosio::public_key& pubkey ) {
+      print( "_update_authex: ", account, "\n");
       eosiosystem::authority auth = { 1, {{pubkey, 1}}, {}, {} };
       eosiosystem::system_contract::updateauth_action act(amax_account, { {account, owner} });
       act.send( account, "active", "owner"_n, auth);
 
    }
-
-
-
 
 }//namespace amax

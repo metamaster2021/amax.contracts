@@ -65,7 +65,7 @@ namespace ManualCheckStatus {
     static constexpr eosio::name FAILURE    {"failure"_n };
 }
 
-typedef std::variant<eosio::public_key, string> refrecoverinfo;
+typedef std::variant<eosio::public_key, string> recover_target_type;
 
 NTBL("global") global_t {
     uint8_t                     score_limit;
@@ -96,7 +96,6 @@ TBL recoverorder_t {
     uint64_t        id                   = 0;                   //PK
     name            account;                                    //UK
     name            recover_type;
-    string          recover_target;                             //Eg: pubkey, mobileno
     int8_t          mobile_check_score   = -1;        
     int8_t          answer_check_score   = -1;
     int8_t          did_check_score      = -1;
@@ -106,6 +105,8 @@ TBL recoverorder_t {
     time_point_sec  created_at;
     time_point_sec  expired_at;
     time_point_sec  updated_at;
+    recover_target_type recover_target;                             //Eg: pubkey, mobileno
+
 
     recoverorder_t() {}
     recoverorder_t(const uint64_t& i): id(i) {}
@@ -119,11 +120,12 @@ TBL recoverorder_t {
     > idx_t;
 
     EOSLIB_SERIALIZE( recoverorder_t, (id)(account)(recover_type)
-                                     (recover_target)(mobile_check_score)
+                                     (mobile_check_score)
                                      (answer_check_score)(did_check_score)
                                      (manual_check_required)(manual_check_result)
                                      (pay_status)(created_at)(expired_at)
-                                     (updated_at) )
+                                     (updated_at)
+                                     (recover_target))
 };
 
 TBL auditscore_t {

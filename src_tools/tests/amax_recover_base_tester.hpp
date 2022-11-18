@@ -7,7 +7,7 @@
 #include "Runtime/Runtime.h"
 
 #include <fc/variant_object.hpp>
-
+#include <eosio/chain/authorization_manager.hpp>
 
 using namespace eosio::testing;
 using namespace eosio;
@@ -17,6 +17,7 @@ using namespace fc;
 using namespace std;
 
 using mvo = fc::mutable_variant_object;
+using recover_target_type = static_variant<public_key_type, string>;
 
 class amax_recover_base_tester : public tester {
 public:
@@ -24,7 +25,8 @@ public:
    amax_recover_base_tester() {
       produce_blocks( 2 );
 
-      create_accounts( { N(alice), N(bob), N(carol), N(amax.recover) } );
+      create_accounts( { N(alice), N(bob), N(carol) }, false, false );
+      create_accounts( { N(amax.recover) } , false, true);
       produce_blocks( 2 );
 
       set_code( N(amax.recover), contracts::recover_wasm() );
@@ -37,6 +39,10 @@ public:
       abi_def abi;
       BOOST_REQUIRE_EQUAL(abi_serializer::to_abi(accnt.abi, abi), true);
       abi_ser.set_abi(abi, abi_serializer::create_yield_function(abi_serializer_max_time));
+
+      produce_blocks();
+
+
    }
 
    action_result push_action( const account_name& signer, const action_name &name, const variant_object &data ) {
@@ -56,20 +62,24 @@ public:
       return data.empty() ? fc::variant() : abi_ser.binary_to_variant( "auditor_t", data, abi_serializer::create_yield_function(abi_serializer_max_time) );
    }
 
-   fc::variant get_table_accaudits( const name& account )
-   {
-      return get_table_common("accountaudit_t", N(accaudits), account);
-   }
-
    fc::variant get_table_auditscore( const name& account )
    {
       return get_table_common("auditscore_t", N(auditscores), account);
    }
 
+   fc::variant get_table_accountaudit( const name& account )
+   {
+      return get_table_common("accountaudit_t", N(accaudits), account );
+   }
+
+   fc::variant get_table_recoverorder( const uint64_t& order_id )
+   {
+      return get_table_common("recoverorder_t", N(orders), name(order_id) );
+   }
+
    fc::variant get_table_global( )
    {
-      vector<char> data = get_row_by_account( N(amax.recover), N(amax.recover), N(global), N(global));
-      return data.empty() ? fc::variant() : abi_ser.binary_to_variant( "global_t", data, abi_serializer::create_yield_function(abi_serializer_max_time) );
+      return get_table_common("global_t", N(global), N(global));
    }
 
    fc::variant get_table_common(const string& table_def, const name& table_name, const name& pk )
@@ -122,11 +132,11 @@ public:
       );
    }
 
-   action_result action_createorder(   const name& admin,
-                                       const name& account,
-                                       const string& mobile_hash,
-                                       const string& recover_target,
-                                       const bool& manual_check_required) {
+   action_result action_createorder(   const name&          admin,
+                                       const name&          account,
+                                       const string&        mobile_hash,
+                                       const fc::variants&  recover_target,
+                                       const bool&          manual_check_required) {
       return push_action(  N(amax.recover), N(createorder), mvo()
            ( "admin",            admin)
            ( "account",          account)
@@ -176,7 +186,7 @@ public:
    }
 
    action_result action_closeorder( const name& submitter, const uint64_t& order_id ) {
-       return push_action(  N(amax.recover), N(closeorder), mvo()
+       return push_action( submitter, N(closeorder), mvo()
            ( "submitter", submitter)
            ( "order_id", order_id)
       );
@@ -188,6 +198,31 @@ public:
            ( "order_id",   order_id)
       );
    }
+
+
+
+   void sys_updateauth(const name& account,
+                            const name& permission,
+                            const name& parent,
+                            const authority& auth) {
+      tester::push_action(config::system_account_name, updateauth::get_name(),
+      // TESTER::push_action(config::system_account_name, N(updateauthex),
+            { permission_level{account, permission}}, mvo()
+               ("account",    account)
+               ("permission", permission)
+               ("parent",     parent)
+               ("auth",       auth) );
+   };
+
+
+   authority get_auth( const name& account, const name& permission) {
+      const auto& permission_by_owner = control->db().get_index<eosio::chain::permission_index>().indices().get<eosio::chain::by_owner>();
+      auto perm_itr = permission_by_owner.find(std::make_tuple(account, permission));
+      BOOST_REQUIRE(perm_itr != permission_by_owner.end());
+      return perm_itr->auth;
+   };
+
+
    
 
    abi_serializer abi_ser;
