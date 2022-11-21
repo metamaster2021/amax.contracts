@@ -78,7 +78,7 @@ typedef eosio::singleton< "global"_n, global_t > global_singleton;
 TBL accountaudit_t {
     name                        account;            
     string                      mobile_hash;
-    map<uint8_t, string>        answers;
+    string                      answers;
     time_point_sec              created_at;
 
     accountaudit_t() {}

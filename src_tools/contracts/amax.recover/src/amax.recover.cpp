@@ -46,7 +46,7 @@ using namespace std;
       });   
    }
 
-   void amax_recover::bindanswer( const name& admin, const name& account, map<uint8_t, string >& answers ) {
+   void amax_recover::bindanswer( const name& admin, const name& account, const string& answers ) {
       
       _check_action_auth(admin, ActionPermType::BINDANSWER);
 

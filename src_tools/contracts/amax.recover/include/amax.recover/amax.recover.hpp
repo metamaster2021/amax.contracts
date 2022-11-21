@@ -89,7 +89,7 @@ class [[eosio::contract("amax.recover")]] amax_recover : public contract {
 
    ACTION bindaccount(  const name& admin, const name& account, const string& number_hash );
 
-   ACTION bindanswer(   const name& admin, const name& account, map<uint8_t, string>& answers );
+   ACTION bindanswer(   const name& admin, const name& account, const string& answers );
 
    ACTION createorder(  const name& admin,
                         const name& account,
