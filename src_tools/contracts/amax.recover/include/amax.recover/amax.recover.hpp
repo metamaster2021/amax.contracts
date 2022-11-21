@@ -131,7 +131,7 @@ class [[eosio::contract("amax.recover")]] amax_recover : public contract {
 
    private:
       void _check_action_auth(const name& admin, const name& action_type);
-      void _get_audit_score( const name& action_type, int8_t& score);
+      int8_t _get_audit_score( const name& action_type);
       void _update_authex( const name& account,  const eosio::public_key& pubkey );
       // eosio::public_key string_to_public_key(unsigned int const key_type, std::string const & public_key_str)
 
