@@ -151,6 +151,7 @@ using namespace std;
       auto now                = current_time_point();
       orders.modify(*order_ptr, _self, [&]( auto& row ) {
          row.manual_check_result    = manual_check_result;
+         row.manual_checker         = admin;
          row.updated_at             = now;
       });
    }

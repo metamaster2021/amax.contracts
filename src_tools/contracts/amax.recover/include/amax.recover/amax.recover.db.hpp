@@ -100,7 +100,8 @@ TBL recoverorder_t {
     int8_t          answer_check_score   = -1;
     int8_t          did_check_score      = -1;
     bool            manual_check_required = false;
-    name            manual_check_result;         
+    name            manual_check_result; 
+    name            manual_checker;        
     name            pay_status;
     time_point_sec  created_at;
     time_point_sec  expired_at;
@@ -122,7 +123,7 @@ TBL recoverorder_t {
     EOSLIB_SERIALIZE( recoverorder_t, (id)(account)(recover_type)
                                      (mobile_check_score)
                                      (answer_check_score)(did_check_score)
-                                     (manual_check_required)(manual_check_result)
+                                     (manual_check_required)(manual_check_result)(manual_checker)
                                      (pay_status)(created_at)(expired_at)
                                      (updated_at)
                                      (recover_target))
