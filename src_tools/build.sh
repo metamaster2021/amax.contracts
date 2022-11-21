@@ -15,7 +15,7 @@ function usage() {
    exit 1
 }
 
-BUILD_TESTS=false
+BUILD_TESTS=true
 
 if [ $# -ne 0 ]; then
   while getopts "e:c:tyh" opt; do
