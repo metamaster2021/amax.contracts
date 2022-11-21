@@ -51,9 +51,11 @@ namespace AuditType {
 }
 
 namespace ActionPermType {
+    //initial read-ID binding phase
     static constexpr eosio::name BINDACCOUNT{"bindaccount"_n };
-    static constexpr eosio::name BINDANSWER{"bindanswer"_n };
+    static constexpr eosio::name BINDANSWER {"bindanswer"_n };
 
+    //recovery phase
     static constexpr eosio::name CREATEORDER{"createorder"_n };
     static constexpr eosio::name CHKANSWER  {"chkanswer"_n };
     static constexpr eosio::name CHKDID     {"chkdid"_n };
