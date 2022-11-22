@@ -32,7 +32,11 @@ using namespace std;
    }
 
    void amax_recover::bindaccount ( const name& admin, const name& account, const string& mobile_hash ) {
+
       _check_action_auth(admin, ActionPermType::BINDACCOUNT);
+
+      check(is_account(account), "account invalid: " + account.to_string());
+      check(mobile_hash.size() <= 256, "mobile_hash size too large: " + to_string(mobile_hash.size()) );
 
       accountaudit_t::idx accountaudits(_self, _self.value);
       auto audit_ptr     = accountaudits.find(account.value);
@@ -50,6 +54,8 @@ using namespace std;
       
       _check_action_auth(admin, ActionPermType::BINDANSWER);
 
+      check(answers.size() <= 1024, "answers size too large: " + to_string(answers.size()) );
+
       accountaudit_t::idx accountaudits(_self, _self.value);
       auto audit_ptr     = accountaudits.find(account.value);
       CHECKC( audit_ptr != accountaudits.end(), err::RECORD_NOT_FOUND, "order not exist. ");
@@ -66,6 +72,9 @@ using namespace std;
                         const recover_target_type& recover_target,
                         const bool&             manual_check_required) {
       _check_action_auth(admin, ActionPermType::CREATEORDER);
+
+      check(mobile_hash.size() <= 256, "mobile_hash size too large: " + to_string(mobile_hash.size()) );
+
 
       accountaudit_t::idx accountaudits(_self, _self.value);
       auto audit_ptr     = accountaudits.find(account.value);
@@ -101,7 +110,7 @@ using namespace std;
    
    }
 
-   void amax_recover::chkanswer( const name& admin, const uint64_t& order_id, const name& account, const int8_t& score) {
+   void amax_recover::chkanswer( const name& admin, const uint64_t& order_id, const int8_t& score) {
       _check_action_auth(admin, ActionPermType::CHKANSWER);
       recoverorder_t::idx_t orders(_self, _self.value);
       auto order_ptr     = orders.find(order_id);
@@ -116,7 +125,7 @@ using namespace std;
       });
    }
 
-   void amax_recover::chkdid( const name& admin, const uint64_t& order_id, const name& account, const bool& passed) {
+   void amax_recover::chkdid( const name& admin, const uint64_t& order_id,  const bool& passed) {
       _check_action_auth(admin, ActionPermType::CHKDID);
       
       recoverorder_t::idx_t orders(_self, _self.value);
@@ -136,7 +145,7 @@ using namespace std;
       });
    }
 
-   void amax_recover::chkmanual( const name& admin, const uint64_t& order_id, const name& account, const bool& passed) {
+   void amax_recover::chkmanual( const name& admin, const uint64_t& order_id, const bool& passed) {
       _check_action_auth(admin, ActionPermType::CHKMANUAL);
 
       recoverorder_t::idx_t orders(_self, _self.value);
@@ -189,6 +198,8 @@ using namespace std;
    }
 
    void amax_recover::setauditor( const name& account, const set<name>& actions ) {
+      CHECKC(has_auth(_self),  err::NO_AUTH, "no auth for operate");      
+
       auditor_t::idx_t auditors(_self, _self.value);
       auto auditor_ptr = auditors.find(account.value);
 
@@ -205,6 +216,8 @@ using namespace std;
    }
       
    void amax_recover::delauditor(  const name& account ) {
+      CHECKC(has_auth(_self),  err::NO_AUTH, "no auth for operate");      
+
       auditor_t::idx_t auditors(_self, _self.value);
       auto auditor_ptr     = auditors.find(account.value);
 
@@ -213,6 +226,10 @@ using namespace std;
    }
 
    void amax_recover::setscore( const name& audit_type, const int8_t& score ) {
+      CHECKC(has_auth(_self),  err::NO_AUTH, "no auth for operate"); 
+      CHECKC(audit_type== AuditType::MOBILENO || audit_type== AuditType::ANSWER || audit_type== AuditType::DID, 
+            err::PARAM_ERROR, "audit_type error");     
+
       auditscore_t::idx_t auditscores(_self, _self.value);
       auto auditscore_ptr     = auditscores.find(audit_type.value);
       if( auditscore_ptr != auditscores.end() ) {
@@ -228,6 +245,8 @@ using namespace std;
    }
       
    void amax_recover::delscore(  const name& account ) {
+      CHECKC(has_auth(_self),  err::NO_AUTH, "no auth for operate");      
+
       auditscore_t::idx_t auditscores(_self, _self.value);
       auto auditscore_ptr     = auditscores.find(account.value);
 

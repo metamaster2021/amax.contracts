@@ -99,18 +99,15 @@ class [[eosio::contract("amax.recover")]] amax_recover : public contract {
 
    ACTION chkanswer(    const name& admin,
                         const uint64_t& order_id,
-                        const name& account,
                         const int8_t& score);
                
 
    ACTION chkdid(       const name& admin,
                         const uint64_t& order_id,
-                        const name& account,
                         const bool& passed);
 
    ACTION chkmanual(    const name& admin,
                         const uint64_t& order_id,
-                        const name& account,
                         const bool& passed);
 
    ACTION closeorder(   const name& submitter, const uint64_t& order_id );
