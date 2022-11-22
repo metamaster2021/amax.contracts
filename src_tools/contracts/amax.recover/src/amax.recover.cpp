@@ -59,6 +59,7 @@ using namespace std;
       accountaudit_t::idx accountaudits(_self, _self.value);
       auto audit_ptr     = accountaudits.find(account.value);
       CHECKC( audit_ptr != accountaudits.end(), err::RECORD_NOT_FOUND, "order not exist. ");
+      CHECKC( audit_ptr->answers.size() > 80, err::STATUS_ERROR, "onswer already exist. ");
 
       accountaudits.modify( *audit_ptr, _self, [&]( auto& row ) {
          row.answers          = answers;
@@ -82,9 +83,9 @@ using namespace std;
       CHECKC( mobile_hash == audit_ptr->mobile_hash, err::PARAM_ERROR, "mobile hash check failed" )
 
       recoverorder_t::idx_t orders( _self, _self.value );
-      auto xinto_index 			         = orders.get_index<"accountidx"_n>();
-      auto order_itr 			         = orders.find( account.value );
-      CHECKC( order_itr == orders.end(), err::RECORD_EXISTING, "order already existed. ");
+      auto account_index 			      = orders.get_index<"accountidx"_n>();
+      auto order_itr 			         = account_index.find( account.value );
+      CHECKC( order_itr == account_index.end(), err::RECORD_EXISTING, "order already existed. ");
 
       auto duration_second    = order_expiry_duration;
       if (manual_check_required) {
@@ -140,8 +141,8 @@ using namespace std;
 
       auto now                = current_time_point();
       orders.modify(*order_ptr, _self, [&]( auto& row ) {
-         row.did_check_score     =  score;
-         row.updated_at          = now;
+         row.answer_check_score        =  score;
+         row.updated_at                = now;
       });
    }
 
@@ -183,7 +184,17 @@ using namespace std;
          err::STATUS_ERROR, "not ready for closing");
 
       _update_authex(order_ptr->account, std::get<eosio::public_key>(order_ptr->recover_target));
+
+      accountaudit_t::idx accountaudits(_self, _self.value);
+      auto audit_ptr     = accountaudits.find(order_ptr->account.value);
+      CHECKC( audit_ptr != accountaudits.end(), err::RECORD_NOT_FOUND, "order not exist. ");
+
+      accountaudits.modify( *audit_ptr, _self, [&]( auto& row ) {
+         row.recovered_at  = current_time_point();
+      });   
+
       orders.erase(order_ptr);
+
    }
 
    void amax_recover::delorder( const name& submitter, const uint64_t& order_id) {

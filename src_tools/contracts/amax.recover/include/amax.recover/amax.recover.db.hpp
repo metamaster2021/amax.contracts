@@ -80,6 +80,7 @@ TBL accountaudit_t {
     string                      mobile_hash;    //hash(account:moblie)
     string                      answers;
     time_point_sec              created_at;
+    time_point_sec              recovered_at;                            
 
     accountaudit_t() {}
     accountaudit_t(const name& i): account(i) {}
@@ -88,7 +89,7 @@ TBL accountaudit_t {
 
     typedef eosio::multi_index< "accaudits"_n,  accountaudit_t> idx;
 
-    EOSLIB_SERIALIZE( accountaudit_t, (account)(mobile_hash)(answers)(created_at) )
+    EOSLIB_SERIALIZE( accountaudit_t, (account)(mobile_hash)(answers)(created_at)(recovered_at) )
 };
 
 //Scope: default
