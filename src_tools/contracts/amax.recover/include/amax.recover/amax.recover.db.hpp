@@ -65,6 +65,11 @@ namespace ManualCheckStatus {
     static constexpr eosio::name FAILURE    {"failure"_n };
 }
 
+namespace ContractStatus {
+    static constexpr eosio::name RUNNING    {"running"_n };
+    static constexpr eosio::name STOPPED    {"stopped"_n };
+}
+
 typedef std::variant<eosio::public_key, string> recover_target_type;
 
 NTBL("global") global_t {
@@ -76,9 +81,8 @@ NTBL("global") global_t {
 typedef eosio::singleton< "global"_n, global_t > global_singleton;
 
 TBL accountaudit_t {
-    name                        account;            
-    string                      mobile_hash;    //hash(account:moblie)
-    string                      answers;
+    name                        account;    
+    set<name>                   contracts;
     time_point_sec              created_at;
     time_point_sec              recovered_at;                            
 
@@ -89,24 +93,23 @@ TBL accountaudit_t {
 
     typedef eosio::multi_index< "accaudits"_n,  accountaudit_t> idx;
 
-    EOSLIB_SERIALIZE( accountaudit_t, (account)(mobile_hash)(answers)(created_at)(recovered_at) )
+    EOSLIB_SERIALIZE( accountaudit_t, (account)(contracts)(created_at)(recovered_at) )
 };
 
 //Scope: default
 TBL recoverorder_t {
-    uint64_t        id                   = 0;                   //PK
-    name            account;                                    //UK
-    name            recover_type;
-    int8_t          mobile_check_score   = -1;        
-    int8_t          answer_check_score   = -1;
-    int8_t          did_check_score      = -1;
-    bool            manual_check_required = false;
-    name            manual_check_result; 
-    name            manual_checker;        
-    name            pay_status;
-    time_point_sec  created_at;
-    time_point_sec  expired_at;
-    time_point_sec  updated_at;
+    uint64_t            id                   = 0;                   //PK
+    uint64_t            serial_num           = 0;                   //UK
+    name                account;                                    //UK
+    name                recover_type;
+    map<name, uint8_t>  scores;                                     //contract
+    bool                manual_check_required = false;
+    name                manual_check_result; 
+    name                manual_checker;        
+    name                pay_status;
+    time_point_sec      created_at;
+    time_point_sec      expired_at;
+    time_point_sec      updated_at;
     recover_target_type recover_target;                             //Eg: pubkey, mobileno
 
 
@@ -121,9 +124,8 @@ TBL recoverorder_t {
         indexed_by<"accountidx"_n, const_mem_fun<recoverorder_t, uint64_t, &recoverorder_t::by_account> >
     > idx_t;
 
-    EOSLIB_SERIALIZE( recoverorder_t, (id)(account)(recover_type)
-                                     (mobile_check_score)
-                                     (answer_check_score)(did_check_score)
+    EOSLIB_SERIALIZE( recoverorder_t, (id)(serial_num)(account)(recover_type)
+                                     (scores)
                                      (manual_check_required)(manual_check_result)(manual_checker)
                                      (pay_status)(created_at)(expired_at)
                                      (updated_at)
@@ -131,17 +133,23 @@ TBL recoverorder_t {
 };
 
 TBL auditscore_t {
-    name           audit_type;              //PK
-    int8_t         score;         
+    name            contract;
+    name            audit_type;
+    asset           cost;
+    string          title;
+    string          desc;
+    string          url;
+    uint8_t         score;  
+    name            status;
 
     auditscore_t() {}
-    auditscore_t(const name& type): audit_type(type) {}
+    auditscore_t(const name& contract): contract(contract) {}
 
-    uint64_t primary_key()const { return audit_type.value; }
+    uint64_t primary_key()const { return contract.value; }
 
     typedef eosio::multi_index< "auditscores"_n,  auditscore_t > idx_t;
 
-    EOSLIB_SERIALIZE( auditscore_t, (audit_type)(score) )
+    EOSLIB_SERIALIZE( auditscore_t, (contract)(audit_type)(cost)(title)(desc)(url)(score)(status) )
 };
 
 

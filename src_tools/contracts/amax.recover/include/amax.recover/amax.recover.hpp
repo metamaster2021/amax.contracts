@@ -87,24 +87,21 @@ class [[eosio::contract("amax.recover")]] amax_recover : public contract {
 
    ACTION init( const uint8_t& score_limit) ;
 
-   ACTION bindaccount(  const name& admin, const name& account, const string& number_hash );
+   ACTION bindaccount(  const name& admin, const name& account );
 
-   ACTION bindanswer(   const name& admin, const name& account, const string& answers );
+   ACTION addauth( const name& admin, const name& account, name& contract );
+
+   // ACTION removeauth( const name& account, const name& contract );
 
    ACTION createorder(  const name& admin,
                         const name& account,
-                        const string& mobile_hash,
                         const recover_target_type& recover_target,
                         const bool& manual_check_required) ;
 
-   ACTION chkanswer(    const name& admin,
+   ACTION setscore   (  const name& contract,
                         const uint64_t& order_id,
-                        const int8_t& score);
-               
-
-   ACTION chkdid(       const name& admin,
-                        const uint64_t& order_id,
-                        const bool& passed);
+                        const uint8_t& score);
+            
 
    ACTION chkmanual(    const name& admin,
                         const uint64_t& order_id,
@@ -113,12 +110,13 @@ class [[eosio::contract("amax.recover")]] amax_recover : public contract {
    ACTION closeorder(   const name& submitter, const uint64_t& order_id );
 
    ACTION delorder(     const name& submitter, const uint64_t& order_id );
-
+    
    ACTION setauditor(   const name& account, const set<name>& actions ) ;
    
    ACTION delauditor(   const name& account );
 
-   ACTION setscore(     const name& audit_type, const int8_t& score );
+   ACTION setscore(     const name& contract, const asset& cost, const string& title, const string& desc, 
+                        const string& url, const uint8_t& score, const name status );
 
    ACTION delscore(     const name& audit_type );
 
