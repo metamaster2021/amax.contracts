@@ -37,7 +37,7 @@ using namespace std;
 
       check(is_account(account), "account invalid: " + account.to_string());
 
-      accountaudit_t::idx accountaudits(_self, _self.value);
+      account_audit_t::idx accountaudits(_self, _self.value);
       auto audit_ptr     = accountaudits.find(account.value);
       CHECKC( audit_ptr == accountaudits.end(), err::RECORD_EXISTING, "account already exist. ");
       auto now           = current_time_point();
@@ -48,10 +48,10 @@ using namespace std;
       });   
    }
 
-   void amax_recover::addauth( const name& admin, const name& account,  name& contract ) {
-      _check_action_auth(admin, ActionPermType::BINDACCOUNT);
+   void amax_recover::addauth( const name& contract, const name& account ) {
+      CHECKC (get_first_receiver() == contract, err::NO_AUTH, "receiver must contract" )
 
-      accountaudit_t::idx accountaudits(_self, _self.value);
+      account_audit_t::idx accountaudits(_self, _self.value);
       auto audit_ptr     = accountaudits.find(account.value);
       CHECKC( audit_ptr == accountaudits.end(), err::RECORD_EXISTING, "account already exist. ");
       auto now           = current_time_point();
@@ -59,25 +59,11 @@ using namespace std;
       CHECKC(audit_ptr->contracts.count(contract) == 0, err::RECORD_EXISTING, "contract already existed") 
 
       accountaudits.emplace( _self, [&]( auto& row ) {
-         row.contracts.insert(contract);
+         row.contracts[contract] =  false;
          row.created_at       = now;
       });   
    }
 
-   // void amax_recover::removeauth( const name& account, const name& contract ) {
-
-   //    accountaudit_t::idx accountaudits(_self, _self.value);
-   //    auto audit_ptr     = accountaudits.find(account.value);
-   //    CHECKC( audit_ptr == accountaudits.end(), err::RECORD_EXISTING, "account already exist. ");
-   //    auto now           = current_time_point();
-
-   //    CHECKC(audit_ptr->contracts.count(contract) > 0, err::RECORD_EXISTING, "contract not existed") 
-   //    audit_ptr->contracts.remove(contract);
-   //    accountaudits.emplace( _self, [&]( auto& row ) {
-   //       row.contracts 		   = audit_ptr->contracts;
-   //       row.created_at       = now;
-   //    }); 
-   // }
 
    void amax_recover::createorder(const name&      admin,
                         const name&                account,
@@ -85,7 +71,7 @@ using namespace std;
                         const bool&                manual_check_required) {
       _check_action_auth(admin, ActionPermType::CREATEORDER);
 
-      accountaudit_t::idx accountaudits(_self, _self.value);
+      account_audit_t::idx accountaudits(_self, _self.value);
       auto audit_ptr     = accountaudits.find(account.value);
       CHECKC( audit_ptr != accountaudits.end(), err::RECORD_NOT_FOUND, "account not exist. ");
 
@@ -175,7 +161,7 @@ using namespace std;
 
       _update_authex(order_ptr->account, std::get<eosio::public_key>(order_ptr->recover_target));
 
-      accountaudit_t::idx accountaudits(_self, _self.value);
+      account_audit_t::idx accountaudits(_self, _self.value);
       auto audit_ptr     = accountaudits.find(order_ptr->account.value);
       CHECKC( audit_ptr != accountaudits.end(), err::RECORD_NOT_FOUND, "order not exist. ");
 
@@ -225,7 +211,7 @@ using namespace std;
       auditors.erase(auditor_ptr);
    }
 
-   void amax_recover::setscore(  const name&    contract, 
+   void amax_recover::addcontract(  const name&    contract, 
                                  const asset&   cost, 
                                  const string&  title, 
                                  const string&  desc, 
@@ -257,8 +243,8 @@ using namespace std;
          });
       }
    }
-      
-   void amax_recover::delscore(  const name& account ) {
+
+   void amax_recover::delcontract(  const name& account ) {
       CHECKC(has_auth(_self),  err::NO_AUTH, "no auth for operate");      
 
       auditscore_t::idx_t auditscores(_self, _self.value);

@@ -69,66 +69,10 @@ namespace vendor_info_status {
  * Similarly, the `stats` multi-index table, holds instances of `currency_stats` objects for each row, which contains information about current supply, maximum supply, and the creator account for a symbol token. The `stats` table is scoped to the token symbol.  Therefore, when one queries the `stats` table for a token symbol the result is one single entry/row corresponding to the queried symbol token if it was previously created, or nothing, otherwise.
  */
 class [[eosio::contract("amax.recover")]] amax_recover : public contract {
-   
-   private:
-      dbc                 _dbc;
-   public:
-      using contract::contract;
-  
-   amax_recover(eosio::name receiver, eosio::name code, datastream<const char*> ds): contract(receiver, code, ds),
-         _dbc(get_self()),
-         _global(get_self(), get_self().value)
-    {
-        _gstate = _global.exists() ? _global.get() : global_t{};
-    }
 
-    ~amax_recover() { _global.set( _gstate, get_self() ); }
-
-
-   ACTION init( const uint8_t& score_limit) ;
-
-   ACTION bindaccount(  const name& admin, const name& account );
-
-   ACTION addauth( const name& contract, const name& account );
-
-   // ACTION removeauth( const name& account, const name& contract );
-
-   ACTION createorder(  const name& admin,
-                        const name& account,
-                        const recover_target_type& recover_target,
-                        const bool& manual_check_required) ;
 
    ACTION setscore   (  const name& contract,
                         const uint64_t& order_id,
                         const uint8_t& score);
-            
-
-   ACTION chkmanual(    const name& admin,
-                        const uint64_t& order_id,
-                        const bool& passed);
-
-   ACTION closeorder(   const name& submitter, const uint64_t& order_id );
-
-   ACTION delorder(     const name& submitter, const uint64_t& order_id );
-    
-   ACTION setauditor(   const name& account, const set<name>& actions ) ;
    
-   ACTION delauditor(   const name& account );
-
-   ACTION addcontract(     const name& contract, const asset& cost, const string& title, const string& desc, 
-                        const string& url, const uint8_t& score, const name status );
-
-   ACTION delcontract(     const name& audit_type );
-
-   private:
-      global_singleton    _global;
-      global_t            _gstate;
-
-   private:
-      void _check_action_auth(const name& admin, const name& action_type);
-      int8_t _get_audit_score( const name& action_type);
-      void _update_authex( const name& account,  const eosio::public_key& pubkey );
-      // eosio::public_key string_to_public_key(unsigned int const key_type, std::string const & public_key_str)
-
-};
 } //namespace amax

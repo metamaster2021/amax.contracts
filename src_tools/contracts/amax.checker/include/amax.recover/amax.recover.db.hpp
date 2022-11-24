@@ -82,8 +82,7 @@ typedef eosio::singleton< "global"_n, global_t > global_singleton;
 
 TBL account_audit_t {
     name                        account;    
-    map<name, bool>             contracts;
-    uint32_t                    threshold;
+    set<name>                   contracts;
     time_point_sec              created_at;
     time_point_sec              recovered_at;                            
 
@@ -94,7 +93,7 @@ TBL account_audit_t {
 
     typedef eosio::multi_index< "accaudits"_n,  account_audit_t> idx;
 
-    EOSLIB_SERIALIZE( account_audit_t, (account)(contracts)(threshold)(created_at)(recovered_at) )
+    EOSLIB_SERIALIZE( account_audit_t, (account)(contracts)(created_at)(recovered_at) )
 };
 
 //Scope: default
