@@ -89,8 +89,9 @@ class [[eosio::contract("amax.recover")]] amax_recover : public contract {
 
    ACTION bindaccount(  const name& admin, const name& account );
 
-   ACTION addauth( const name& contract, const name& account );
+   ACTION addauth( const name& account, const name& contract );
 
+   ACTION checkauth( const name& contract, const name& account );
    // ACTION removeauth( const name& account, const name& contract );
 
    ACTION createorder(  const name& admin,

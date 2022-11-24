@@ -44,11 +44,29 @@ using namespace std;
 
       accountaudits.emplace( _self, [&]( auto& row ) {
          row.account 		   = account;
+         row.threshold        = _gstate.score_limit;
          row.created_at       = now;
       });   
    }
 
-   void amax_recover::addauth( const name& contract, const name& account ) {
+   void amax_recover::addauth( const name& account, const name& contract ) {
+      CHECKC( has_auth(account) , err::NO_AUTH, "no auth for operate" )
+
+      account_audit_t::idx account_audits(_self, _self.value);
+      auto audit_ptr     = account_audits.find(account.value);
+      CHECKC( audit_ptr == account_audits.end(), err::RECORD_EXISTING, "account already exist. ");
+      auto now           = current_time_point();
+
+      CHECKC(audit_ptr->contracts.count(contract) == 0, err::RECORD_EXISTING, "contract already existed") 
+
+      account_audits.emplace( _self, [&]( auto& row ) {
+         row.contracts[contract] =  false;
+         row.created_at       = now;
+      });   
+   }
+
+
+   void amax_recover::checkauth( const name& contract, const name& account ) {
       CHECKC (get_first_receiver() == contract, err::NO_AUTH, "receiver must contract" )
 
       account_audit_t::idx accountaudits(_self, _self.value);
@@ -56,12 +74,7 @@ using namespace std;
       CHECKC( audit_ptr == accountaudits.end(), err::RECORD_EXISTING, "account already exist. ");
       auto now           = current_time_point();
 
-      CHECKC(audit_ptr->contracts.count(contract) == 0, err::RECORD_EXISTING, "contract already existed") 
-
-      accountaudits.emplace( _self, [&]( auto& row ) {
-         row.contracts[contract] =  false;
-         row.created_at       = now;
-      });   
+      CHECKC(audit_ptr->contracts.count(contract) != 0, err::RECORD_NOT_FOUND, "contract not existed")
    }
 
 
