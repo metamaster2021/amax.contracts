@@ -8,5 +8,9 @@ struct contracts {
    static std::vector<uint8_t> recover_wasm() { return read_wasm("${CMAKE_BINARY_DIR}/../contracts/amax.recover/amax.recover.wasm"); }
    static std::vector<char>    recover_abi() { return read_abi("${CMAKE_BINARY_DIR}/../contracts/amax.recover/amax.recover.abi"); }
 
+
+   static std::vector<uint8_t> proxy_wasm() { return read_wasm("${CMAKE_BINARY_DIR}/../contracts/amax.proxy/amax.proxy.wasm"); }
+   static std::vector<char>    proxy_abi() { return read_abi("${CMAKE_BINARY_DIR}/../contracts/amax.proxy/amax.proxy.abi"); }
+
 };
 }} //ns eosio::testing

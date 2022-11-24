@@ -70,6 +70,12 @@ namespace ContractStatus {
     static constexpr eosio::name STOPPED    {"stopped"_n };
 }
 
+namespace ContractAuditStatus {
+    static constexpr eosio::name REGISTED    {"registed"_n };
+    static constexpr eosio::name OPTIONAL    {"optional"_n };
+    static constexpr eosio::name MUST        {"must"_n };
+}
+
 typedef std::variant<eosio::public_key, string> recover_target_type;
 
 NTBL("global") global_t {
@@ -83,7 +89,7 @@ typedef eosio::singleton< "global"_n, global_t > global_singleton;
 
 TBL account_audit_t {
     name                        account;    
-    map<name, bool>             audit_contracts;
+    map<name, name>             audit_contracts;
     uint32_t                    threshold;
     time_point_sec              created_at;
     time_point_sec              recovered_at;                            
