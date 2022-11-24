@@ -82,7 +82,7 @@ typedef eosio::singleton< "global"_n, global_t > global_singleton;
 
 TBL account_audit_t {
     name                        account;    
-    set<name>                   contracts;
+    map<name, bool>             contracts;
     time_point_sec              created_at;
     time_point_sec              recovered_at;                            
 

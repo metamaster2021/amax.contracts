@@ -85,7 +85,7 @@ class [[eosio::contract("amax.recover")]] amax_recover : public contract {
     ~amax_recover() { _global.set( _gstate, get_self() ); }
 
 
-   ACTION init( const uint8_t& score_limit) ;
+   ACTION init( const uint8_t& score_limit, const name default_audit_contract) ;
 
    ACTION bindaccount(  const name& admin, const name& account );
 

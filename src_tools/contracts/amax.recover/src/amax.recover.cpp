@@ -26,9 +26,10 @@ using namespace std;
       return calc_precision(digit);
    }
 
-   void amax_recover::init( const uint8_t& score_limit ) {
+   void amax_recover::init( const uint8_t& score_limit, const name default_audit_contract) {
       require_auth( _self );
-      _gstate.score_limit        = score_limit;
+      _gstate.score_limit                 = score_limit;
+      _gstate.default_audit_contract      = default_audit_contract;
    }
 
    void amax_recover::bindaccount ( const name& admin, const name& account ) {
@@ -41,9 +42,13 @@ using namespace std;
       auto audit_ptr     = accountaudits.find(account.value);
       CHECKC( audit_ptr == accountaudits.end(), err::RECORD_EXISTING, "account already exist. ");
       auto now           = current_time_point();
-
+      map<name, bool> audits;
+      if (_gstate.default_audit_contract.value != 0) {
+         audits[_gstate.default_audit_contract] = true;
+      }
       accountaudits.emplace( _self, [&]( auto& row ) {
          row.account 		   = account;
+         row.audit_contracts  = audits;
          row.threshold        = _gstate.score_limit;
          row.created_at       = now;
       });   
@@ -57,11 +62,11 @@ using namespace std;
       CHECKC( audit_ptr == account_audits.end(), err::RECORD_EXISTING, "account already exist. ");
       auto now           = current_time_point();
 
-      CHECKC(audit_ptr->contracts.count(contract) == 0, err::RECORD_EXISTING, "contract already existed") 
+      CHECKC(audit_ptr->audit_contracts.count(contract) == 0, err::RECORD_EXISTING, "contract already existed") 
 
       account_audits.emplace( _self, [&]( auto& row ) {
-         row.contracts[contract] =  false;
-         row.created_at       = now;
+         row.audit_contracts[contract]  =  false;
+         row.created_at                 = now;
       });   
    }
 
@@ -74,7 +79,7 @@ using namespace std;
       CHECKC( audit_ptr == accountaudits.end(), err::RECORD_EXISTING, "account already exist. ");
       auto now           = current_time_point();
 
-      CHECKC(audit_ptr->contracts.count(contract) != 0, err::RECORD_NOT_FOUND, "contract not existed")
+      CHECKC(audit_ptr->audit_contracts.count(contract) != 0, err::RECORD_NOT_FOUND, "contract not existed")
    }
 
 

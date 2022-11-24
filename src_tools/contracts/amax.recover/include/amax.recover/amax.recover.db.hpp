@@ -75,14 +75,15 @@ typedef std::variant<eosio::public_key, string> recover_target_type;
 NTBL("global") global_t {
     uint8_t                     score_limit;
     uint64_t                    last_order_id;
+    name                        default_audit_contract;
 
-    EOSLIB_SERIALIZE( global_t, (score_limit)(last_order_id))
+    EOSLIB_SERIALIZE( global_t, (score_limit)(last_order_id)(default_audit_contract))
 };
 typedef eosio::singleton< "global"_n, global_t > global_singleton;
 
 TBL account_audit_t {
     name                        account;    
-    map<name, bool>             contracts;
+    map<name, bool>             audit_contracts;
     uint32_t                    threshold;
     time_point_sec              created_at;
     time_point_sec              recovered_at;                            
@@ -94,7 +95,7 @@ TBL account_audit_t {
 
     typedef eosio::multi_index< "accaudits"_n,  account_audit_t> idx;
 
-    EOSLIB_SERIALIZE( account_audit_t, (account)(contracts)(threshold)(created_at)(recovered_at) )
+    EOSLIB_SERIALIZE( account_audit_t, (account)(audit_contracts)(threshold)(created_at)(recovered_at) )
 };
 
 //Scope: default
