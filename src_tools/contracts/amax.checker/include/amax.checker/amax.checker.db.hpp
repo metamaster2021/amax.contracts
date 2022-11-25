@@ -30,8 +30,10 @@ static constexpr eosio::name amax_account = "amax"_n;
 static constexpr eosio::name owner = "owner"_n;
 
 namespace ActionPermType {
-    static constexpr eosio::name BINDINFO {"bindinfo"_n };
-    static constexpr eosio::name SETSCORE {"setscore"_n };
+    static constexpr eosio::name BINDINFO       {"bindinfo"_n };
+    static constexpr eosio::name CREATECORDER   {"createcorder"_n };
+
+    static constexpr eosio::name SETSCORE       {"setscore"_n };
 }
 
 #define TBL struct [[eosio::table, eosio::contract("amax.checker")]]

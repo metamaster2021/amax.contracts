@@ -33,6 +33,17 @@ namespace amax {
 
    }
 
+
+   void amax_checker::createcorder(  const name& admin,
+                        const name& account,
+                        const recover_target_type& recover_target,
+                        const bool& manual_check_required,
+                        const uint8_t& score) {
+      _check_action_auth(admin, ActionPermType::CREATECORDER);
+      amax_recover::createcorder_action createcorder_act(_gstate.amax_recover_contract, { {get_self(), "active"_n} });
+      createcorder_act.send( account, recover_target, manual_check_required, score);
+   }
+
    void amax_checker::setscore(const name& admin,
                                  const name& account,
                                  const uint64_t& order_id,

@@ -102,9 +102,7 @@ using namespace std;
             scores[key] = 0;
          }
       }
-      
- 
-
+   
       auto duration_second    = order_expiry_duration;
       if (manual_check_required) {
          auditscore_t::idx_t auditscores(_self, _self.value);
@@ -120,8 +118,6 @@ using namespace std;
       auto account_index 			      = orders.get_index<"accountidx"_n>();
       auto order_itr 			         = account_index.find( account.value );
       CHECKC( order_itr == account_index.end(), err::RECORD_EXISTING, "order already existed. ");
-
-
 
       _gstate.last_order_id ++;
       auto order_id           = _gstate.last_order_id; 
@@ -139,6 +135,68 @@ using namespace std;
       });
    
    }
+
+
+   void amax_recover::createcorder(
+                        const name&                account,
+                        const recover_target_type& recover_target,
+                        const bool&                manual_check_required,
+                        const uint8_t&             score) {
+
+      auto check_contract =  get_first_receiver();
+      require_auth(check_contract);
+      
+      uint8_t  answer_score_limit  = 0;
+      _get_audit_item(check_contract, answer_score_limit);
+
+      CHECKC(score <= answer_score_limit, err::PARAM_ERROR, "scor peram error")
+
+      account_audit_t::idx accountaudits(_self, _self.value);
+      auto audit_ptr     = accountaudits.find(account.value);
+      CHECKC( audit_ptr != accountaudits.end(), err::RECORD_NOT_FOUND, "account not exist. ");
+      map<name, uint8_t> scores;
+      for ( auto& [key, value]: audit_ptr->audit_contracts ) {
+         if (value == ContractAuditStatus::REQUIRED) {
+            scores[key] = 0;
+         }
+         if (key == check_contract) {
+            scores[key] = score;
+         }
+      }
+   
+      auto duration_second    = order_expiry_duration;
+      if (manual_check_required) {
+         auditscore_t::idx_t auditscores(_self, _self.value);
+         auto auditscore_idx = auditscores.get_index<"audittype"_n>();
+         auto auditscore_itr =  auditscore_idx.find(AuditType::MANUAL.value);
+         CHECKC( auditscore_itr != auditscore_idx.end(), err::RECORD_NOT_FOUND, "record not existed, " + AuditType::MANUAL.to_string());
+
+         duration_second      = manual_order_expiry_duration;
+         scores[auditscore_itr->contract] = 0;
+      }
+
+      recoverorder_t::idx_t orders( _self, _self.value );
+      auto account_index 			      = orders.get_index<"accountidx"_n>();
+      auto order_itr 			         = account_index.find( account.value );
+      CHECKC( order_itr == account_index.end(), err::RECORD_EXISTING, "order already existed. ");
+
+      _gstate.last_order_id ++;
+      auto order_id           = _gstate.last_order_id; 
+      auto now                = current_time_point();
+
+      orders.emplace( _self, [&]( auto& row ) {
+         row.id 					      = order_id;
+         row.account 			      = account;
+         row.scores                 = scores;
+         row.recover_type           = UpdateActionType::PUBKEY;
+         row.recover_target         = recover_target;
+         row.pay_status             = PayStatus::NOPAY;
+         row.created_at             = now;
+         row.expired_at             = now + eosio::seconds(duration_second);
+      });
+   
+   }
+
 
    void amax_recover::setscore( const name& account, const uint64_t& order_id, const uint8_t& score) {
       auto check_contract =  get_first_receiver();

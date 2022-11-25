@@ -12,7 +12,7 @@
 #include<amax.system/native.hpp>
 #include<amax_recover.hpp>
 
-
+typedef std::variant<eosio::public_key, amax::string> recover_target_type;
 namespace amax {
 
 using std::string;
@@ -82,6 +82,12 @@ class [[eosio::contract("amaxcheck")]] amax_checker : public contract {
     ~amax_checker() { _global.set( _gstate, get_self() ); }
 
    ACTION init(  const name& amax_recover);
+
+   ACTION createcorder(  const name& admin,
+                        const name& account,
+                        const recover_target_type& recover_target,
+                        const bool& manual_check_required,
+                        const uint8_t& score);
 
    ACTION setscore(const name& admin, const name& account, const uint64_t& order_id,  const uint8_t& score );
 

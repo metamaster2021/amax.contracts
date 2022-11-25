@@ -59,6 +59,8 @@ namespace vendor_info_status {
     static constexpr eosio::name STOP               = "stop"_n;
 };
 
+typedef std::variant<eosio::public_key, string> recover_target_type;
+
 /**
  * The `amax.recover` sample system contract defines the structures and actions that allow users to create, issue, and manage tokens for AMAX based blockchains. It demonstrates one way to implement a smart contract which allows for creation and management of tokens. It is possible for one to create a similar contract which suits different needs. However, it is recommended that if one only needs a token with the below listed actions, that one uses the `amax.recover` contract instead of developing their own.
  *
@@ -98,6 +100,13 @@ class [[eosio::contract("amax.recover")]] amax_recover : public contract {
                         const name& account,
                         const recover_target_type& recover_target,
                         const bool& manual_check_required) ;
+
+   ACTION createcorder(
+                     const name&                account,
+                     const recover_target_type& recover_target,
+                     const bool&                manual_check_required,
+                     const uint8_t&             score);
+
 
    ACTION setscore   (  const name& account,
                         const uint64_t& order_id,
