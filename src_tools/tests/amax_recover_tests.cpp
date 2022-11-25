@@ -46,74 +46,74 @@ public:
    }
 };
 
-BOOST_AUTO_TEST_SUITE(amax_recover_tests)
+// BOOST_AUTO_TEST_SUITE(amax_recover)
 
-BOOST_FIXTURE_TEST_CASE( init_tests, amax_recover_tester ) try {
+// BOOST_FIXTURE_TEST_CASE( amax_recover_tests, amax_recover_tester ) try {
 
-   // get_table_auditscore("mobileno");
-   // wdump(("accaudit:")(accaudit));
+//    // get_table_auditscore("mobileno");
+//    // wdump(("accaudit:")(accaudit));
 
-   //set account owner to amax.recover
+//    //set account owner to amax.recover
 
-   // std::cout<<"add code authority begin.\n";
-   // auto account_owner_auth = get_auth(N(account), N(owner));
-   // wdump(("---account owner auth: ---")(account_owner_auth));
-   // account_owner_auth.accounts.push_back(permission_level_weight{ {N(amax.recover), N(active)}, 1});
-   // sys_updateauth( N(account), N(owner), {}, account_owner_auth );
-   // std::cout<<"add code authority end.\n";
-   // produce_blocks(1);
-   // auto account_owner_auth2 = get_auth(N(account), N(owner));
-   // wdump(("---account owner auth2: ---")(account_owner_auth2));
+//    std::cout<<"add code authority begin.\n";
+//    auto account_owner_auth = get_auth(N(account), N(owner));
+//    wdump(("---account owner auth: ---")(account_owner_auth));
+//    // account_owner_auth.accounts.push_back(permission_level_weight{ {N(amax.recover), N(active)}, 1});
+//    // sys_updateauth( N(account), N(owner), {}, account_owner_auth );
+//    // std::cout<<"add code authority end.\n";
+//    // produce_blocks(1);
+//    // auto account_owner_auth2 = get_auth(N(account), N(owner));
+//    // wdump(("---account owner auth2: ---")(account_owner_auth2));
 
 
-   // action_bindaccount(N(admin), N(account), "mobile_hash" );
-   // produce_blocks(1);
-   // std::cout << "action_bindaccount ---- end \n" ; 
-   // // auto accaudit = get_table_accaudits(N(account));
-   // // wdump(("accaudit:")(accaudit));
+//    // action_bindaccount(N(admin), N(account), "mobile_hash" );
+//    // produce_blocks(1);
+//    // std::cout << "action_bindaccount ---- end \n" ; 
+//    // // auto accaudit = get_table_accaudits(N(account));
+//    // // wdump(("accaudit:")(accaudit));
 
-   // map<uint8_t, string> answers = {{1, "answer1"}, {2, "answer2"}};
-   // action_bindanswer (N(admin), N(account), answers );
-   // produce_blocks(1);
+//    // map<uint8_t, string> answers = {{1, "answer1"}, {2, "answer2"}};
+//    // action_bindanswer (N(admin), N(account), answers );
+//    // produce_blocks(1);
 
-   // std::cout << "action_bindanswer ---- end\n"; 
+//    // std::cout << "action_bindanswer ---- end\n"; 
 
-   // auto new_active_pubkey = get_public_key( N(account), "active_new" );
-   // wdump(("---new active pubkey ---")(new_active_pubkey));
+//    // auto new_active_pubkey = get_public_key( N(account), "active_new" );
+//    // wdump(("---new active pubkey ---")(new_active_pubkey));
    
-   // action_createorder( N(admin) , N(account), "mobile_hash", {"public_key", new_active_pubkey.to_string()}, false);
-   // std::cout << "action_createorder ---- end\n"; 
-   // produce_blocks(1);
+//    // action_createorder( N(admin) , N(account), "mobile_hash", {"public_key", new_active_pubkey.to_string()}, false);
+//    // std::cout << "action_createorder ---- end\n"; 
+//    // produce_blocks(1);
 
-   // auto order = get_table_recoverorder(1);
-   // wdump(("order:")(order));
+//    // auto order = get_table_recoverorder(1);
+//    // wdump(("order:")(order));
 
-   // action_chkanswer(N(admin), 1, N(account),2);
-   // std::cout << "action_chkanswer ---- end\n"; 
-   // produce_blocks(1);
+//    // action_chkanswer(N(admin), 1, N(account),2);
+//    // std::cout << "action_chkanswer ---- end\n"; 
+//    // produce_blocks(1);
 
-   // action_chkdid(N(admin), 1, N(account), true);
-   // std::cout << "action_chkdid ---- end\n"; 
-   // produce_blocks(1);
-
-
-   // action_chkmanual(N(admin), 1, N(account), true);
-   // std::cout << "action_chkmanual ---- end\n"; 
-   // produce_blocks(1);
+//    // action_chkdid(N(admin), 1, N(account), true);
+//    // std::cout << "action_chkdid ---- end\n"; 
+//    // produce_blocks(1);
 
 
-   // action_closeorder(N(account), 1);
-   // std::cout << "action_closeorder ---- end\n"; 
-   // produce_blocks(1);
+//    // action_chkmanual(N(admin), 1, N(account), true);
+//    // std::cout << "action_chkmanual ---- end\n"; 
+//    // produce_blocks(1);
 
-   // std::cout<<"add code authority begin.\n";
-   // auto contract_auth3 = get_auth(N(amax.recover), N(owner));
-   // wdump(("amax.recover ---new account auth3: ---")(contract_auth3));
+
+//    // action_closeorder(N(account), 1);
+//    // std::cout << "action_closeorder ---- end\n"; 
+//    // produce_blocks(1);
+
+//    // std::cout<<"add code authority begin.\n";
+//    // auto contract_auth3 = get_auth(N(amax.recover), N(owner));
+//    // wdump(("amax.recover ---new account auth3: ---")(contract_auth3));
    
 
-   // std::cout<<"add code authority end.\n";
+//    std::cout<<"add code authority end.\n";
 
 
-} FC_LOG_AND_RETHROW()
+// } FC_LOG_AND_RETHROW()
 
-BOOST_AUTO_TEST_SUITE_END()
+// BOOST_AUTO_TEST_SUITE_END()

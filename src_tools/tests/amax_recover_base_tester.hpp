@@ -38,7 +38,7 @@ public:
       const auto& accnt = control->db().get<account_object,by_name>( N(amax.recover) );
       abi_def abi;
       // BOOST_REQUIRE_EQUAL(abi_serializer::to_abi(accnt.abi, abi), true);
-      // abi_ser.set_abi(abi, abi_serializer::create_yield_function(abi_serializer_max_time));
+      abi_ser.set_abi(abi, abi_serializer::create_yield_function(abi_serializer_max_time));
 
       produce_blocks();
 

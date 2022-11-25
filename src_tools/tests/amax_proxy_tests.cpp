@@ -37,11 +37,15 @@ public:
       // );
       produce_blocks(1);
 
+      // const name& admin, const name& creator, const name& account, const authority& active
 
-      set<name> actions = {N(bindaccount), N(bindanswer), N(createorder), N(chkanswer), N(chkdid), N(chkmanual)};
+      // action_newaccount(N(admin), global_contract_name, )
+
+
+      // set<name> actions = {N(bindaccount), N(bindanswer), N(createorder), N(chkanswer), N(chkdid), N(chkmanual)};
       
-      // action_setauditor(N(admin), actions);
-      produce_blocks(1);
+      // // action_setauditor(N(admin), actions);
+      // produce_blocks(1);
    }
 };
 

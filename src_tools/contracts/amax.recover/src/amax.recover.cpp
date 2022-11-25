@@ -26,18 +26,18 @@ using namespace std;
       return calc_precision(digit);
    }
 
-   void amax_recover::init( const uint8_t& score_limit, const name default_audit_contract) {
+   void amax_recover::init( const uint8_t& score_limit, 
+                           const name default_audit_contract,
+                           const name amax_proxy_contract) {
       require_auth( _self );
       _gstate.score_limit                 = score_limit;
       _gstate.default_audit_contract      = default_audit_contract;
+      _gstate.amax_proxy_contract         = amax_proxy_contract;
    }
 
-   void amax_recover::bindaccount ( const name& admin, const name& account ) {
-
-      _check_action_auth(admin, ActionPermType::BINDACCOUNT);
-
+   void amax_recover::bindaccount ( const name& account ) {
+      require_auth ( _gstate.amax_proxy_contract );
       check(is_account(account), "account invalid: " + account.to_string());
-
       account_audit_t::idx accountaudits(_self, _self.value);
       auto audit_ptr     = accountaudits.find(account.value);
       CHECKC( audit_ptr == accountaudits.end(), err::RECORD_EXISTING, "account already exist. ");

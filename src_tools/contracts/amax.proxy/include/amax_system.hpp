@@ -121,16 +121,12 @@ class amax_system {
             void delegatebw( const name& from, const name& receiver,
                         const asset& stake_net_quantity, const asset& stake_cpu_quantity, bool transfer );
 
-            [[eosio::action]] 
-            void addauth( const name& account, const name& contract );
-
             using newaccount_action = eosio::action_wrapper<"newaccount"_n, &amax_system::newaccount>;
             using updateauth_action = eosio::action_wrapper<"updateauth"_n, &amax_system::updateauth>;
 
             using buyrambytes_action = eosio::action_wrapper<"buyrambytes"_n, &amax_system::buyrambytes>;
             using delegatebw_action = eosio::action_wrapper<"delegatebw"_n,   &amax_system::delegatebw>;
 
-            using addauth_action = eosio::action_wrapper<"addauth"_n, &amax_system::addauth>;
 
 
 };

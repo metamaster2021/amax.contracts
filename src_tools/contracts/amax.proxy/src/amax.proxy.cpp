@@ -58,8 +58,8 @@ namespace amax {
 
    void amax_proxy::newaccount(const name& admin, const name& creator, const name& account, const authority& active) {
       CHECKC(has_auth(admin),  err::NO_AUTH, "no auth for operate");      
-      
-      amax_system::newaccount_action  act(AMAX_ACCOUNT, { {creator, OWNER_PERM} }) ;
+      auto perm = creator != get_self()? OWNER_PERM : ACTIVE_PERM;
+      amax_system::newaccount_action  act(AMAX_ACCOUNT, { {creator, perm} }) ;
       authority owner_auth  = { 1, {}, {{{get_self(), ACTIVE_PERM}, 1}}, {} }; 
       act.send( creator, account,  owner_auth, active);
 
@@ -71,20 +71,16 @@ namespace amax {
       amax_system::delegatebw_action delegatebw_act(AMAX_ACCOUNT, { {get_self(), ACTIVE_PERM} });
       delegatebw_act.send( get_self(), account,stake_net_quantity, stake_cpu_quantity,  false ); //TODO
 
-      amax_system::addauth_action addauth_act(_gstate.amax_recover_contract, { {get_self(), ACTIVE_PERM} });
-      addauth_act.send( account, get_self() ); //TODO   
-
+      amax_recover::bindaccount_action bindaccount_act(_gstate.amax_recover_contract, { {get_self(), ACTIVE_PERM} });
+      bindaccount_act.send( account);
    }
 
-
-
-   // void amax_proxy::_update_authex( const name& account,
-   //                                const eosio::public_key& pubkey ) {
-   //    print( "_update_authex: ", account, "\n");
-   //    eosiosystem::authority auth = { 1, {{pubkey, 1}}, {}, {} };
-   //    eosiosystem::system_contract::updateauth_action act(amax_account, { {account, owner} });
-   //    act.send( account, "active", "owner"_n, auth);
-
-   // }
+   void amax_proxy::updateauth(  const name& account,
+                                 const eosio::public_key& pubkey ) {
+      CHECKC(_gstate.amax_recover_contract == get_first_receiver(), err::NO_AUTH, "no auth for operate")
+      authority auth = { 1, {{pubkey, 1}}, {}, {} };
+      amax_system::updateauth_action act(AMAX_ACCOUNT, { {account, OWNER_PERM} });
+      act.send( account, ACTIVE_PERM, OWNER_PERM, auth);
+   }
 
 }

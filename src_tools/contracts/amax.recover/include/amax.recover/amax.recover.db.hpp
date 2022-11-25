@@ -82,8 +82,9 @@ NTBL("global") global_t {
     uint8_t                     score_limit;
     uint64_t                    last_order_id;
     name                        default_audit_contract;
+    name                        amax_proxy_contract;
 
-    EOSLIB_SERIALIZE( global_t, (score_limit)(last_order_id)(default_audit_contract))
+    EOSLIB_SERIALIZE( global_t, (score_limit)(last_order_id)(default_audit_contract)(amax_proxy_contract))
 };
 typedef eosio::singleton< "global"_n, global_t > global_singleton;
 

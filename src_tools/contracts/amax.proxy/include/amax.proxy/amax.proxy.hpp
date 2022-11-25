@@ -10,6 +10,7 @@
 #include <amax.proxy/amax.proxy.db.hpp>
 #include <wasm_db.hpp>
 #include <amax_system.hpp>
+#include <amax_recover.hpp>
 
 namespace amax {
 
@@ -66,7 +67,7 @@ namespace vendor_info_status {
  *
  * Similarly, the `stats` multi-index table, holds instances of `currency_stats` objects for each row, which contains information about current supply, maximum supply, and the creator account for a symbol token. The `stats` table is scoped to the token symbol.  Therefore, when one queries the `stats` table for a token symbol the result is one single entry/row corresponding to the queried symbol token if it was previously created, or nothing, otherwise.
  */
-class [[eosio::contract("amaxcheck")]] amax_proxy : public contract {
+class [[eosio::contract("amax.proxy")]] amax_proxy : public contract {
    
    private:
       dbc                 _dbc;
@@ -88,6 +89,8 @@ class [[eosio::contract("amaxcheck")]] amax_proxy : public contract {
    ACTION setauditor( const name& account, const set<name>& actions );
 
    ACTION delauditor(  const name& account ) ;
+
+   ACTION updateauth( const name& account, const eosio::public_key& pubkey );
 
     private:
         global_singleton    _global;
