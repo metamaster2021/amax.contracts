@@ -27,11 +27,9 @@ using namespace std;
    }
 
    void amax_recover::init( const uint8_t& score_limit, 
-                           const name default_audit_contract,
                            const name amax_proxy_contract) {
       require_auth( _self );
       _gstate.score_limit                 = score_limit;
-      _gstate.default_audit_contract      = default_audit_contract;
       _gstate.amax_proxy_contract         = amax_proxy_contract;
    }
 
@@ -44,40 +42,49 @@ using namespace std;
       auto now           = current_time_point();
       accountaudits.emplace( _self, [&]( auto& row ) {
          row.account 		                                    = account;
-         row.audit_contracts[_gstate.default_audit_contract]   = ContractAuditStatus::REGISTED;
          row.threshold                                         = _gstate.score_limit;
          row.created_at                                        = now;
       });   
    }
 
    void amax_recover::addauth( const name& account, const name& contract ) {
-      // CHECKC( has_auth(account) , err::NO_AUTH, "no auth for operate" )
+      CHECKC( has_auth(account) , err::NO_AUTH, "no auth for operate" )
+      uint8_t score = 0;
+      _get_audit_item(contract, score);
 
       account_audit_t::idx account_audits(_self, _self.value);
       auto audit_ptr     = account_audits.find(account.value);
       CHECKC( audit_ptr == account_audits.end(), err::RECORD_EXISTING, "account already exist. ");
       auto now           = current_time_point();
 
-      // CHECKC(audit_ptr->audit_contracts.count(contract) == 0, err::RECORD_EXISTING, "contract already existed") 
+      CHECKC(audit_ptr->audit_contracts.count(contract) == 0, err::RECORD_EXISTING, "contract already existed") 
+
 
       account_audits.emplace( _self, [&]( auto& row ) {
-         row.audit_contracts[contract]  = ContractAuditStatus::OPTIONAL;
+         row.audit_contracts[contract]  = ContractAuditStatus::REGISTED;
          row.created_at                 = now;
       });   
    }
 
+   void amax_recover::checkauth(  const name& account ) {
+      auto checker_contract = get_first_receiver();
+      CHECKC( has_auth(checker_contract), err::NO_AUTH, "no auth for operate" )
+      uint8_t score = 0;
+      bool required = false;
 
-   void amax_recover::checkauth( const name& contract, const name& account ) {
-      CHECKC (get_first_receiver() == contract, err::NO_AUTH, "receiver must contract" )
-
-      account_audit_t::idx accountaudits(_self, _self.value);
-      auto audit_ptr     = accountaudits.find(account.value);
-      CHECKC( audit_ptr == accountaudits.end(), err::RECORD_EXISTING, "account already exist. ");
+      account_audit_t::idx account_audits(_self, _self.value);
+      auto audit_ptr     = account_audits.find(account.value);
+      CHECKC( audit_ptr == account_audits.end(), err::RECORD_EXISTING, "account already exist. ");
       auto now           = current_time_point();
 
-      CHECKC(audit_ptr->audit_contracts.count(contract) != 0, err::RECORD_NOT_FOUND, "contract not existed")
-   }
+      CHECKC(audit_ptr->audit_contracts.count(checker_contract) != 0, err::RECORD_NOT_FOUND, "contract not existed")
+      
+      account_audits.modify(*audit_ptr, _self, [&]( auto& row ) {
+         row.audit_contracts[checker_contract]  = required ? ContractAuditStatus::REQUIRED : ContractAuditStatus::OPTIONAL ;
+         row.created_at                 = now;
+      });   
 
+   }
 
    void amax_recover::createorder(const name&      admin,
                         const name&                account,
@@ -88,6 +95,12 @@ using namespace std;
       account_audit_t::idx accountaudits(_self, _self.value);
       auto audit_ptr     = accountaudits.find(account.value);
       CHECKC( audit_ptr != accountaudits.end(), err::RECORD_NOT_FOUND, "account not exist. ");
+      map<name, uint8_t> scores;
+      for ( auto& [key, value]: audit_ptr->audit_contracts ) {
+         if (value == ContractAuditStatus::REQUIRED) {
+            scores[key] = 0;
+         }
+      }
 
       recoverorder_t::idx_t orders( _self, _self.value );
       auto account_index 			      = orders.get_index<"accountidx"_n>();
@@ -106,6 +119,7 @@ using namespace std;
       orders.emplace( _self, [&]( auto& row ) {
          row.id 					      = order_id;
          row.account 			      = account;
+         row.scores                 = scores;
          row.recover_type           = UpdateActionType::PUBKEY;
          row.recover_target         = recover_target;
          row.pay_status             = PayStatus::NOPAY;
@@ -115,42 +129,22 @@ using namespace std;
    
    }
 
-   void amax_recover::setscore( const name& contract, const uint64_t& order_id, const uint8_t& score) {
-      CHECKC (get_first_receiver() == contract, err::NO_AUTH, "receiver must contract" )
+   void amax_recover::setscore( const uint64_t& order_id, const uint8_t& score) {
+      auto check_contract =  get_first_receiver();
+      require_auth(check_contract);
 
-      auditscore_t::idx_t auditscores(_self, _self.value);
-      auto auditscore_ptr     = auditscores.find(contract.value);
-      CHECKC( auditscore_ptr != auditscores.end(), err::RECORD_NOT_FOUND, "contract not exist. ");
-      CHECKC( auditscore_ptr->status == ContractStatus::RUNNING, err::STATUS_ERROR, "contract isn't running");
+      uint8_t  answer_score_limit  = 0;
+      _get_audit_item(check_contract, answer_score_limit);
 
       recoverorder_t::idx_t orders(_self, _self.value);
       auto order_ptr     = orders.find(order_id);
       CHECKC( order_ptr != orders.end(), err::RECORD_NOT_FOUND, "order not found. ");
-      auto answer_score_limit = _get_audit_score(contract);
       CHECKC(answer_score_limit >= score, err::PARAM_ERROR, "scores exceed limit")
       CHECKC(order_ptr->expired_at > current_time_point(), err::TIME_EXPIRED, "order already time expired")
 
       orders.modify(*order_ptr, _self, [&]( auto& row ) {
-         row.scores[contract]    = score;
-         row.updated_at          = current_time_point();
-      });
-   }
-
-   void amax_recover::chkmanual( const name& admin, const uint64_t& order_id, const bool& passed) {
-      _check_action_auth(admin, ActionPermType::CHKMANUAL);
-
-      recoverorder_t::idx_t orders(_self, _self.value);
-      auto order_ptr     = orders.find(order_id);
-      CHECKC( order_ptr != orders.end(), err::RECORD_NOT_FOUND, "order not found. ");
-      CHECKC(order_ptr->expired_at > current_time_point(), err::TIME_EXPIRED, "order already time expired")
-
-      name manual_check_result       = ManualCheckStatus::FAILURE;
-      if (passed) manual_check_result   = ManualCheckStatus::SUCCESS;
-      auto now                = current_time_point();
-      orders.modify(*order_ptr, _self, [&]( auto& row ) {
-         row.manual_check_result    = manual_check_result;
-         row.manual_checker         = admin;
-         row.updated_at             = now;
+         row.scores[check_contract]    = score;
+         row.updated_at                = current_time_point();
       });
    }
 
@@ -163,17 +157,12 @@ using namespace std;
 
       auto total_score = 0;
       for (auto& [key, value]: order_ptr->scores) {
-            total_score += value;
+         total_score += value;
       }
-
 
       CHECKC( total_score > _gstate.score_limit, err::SCORE_NOT_ENOUGH, "score not enough" );
 
-      CHECKC((!order_ptr->manual_check_required) || 
-         (order_ptr->manual_check_required && order_ptr->manual_check_result == ManualCheckStatus::SUCCESS ) ,
-         err::STATUS_ERROR, "not ready for closing");
-
-      _update_authex(order_ptr->account, std::get<eosio::public_key>(order_ptr->recover_target));
+      // _update_authex(order_ptr->account, std::get<eosio::public_key>(order_ptr->recover_target));
 
       account_audit_t::idx accountaudits(_self, _self.value);
       auto audit_ptr     = accountaudits.find(order_ptr->account.value);
@@ -181,7 +170,7 @@ using namespace std;
 
       accountaudits.modify( *audit_ptr, _self, [&]( auto& row ) {
          row.recovered_at  = current_time_point();
-      });   
+      });
 
       orders.erase(order_ptr);
    }
@@ -268,6 +257,16 @@ using namespace std;
       auditscores.erase(auditscore_ptr);
    }
 
+   bool amax_recover::_get_audit_item(const name& contract, uint8_t& score) {
+      auditscore_t::idx_t auditscores(_self, _self.value);
+      auto auditscore_ptr     = auditscores.find(contract.value);
+      CHECKC( auditscore_ptr != auditscores.end(), err::RECORD_NOT_FOUND, "contract not exist. ");
+      CHECKC( auditscore_ptr->status == ContractStatus::RUNNING, err::STATUS_ERROR, "contract status is error. ");
+      score = auditscore_ptr->score;
+      return auditscore_ptr->required_check;
+      
+   }
+
    void amax_recover::_check_action_auth(const name& admin, const name& action_type) {
       if(has_auth(_self)) 
          return;
@@ -276,22 +275,6 @@ using namespace std;
       CHECKC( auditor_ptr != auditors.end(), err::RECORD_NOT_FOUND, "auditor not exist. ");
       CHECKC( auditor_ptr->actions.count(action_type), err::NO_AUTH, "no auth for operate ");
       CHECKC(has_auth(admin),  err::NO_AUTH, "no auth for operate");      
-   }
-
-   int8_t amax_recover::_get_audit_score( const name& contract) {
-      auditscore_t::idx_t auditorscores(_self, _self.value);
-      auto auditorscore_ptr     = auditorscores.find(contract.value);
-      CHECKC( auditorscore_ptr != auditorscores.end(), err::RECORD_NOT_FOUND, "auditorscore not exist. ");
-      return auditorscore_ptr->score;
-   }
-
-   void amax_recover::_update_authex( const name& account,
-                                  const eosio::public_key& pubkey ) {
-      print( "_update_authex: ", account, "\n");
-      eosiosystem::authority auth = { 1, {{pubkey, 1}}, {}, {} };
-      eosiosystem::system_contract::updateauth_action act(amax_account, { {account, owner} });
-      act.send( account, "active", "owner"_n, auth);
-
    }
 
 }//namespace amax

@@ -85,29 +85,23 @@ class [[eosio::contract("amax.recover")]] amax_recover : public contract {
     ~amax_recover() { _global.set( _gstate, get_self() ); }
 
 
-   ACTION init( const uint8_t& score_limit, const name default_audit_contract, const name amax_proxy_contract) ;
+   ACTION init( const uint8_t& score_limit, const name amax_proxy_contract) ;
 
    ACTION bindaccount(  const name& account );
 
    ACTION addauth( const name& account, const name& contract );
 
-   ACTION checkauth( const name& contract, const name& account );
-   // ACTION removeauth( const name& account, const name& contract );
+   //call by checker inline transaction
+   ACTION checkauth( const name& account );
 
    ACTION createorder(  const name& admin,
                         const name& account,
                         const recover_target_type& recover_target,
                         const bool& manual_check_required) ;
 
-   ACTION setscore   (  const name& contract,
-                        const uint64_t& order_id,
+   ACTION setscore   (  const uint64_t& order_id,
                         const uint8_t& score);
             
-
-   ACTION chkmanual(    const name& admin,
-                        const uint64_t& order_id,
-                        const bool& passed);
-
    ACTION closeorder(   const name& submitter, const uint64_t& order_id );
 
    ACTION delorder(     const name& submitter, const uint64_t& order_id );
@@ -127,8 +121,8 @@ class [[eosio::contract("amax.recover")]] amax_recover : public contract {
 
    private:
       void _check_action_auth(const name& admin, const name& action_type);
-      int8_t _get_audit_score( const name& action_type);
-      void _update_authex( const name& account,  const eosio::public_key& pubkey );
+
+      bool _get_audit_item(const name& contract, uint8_t& score);
       // eosio::public_key string_to_public_key(unsigned int const key_type, std::string const & public_key_str)
 
 };

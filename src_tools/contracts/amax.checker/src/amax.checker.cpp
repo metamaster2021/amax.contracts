@@ -26,10 +26,11 @@ namespace amax {
          row.account 		   = account;
          row.info             = info;
          row.created_at       = now;
-      });   
+      });
+      // amax_recover::addauth_action addauth_act(_gstate.amax_recover_contract, { {get_self(), "active"} });
+      // addauth_act.send( account);
 
    }
-
 
 
    void amax_checker::setscore(const name& admin,

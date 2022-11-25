@@ -46,21 +46,6 @@ NTBL("global") global_t {
 };
 typedef eosio::singleton< "global"_n, global_t > global_singleton;
 
-TBL accountinfo_t {
-    name                        account;    
-    string                      info;
-    time_point_sec              created_at;
-
-    accountinfo_t() {}
-    accountinfo_t(const name& i): account(i) {}
-
-    uint64_t primary_key()const { return account.value ; }
-
-    typedef eosio::multi_index< "acctinfos"_n,  accountinfo_t> idx;
-
-    EOSLIB_SERIALIZE( accountinfo_t, (account)(info)(created_at) )
-};
-
 
 TBL auditor_t {
     name                    account;              //PK

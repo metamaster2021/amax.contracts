@@ -48,6 +48,7 @@ namespace AuditType {
     static constexpr eosio::name MOBILENO   {"mobileno"_n };
     static constexpr eosio::name ANSWER     {"answer"_n };
     static constexpr eosio::name DID        {"did"_n };
+    static constexpr eosio::name MANUAL     {"manual"_n };
 }
 
 namespace ActionPermType {
@@ -73,7 +74,7 @@ namespace ContractStatus {
 namespace ContractAuditStatus {
     static constexpr eosio::name REGISTED    {"registed"_n };
     static constexpr eosio::name OPTIONAL    {"optional"_n };
-    static constexpr eosio::name MUST        {"must"_n };
+    static constexpr eosio::name REQUIRED    {"required"_n };
 }
 
 typedef std::variant<eosio::public_key, string> recover_target_type;
@@ -81,10 +82,9 @@ typedef std::variant<eosio::public_key, string> recover_target_type;
 NTBL("global") global_t {
     uint8_t                     score_limit;
     uint64_t                    last_order_id;
-    name                        default_audit_contract;
     name                        amax_proxy_contract;
 
-    EOSLIB_SERIALIZE( global_t, (score_limit)(last_order_id)(default_audit_contract)(amax_proxy_contract))
+    EOSLIB_SERIALIZE( global_t, (score_limit)(last_order_id)(amax_proxy_contract))
 };
 typedef eosio::singleton< "global"_n, global_t > global_singleton;
 
@@ -112,15 +112,12 @@ TBL recoverorder_t {
     name                account;                                    //UK
     name                recover_type;
     map<name, uint8_t>  scores;                                     //contract
-    bool                manual_check_required = false;
-    name                manual_check_result; 
-    name                manual_checker;        
+    bool                manual_check_required = false;       
     name                pay_status;
     time_point_sec      created_at;
     time_point_sec      expired_at;
     time_point_sec      updated_at;
     recover_target_type recover_target;                             //Eg: pubkey, mobileno
-
 
     recoverorder_t() {}
     recoverorder_t(const uint64_t& i): id(i) {}
@@ -135,7 +132,7 @@ TBL recoverorder_t {
 
     EOSLIB_SERIALIZE( recoverorder_t, (id)(serial_num)(account)(recover_type)
                                      (scores)
-                                     (manual_check_required)(manual_check_result)(manual_checker)
+                                     (manual_check_required)
                                      (pay_status)(created_at)(expired_at)
                                      (updated_at)
                                      (recover_target))
@@ -148,7 +145,8 @@ TBL auditscore_t {
     string          title;
     string          desc;
     string          url;
-    uint8_t         score;  
+    uint8_t         score;
+    bool            required_check = false;
     name            status;
 
     auditscore_t() {}
@@ -158,7 +156,7 @@ TBL auditscore_t {
 
     typedef eosio::multi_index< "auditscores"_n,  auditscore_t > idx_t;
 
-    EOSLIB_SERIALIZE( auditscore_t, (contract)(audit_type)(cost)(title)(desc)(url)(score)(status) )
+    EOSLIB_SERIALIZE( auditscore_t, (contract)(audit_type)(cost)(title)(desc)(url)(score)(required_check)(status) )
 };
 
 

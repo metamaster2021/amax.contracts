@@ -10,6 +10,7 @@
 #include <amax.checker/amax.checker.db.hpp>
 #include <wasm_db.hpp>
 #include<amax.system/native.hpp>
+#include<amax_recover.hpp>
 
 
 namespace amax {
