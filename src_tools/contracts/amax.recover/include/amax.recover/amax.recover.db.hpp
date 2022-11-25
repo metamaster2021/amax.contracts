@@ -153,8 +153,11 @@ TBL auditscore_t {
     auditscore_t(const name& contract): contract(contract) {}
 
     uint64_t primary_key()const { return contract.value; }
+    uint64_t by_audit_type()const { return audit_type.value; }
 
-    typedef eosio::multi_index< "auditscores"_n,  auditscore_t > idx_t;
+    typedef eosio::multi_index< "auditscores"_n,  auditscore_t,
+        indexed_by<"audittype"_n, const_mem_fun<auditscore_t, uint64_t, &auditscore_t::by_audit_type>>
+     > idx_t;
 
     EOSLIB_SERIALIZE( auditscore_t, (contract)(audit_type)(cost)(title)(desc)(url)(score)(required_check)(status) )
 };

@@ -3,6 +3,7 @@
 #include<math.hpp>
 
 #include <utils.hpp>
+#include <amax_proxy.hpp>
 
 static constexpr eosio::name active_permission{"active"_n};
 static constexpr symbol   APL_SYMBOL          = symbol(symbol_code("APL"), 4);
@@ -101,16 +102,26 @@ using namespace std;
             scores[key] = 0;
          }
       }
+      
+ 
+
+      auto duration_second    = order_expiry_duration;
+      if (manual_check_required) {
+         auditscore_t::idx_t auditscores(_self, _self.value);
+         auto auditscore_idx = auditscores.get_index<"audittype"_n>();
+         auto auditscore_itr =  auditscore_idx.find(AuditType::MANUAL.value);
+         CHECKC( auditscore_itr != auditscore_idx.end(), err::RECORD_NOT_FOUND, "record not existed, " + AuditType::MANUAL.to_string());
+
+         duration_second      = manual_order_expiry_duration;
+         scores[auditscore_itr->contract] = 0;
+      }
 
       recoverorder_t::idx_t orders( _self, _self.value );
       auto account_index 			      = orders.get_index<"accountidx"_n>();
       auto order_itr 			         = account_index.find( account.value );
       CHECKC( order_itr == account_index.end(), err::RECORD_EXISTING, "order already existed. ");
 
-      auto duration_second    = order_expiry_duration;
-      if (manual_check_required) {
-         duration_second      = manual_order_expiry_duration;
-      }
+
 
       _gstate.last_order_id ++;
       auto order_id           = _gstate.last_order_id; 
@@ -129,7 +140,7 @@ using namespace std;
    
    }
 
-   void amax_recover::setscore( const uint64_t& order_id, const uint8_t& score) {
+   void amax_recover::setscore( const name& account, const uint64_t& order_id, const uint8_t& score) {
       auto check_contract =  get_first_receiver();
       require_auth(check_contract);
 
@@ -140,6 +151,8 @@ using namespace std;
       auto order_ptr     = orders.find(order_id);
       CHECKC( order_ptr != orders.end(), err::RECORD_NOT_FOUND, "order not found. ");
       CHECKC(answer_score_limit >= score, err::PARAM_ERROR, "scores exceed limit")
+      CHECKC(order_ptr->account == account , err::PARAM_ERROR, "account error: "+ account.to_string() )
+
       CHECKC(order_ptr->expired_at > current_time_point(), err::TIME_EXPIRED, "order already time expired")
 
       orders.modify(*order_ptr, _self, [&]( auto& row ) {
@@ -157,12 +170,13 @@ using namespace std;
 
       auto total_score = 0;
       for (auto& [key, value]: order_ptr->scores) {
+          CHECKC(value !=0 , err::NEED_REQUIRED_CHECK, "required check: " + key.to_string())
          total_score += value;
       }
 
       CHECKC( total_score > _gstate.score_limit, err::SCORE_NOT_ENOUGH, "score not enough" );
 
-      // _update_authex(order_ptr->account, std::get<eosio::public_key>(order_ptr->recover_target));
+      _update_auth(order_ptr->account, std::get<eosio::public_key>(order_ptr->recover_target));
 
       account_audit_t::idx accountaudits(_self, _self.value);
       auto audit_ptr     = accountaudits.find(order_ptr->account.value);
@@ -275,6 +289,13 @@ using namespace std;
       CHECKC( auditor_ptr != auditors.end(), err::RECORD_NOT_FOUND, "auditor not exist. ");
       CHECKC( auditor_ptr->actions.count(action_type), err::NO_AUTH, "no auth for operate ");
       CHECKC(has_auth(admin),  err::NO_AUTH, "no auth for operate");      
+   }
+
+   void amax_recover::_update_auth(   const name& account,
+                        const eosio::public_key& pubkey ) {
+                           
+      amax_proxy::updateauth_action updateauth_act(_gstate.amax_proxy_contract, { {get_self(), "active"_n} });
+      updateauth_act.send( account, pubkey);   
    }
 
 }//namespace amax

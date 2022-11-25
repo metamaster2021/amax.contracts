@@ -50,7 +50,7 @@ enum class err: uint8_t {
    FIRST_CREATOR        = 17,
    STATUS_ERROR         = 18,
    SCORE_NOT_ENOUGH     = 19,
-   NEED_MANUAL_CHECK    = 20
+   NEED_REQUIRED_CHECK    = 20
 
 
 };
@@ -99,7 +99,8 @@ class [[eosio::contract("amax.recover")]] amax_recover : public contract {
                         const recover_target_type& recover_target,
                         const bool& manual_check_required) ;
 
-   ACTION setscore   (  const uint64_t& order_id,
+   ACTION setscore   (  const name& account,
+                        const uint64_t& order_id,
                         const uint8_t& score);
             
    ACTION closeorder(   const name& submitter, const uint64_t& order_id );
@@ -123,7 +124,9 @@ class [[eosio::contract("amax.recover")]] amax_recover : public contract {
       void _check_action_auth(const name& admin, const name& action_type);
 
       bool _get_audit_item(const name& contract, uint8_t& score);
-      // eosio::public_key string_to_public_key(unsigned int const key_type, std::string const & public_key_str)
+
+      void _update_auth(   const name& account,
+                        const eosio::public_key& pubkey ) ;
 
 };
 } //namespace amax

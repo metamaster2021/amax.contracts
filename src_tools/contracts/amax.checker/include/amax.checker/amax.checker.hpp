@@ -83,10 +83,9 @@ class [[eosio::contract("amaxcheck")]] amax_checker : public contract {
 
    ACTION init(  const name& amax_recover);
 
-   ACTION setscore(const name& admin, const name& account, const uint8_t& score );
+   ACTION setscore(const name& admin, const name& account, const uint64_t& order_id,  const uint8_t& score );
 
    ACTION bindinfo ( const name& admin, const name& account, const string& info);
-
 
    ACTION setauditor( const name& account, const set<name>& actions );
 

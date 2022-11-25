@@ -19,10 +19,10 @@ class amax_recover {
             void bindaccount( const name& account );
 
             [[eosio::action]] 
-            ACTION addauth( const name& account, const name& contract );
+            ACTION addauth( const name& account );
 
             [[eosio::action]] 
-            ACTION setscore( const uint64_t& order_id, const uint8_t& score);
+            ACTION setscore( const name& account, const uint64_t& order_id, const uint8_t& score);
 
             using bindaccount_action      = eosio::action_wrapper<"bindaccount"_n,  &amax_recover::bindaccount>;
             using addauth_action          = eosio::action_wrapper<"addauth"_n,      &amax_recover::addauth>;

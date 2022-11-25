@@ -27,18 +27,20 @@ namespace amax {
          row.info             = info;
          row.created_at       = now;
       });
-      // amax_recover::addauth_action addauth_act(_gstate.amax_recover_contract, { {get_self(), "active"} });
-      // addauth_act.send( account);
+
+      amax_recover::addauth_action addauth_act(_gstate.amax_recover_contract, { {get_self(), "active"_n} });
+      addauth_act.send( account);
 
    }
 
-
    void amax_checker::setscore(const name& admin,
                                  const name& account,
+                                 const uint64_t& order_id,
                                  const uint8_t& score ) {
 
       _check_action_auth(admin, ActionPermType::SETSCORE);
-
+      amax_recover::setscore_action setscore_act(_gstate.amax_recover_contract, { {get_self(), "active"_n} });
+      setscore_act.send( account, order_id, score);
    }
 
     void amax_checker::setauditor( const name& account, const set<name>& actions ) {
