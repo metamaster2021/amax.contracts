@@ -25,7 +25,7 @@ public:
    amax_recover_base_tester() {
       produce_blocks( 2 );
 
-      create_accounts( { N(alice), N(bob), N(carol) }, false, false );
+      // create_accounts( { N(alice), N(bob), N(carol) }, false, false );
       create_accounts( { N(amax.recover) } , false, true);
       produce_blocks( 2 );
 

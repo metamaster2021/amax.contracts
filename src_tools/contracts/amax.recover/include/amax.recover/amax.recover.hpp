@@ -120,7 +120,7 @@ class [[eosio::contract("amax.recover")]] amax_recover : public contract {
    
    ACTION delauditor(   const name& account );
 
-   ACTION addcontract(     const name& contract, const asset& cost, const string& title, const string& desc, 
+   ACTION addcontract(     const name& check_contract, const asset& cost, const string& title, const string& desc, 
                         const string& url, const uint8_t& score, const name status );
 
    ACTION delcontract(     const name& audit_type );

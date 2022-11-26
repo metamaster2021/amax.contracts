@@ -286,7 +286,7 @@ using namespace std;
       auditors.erase(auditor_ptr);
    }
 
-   void amax_recover::addcontract(  const name&    contract, 
+   void amax_recover::addcontract(  const name&    check_contract, 
                                  const asset&   cost, 
                                  const string&  title, 
                                  const string&  desc, 
@@ -297,7 +297,7 @@ using namespace std;
 
 
       auditscore_t::idx_t auditscores(_self, _self.value);
-      auto auditscore_ptr     = auditscores.find(contract.value);
+      auto auditscore_ptr     = auditscores.find(check_contract.value);
       if( auditscore_ptr != auditscores.end() ) {
          auditscores.modify(*auditscore_ptr, _self, [&]( auto& row ) {
             row.cost          = cost;
@@ -309,7 +309,7 @@ using namespace std;
          });   
       } else {
          auditscores.emplace(_self, [&]( auto& row ) {
-            row.contract      = contract;
+            row.contract      = check_contract;
             row.cost          = cost;
             row.title         = title;
             row.desc          = desc;
