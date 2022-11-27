@@ -30,6 +30,7 @@ static constexpr eosio::name amax_account = "amax"_n;
 static constexpr eosio::name owner = "owner"_n;
 
 namespace ActionPermType {
+    static constexpr eosio::name NEWACCOUNT     {"newaccount"_n };
     static constexpr eosio::name BINDINFO       {"bindinfo"_n };
     static constexpr eosio::name CREATECORDER   {"createcorder"_n };
 
@@ -41,8 +42,9 @@ namespace ActionPermType {
 
 NTBL("global") global_t {
     name                     amax_recover_contract;
+    name                     amax_proxy_contract;
 
-    EOSLIB_SERIALIZE( global_t, (amax_recover_contract))
+    EOSLIB_SERIALIZE( global_t, (amax_recover_contract)(amax_proxy_contract))
 };
 typedef eosio::singleton< "global"_n, global_t > global_singleton;
 

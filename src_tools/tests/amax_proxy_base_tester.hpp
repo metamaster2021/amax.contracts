@@ -20,10 +20,8 @@ using mvo = fc::mutable_variant_object;
 using recover_target_type = static_variant<public_key_type, string>;
 static auto proxy_contract_name  =  N(amax.proxy);
 static auto recover_contract_name  =  N(amax.recover);
-static auto check1_contract_name  =  N(amax.check1);
-static auto check2_contract_name  =  N(amax.check2);
-static auto check3_contract_name  =  N(amax.check3);
-static auto check4_contract_name  =  N(amax.check4);
+static auto check_mobile_contract_name  =  N(chk.mobile);
+static auto check_answer_contract_name  =  N(chk.answer);
 
 #define PUSH_ACTION( contract,  ...)  printf("hello" contract "\n", ##__VA_ARGS__);
 
@@ -47,22 +45,17 @@ public:
       initialize_recover_contract( recover_contract_name);
 
 
-      initialize_checker_contract( check1_contract_name);
-      initialize_checker_contract( check2_contract_name);
-      initialize_checker_contract( check3_contract_name);
-      initialize_checker_contract( check4_contract_name);
+      initialize_checker_contract( check_mobile_contract_name);
+      initialize_checker_contract( check_answer_contract_name);
       produce_blocks( 2 );
 
-      initialize_abi_ser(check1_contract_name, checker_abi_ser);
+      initialize_abi_ser(check_mobile_contract_name, checker_abi_ser);
       produce_blocks( 2 );
 
-      checker_action_init(check1_contract_name, recover_contract_name);
+      checker_action_init(check_mobile_contract_name, recover_contract_name);
       produce_blocks( 2 );
 
-      checker_action_init(check2_contract_name, recover_contract_name);
-      checker_action_init(check3_contract_name, recover_contract_name);
-      checker_action_init(check4_contract_name, recover_contract_name);
-
+      checker_action_init(check_answer_contract_name, recover_contract_name);
       produce_blocks( 2 );
 
    }
@@ -99,7 +92,7 @@ public:
 
        produce_blocks( 2 );
 
-      create_accounts( { contract_name } , false, true);
+      create_accounts( { contract_name });
       produce_blocks( 2 );
 
       set_code( contract_name, wasm_file );
@@ -212,13 +205,17 @@ public:
    }
 
    action_result proxy_action_init( name amax_recover ) {
+      std::cout << "proxy_action_init :" << proxy_contract_name << "," << amax_recover <<"---- end\n"; 
+
        return push_action(  proxy_contract_name, proxy_abi_ser, proxy_contract_name, N(init), mvo()
             ( "amax_recover",              amax_recover)
       );   
    }
 
    action_result proxy_action_newaccount(const name& admin, const name& creator, const name& account, const authority& active) {
-      return push_action(  proxy_contract_name, proxy_abi_ser, proxy_contract_name, N(init), mvo()
+      std::cout << "proxy_action_newaccount :" << proxy_contract_name << "," << account <<"---- start\n"; 
+
+      return push_action(  proxy_contract_name, proxy_abi_ser, proxy_contract_name, N(newaccount), mvo()
             ( "admin",              admin)
             ( "creator",            creator)
             ( "account",            account)
@@ -227,10 +224,51 @@ public:
    }
 
 
-   action_result checker_action_init( name contract, name amax_recover) {
-      return push_action(  check1_contract_name, checker_abi_ser, check1_contract_name, N(init), mvo()
+   action_result checker_action_init( name check_contract, name amax_recover) {
+      std::cout << "checker_action_init :" << check_contract << "," << amax_recover <<"---- end\n"; 
+
+      return push_action(  check_contract, checker_abi_ser, check_contract, N(init), mvo()
             ( "amax_recover",              amax_recover)
       );   
+   }
+
+   action_result checker_action_bindinfo (  name checker_contract, const name& admin, const name& account, const string& info) {
+       return push_action(  checker_contract, checker_abi_ser, checker_contract, N(bindinfo), mvo()
+            ( "checker_contract",               checker_contract)
+            ( "admin",                          admin)
+            ( "account",                        account)
+            ( "info",                           info)
+      );  
+   }
+
+   action_result checker_action_createcorder (  
+                        name checker_contract,
+                        const name& admin,
+                        const name& account,
+                        const recover_target_type& recover_target,
+                        const bool& manual_check_required,
+                        const uint8_t& score) {
+       return push_action( checker_contract, checker_abi_ser, checker_contract, N(bindinfo), mvo()
+            ( "admin",                 admin)
+            ( "account",               account)
+            ( "recover_target",        recover_target)
+            ( "manual_check_required", manual_check_required)
+            ( "score",                 score)
+      );  
+   }
+
+   action_result checker_action_setscore(
+                                 const name& checker_contract,
+                                 const name& admin,
+                                 const name& account,
+                                 const uint64_t& order_id,
+                                 const uint8_t& score ) {
+       return push_action( checker_contract, checker_abi_ser, checker_contract, N(bindinfo), mvo()
+            ( "admin",                 admin)
+            ( "account",               account)
+            ( "order_id",              order_id)
+            ( "score",                 score)
+      );  
    }
 
 };

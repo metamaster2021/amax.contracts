@@ -17,17 +17,18 @@ using namespace fc;
 using namespace std;
 
 using mvo = fc::mutable_variant_object;
+static auto p1_name= N(p1);
 
 
 class amax_proxy_tester : public amax_proxy_base_tester {
 public:
-
    amax_proxy_tester() {
       init_contract();
    }
    
    void init_contract() {
-      create_accounts( { N(admin), N(account) } );
+      create_p1_account();
+
 
       // action_init( 5 );
       // auto g = get_table_global();
@@ -41,11 +42,20 @@ public:
 
       // action_newaccount(N(admin), global_contract_name, )
 
-
       // set<name> actions = {N(bindaccount), N(bindanswer), N(createorder), N(chkanswer), N(chkdid), N(chkmanual)};
       
       // // action_setauditor(N(admin), actions);
       // produce_blocks(1);
+   }
+
+
+   void create_p1_account() {
+      std::cout<< "create_proxy_account -- begin" << std::endl;
+      auto new_active_pubkey = authority(get_public_key( p1_name, "active_new" ));
+      wdump(("---new active pubkey ---")(new_active_pubkey));
+      proxy_action_newaccount(proxy_contract_name, proxy_contract_name, p1_name, new_active_pubkey );
+      produce_blocks(1);
+
    }
 };
 

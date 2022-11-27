@@ -89,7 +89,7 @@ class [[eosio::contract("amax.recover")]] amax_recover : public contract {
 
    ACTION init( const uint8_t& score_limit, const name amax_proxy_contract) ;
 
-   ACTION bindaccount(  const name& account );
+   ACTION bindaccount(  const name& account, const name& default_checker );
 
    ACTION addauth( const name& account, const name& contract );
 
@@ -120,8 +120,15 @@ class [[eosio::contract("amax.recover")]] amax_recover : public contract {
    
    ACTION delauditor(   const name& account );
 
-   ACTION addcontract(     const name& check_contract, const asset& cost, const string& title, const string& desc, 
-                        const string& url, const uint8_t& score, const name status );
+                                 
+   ACTION addcontract(  const name&    check_contract, 
+                        const name&    audit_type,
+                        const asset&   cost, 
+                        const string&  title, 
+                        const string&  desc, 
+                        const string&  url, 
+                        const uint8_t& score, 
+                        const name     status );
 
    ACTION delcontract(     const name& audit_type );
 

@@ -34,17 +34,22 @@ using namespace std;
       _gstate.amax_proxy_contract         = amax_proxy_contract;
    }
 
-   void amax_recover::bindaccount ( const name& account ) {
+   void amax_recover::bindaccount( const name& account, const name& default_checker ) {
       require_auth ( _gstate.amax_proxy_contract );
       check(is_account(account), "account invalid: " + account.to_string());
       account_audit_t::idx accountaudits(_self, _self.value);
       auto audit_ptr     = accountaudits.find(account.value);
       CHECKC( audit_ptr == accountaudits.end(), err::RECORD_EXISTING, "account already exist. ");
       auto now           = current_time_point();
+
+      uint8_t score = 0;
+      bool required = _get_audit_item(default_checker, score);
+
       accountaudits.emplace( _self, [&]( auto& row ) {
-         row.account 		                                    = account;
-         row.threshold                                         = _gstate.score_limit;
-         row.created_at                                        = now;
+         row.audit_contracts[default_checker]   = required ? ContractAuditStatus::REQUIRED : ContractAuditStatus::OPTIONAL;
+         row.account 		                     = account;
+         row.threshold                          = _gstate.score_limit;
+         row.created_at                         = now;
       });   
    }
 
@@ -55,13 +60,12 @@ using namespace std;
 
       account_audit_t::idx account_audits(_self, _self.value);
       auto audit_ptr     = account_audits.find(account.value);
-      CHECKC( audit_ptr == account_audits.end(), err::RECORD_EXISTING, "account already exist. ");
+      CHECKC( audit_ptr != account_audits.end(), err::RECORD_NOT_FOUND, "account not exist. ");
       auto now           = current_time_point();
 
       CHECKC(audit_ptr->audit_contracts.count(contract) == 0, err::RECORD_EXISTING, "contract already existed") 
 
-
-      account_audits.emplace( _self, [&]( auto& row ) {
+      account_audits.modify( *audit_ptr, _self, [&]( auto& row ) {
          row.audit_contracts[contract]  = ContractAuditStatus::REGISTED;
          row.created_at                 = now;
       });   
@@ -69,16 +73,16 @@ using namespace std;
 
    void amax_recover::checkauth(  const name& account ) {
       auto checker_contract = get_first_receiver();
-      CHECKC( has_auth(checker_contract), err::NO_AUTH, "no auth for operate" )
+      //TODO require_auth ( checker_contract ); 
       uint8_t score = 0;
-      bool required = false;
+      bool required = _get_audit_item(checker_contract, score);
 
       account_audit_t::idx account_audits(_self, _self.value);
       auto audit_ptr     = account_audits.find(account.value);
       CHECKC( audit_ptr == account_audits.end(), err::RECORD_EXISTING, "account already exist. ");
       auto now           = current_time_point();
 
-      CHECKC(audit_ptr->audit_contracts.count(checker_contract) != 0, err::RECORD_NOT_FOUND, "contract not existed")
+      CHECKC(audit_ptr->audit_contracts.count(checker_contract) != 0, err::RECORD_NOT_FOUND, "contract not existed:" +checker_contract.to_string()  )
       
       account_audits.modify(*audit_ptr, _self, [&]( auto& row ) {
          row.audit_contracts[checker_contract]  = required ? ContractAuditStatus::REQUIRED : ContractAuditStatus::OPTIONAL ;
@@ -287,6 +291,7 @@ using namespace std;
    }
 
    void amax_recover::addcontract(  const name&    check_contract, 
+                                 const name&    audit_type,
                                  const asset&   cost, 
                                  const string&  title, 
                                  const string&  desc, 
@@ -300,6 +305,7 @@ using namespace std;
       auto auditscore_ptr     = auditscores.find(check_contract.value);
       if( auditscore_ptr != auditscores.end() ) {
          auditscores.modify(*auditscore_ptr, _self, [&]( auto& row ) {
+            row.audit_type    = audit_type;
             row.cost          = cost;
             row.title         = title;
             row.desc          = desc;
@@ -310,11 +316,13 @@ using namespace std;
       } else {
          auditscores.emplace(_self, [&]( auto& row ) {
             row.contract      = check_contract;
+            row.audit_type    = audit_type;
             row.cost          = cost;
             row.title         = title;
             row.desc          = desc;
             row.url           = url;
             row.cost          = cost;
+            row.status        = status;
          });
       }
    }
@@ -332,8 +340,8 @@ using namespace std;
    bool amax_recover::_get_audit_item(const name& contract, uint8_t& score) {
       auditscore_t::idx_t auditscores(_self, _self.value);
       auto auditscore_ptr     = auditscores.find(contract.value);
-      CHECKC( auditscore_ptr != auditscores.end(), err::RECORD_NOT_FOUND, "contract not exist. ");
-      CHECKC( auditscore_ptr->status == ContractStatus::RUNNING, err::STATUS_ERROR, "contract status is error. ");
+      CHECKC( auditscore_ptr != auditscores.end(), err::RECORD_NOT_FOUND, "auditscore_t contract not exist:  " + contract.to_string());
+      CHECKC( auditscore_ptr->status == ContractStatus::RUNNING, err::STATUS_ERROR, "contract status is error: " + contract.to_string());
       score = auditscore_ptr->score;
       return auditscore_ptr->required_check;
       

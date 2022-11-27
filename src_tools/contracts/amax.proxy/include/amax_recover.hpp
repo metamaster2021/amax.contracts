@@ -16,10 +16,9 @@ class amax_recover {
       public: 
       
             [[eosio::action]] 
-            void bindaccount( const name& account );
+            void bindaccount( const name& account, const name& default_checker );
 
             using bindaccount_action = eosio::action_wrapper<"bindaccount"_n, &amax_recover::bindaccount>;
-
 
 };
 

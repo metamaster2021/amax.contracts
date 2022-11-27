@@ -2,6 +2,7 @@
 
 #include <eosio/action.hpp>
 #include <eosio/print.hpp>
+#include <amax_proxy.hpp>
 
 
 namespace amax {
@@ -21,7 +22,7 @@ class amax_recover {
             void bindaccount( const name& account );
 
             [[eosio::action]] 
-            ACTION addauth( const name& account );
+            ACTION checkauth( const name& account );
 
             [[eosio::action]] 
             ACTION setscore( const name& account, const uint64_t& order_id, const uint8_t& score);
@@ -35,7 +36,7 @@ class amax_recover {
             
 
             using bindaccount_action      = eosio::action_wrapper<"bindaccount"_n,  &amax_recover::bindaccount>;
-            using addauth_action          = eosio::action_wrapper<"addauth"_n,      &amax_recover::addauth>;
+            using checkauth_action        = eosio::action_wrapper<"checkauth"_n,    &amax_recover::checkauth>;
             using setscore_action         = eosio::action_wrapper<"setscore"_n,     &amax_recover::setscore>;
             using createcorder_action     = eosio::action_wrapper<"createcorder"_n, &amax_recover::createcorder>;
 };
