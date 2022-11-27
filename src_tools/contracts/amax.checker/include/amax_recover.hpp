@@ -22,13 +22,14 @@ class amax_recover {
             void bindaccount( const name& account );
 
             [[eosio::action]] 
-            ACTION checkauth( const name& account );
+            ACTION checkauth( const name& checker_contract, const name& account );
 
             [[eosio::action]] 
-            ACTION setscore( const name& account, const uint64_t& order_id, const uint8_t& score);
+            ACTION setscore( const name& checker_contract, const name& account, const uint64_t& order_id, const uint8_t& score);
 
             [[eosio::action]] 
             ACTION createcorder(
+                     const name&                checker_contract,
                      const name&                account,
                      const recover_target_type& recover_target,
                      const bool&                manual_check_required,

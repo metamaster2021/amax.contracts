@@ -53,18 +53,19 @@ namespace amax {
       });
 
       amax_recover::checkauth_action checkauth_act(_gstate.amax_recover_contract, { {get_self(), ACTIVE_PERM} });
-      checkauth_act.send( account);
+      checkauth_act.send( get_self(),  account);
    }
 
 
-   void amax_checker::createcorder(  const name& admin,
+   void amax_checker::createcorder(  
+                        const name& admin,
                         const name& account,
                         const recover_target_type& recover_target,
                         const bool& manual_check_required,
                         const uint8_t& score) {
       _check_action_auth(admin, ActionPermType::CREATECORDER);
       amax_recover::createcorder_action createcorder_act(_gstate.amax_recover_contract, { {get_self(), ACTIVE_PERM} });
-      createcorder_act.send( account, recover_target, manual_check_required, score);
+      createcorder_act.send( get_self(), account, recover_target, manual_check_required, score);
    }
 
    void amax_checker::setscore(const name& admin,
@@ -74,7 +75,7 @@ namespace amax {
 
       _check_action_auth(admin, ActionPermType::SETSCORE);
       amax_recover::setscore_action setscore_act(_gstate.amax_recover_contract, { {get_self(), ACTIVE_PERM} });
-      setscore_act.send( account, order_id, score);
+      setscore_act.send(get_self(), account, order_id, score);
    }
 
     void amax_checker::setauditor( const name& account, const set<name>& actions ) {

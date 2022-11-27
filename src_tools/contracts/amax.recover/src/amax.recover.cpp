@@ -71,15 +71,14 @@ using namespace std;
       });   
    }
 
-   void amax_recover::checkauth(  const name& account ) {
-      auto checker_contract = get_first_receiver();
-      //TODO require_auth ( checker_contract ); 
+   void amax_recover::checkauth( const name& checker_contract, const name& account ) {
+      require_auth ( checker_contract ); 
       uint8_t score = 0;
       bool required = _get_audit_item(checker_contract, score);
 
       account_audit_t::idx account_audits(_self, _self.value);
       auto audit_ptr     = account_audits.find(account.value);
-      CHECKC( audit_ptr == account_audits.end(), err::RECORD_EXISTING, "account already exist. ");
+      CHECKC( audit_ptr != account_audits.end(), err::RECORD_NOT_FOUND, "account record not exist: " + account.to_string());
       auto now           = current_time_point();
 
       CHECKC(audit_ptr->audit_contracts.count(checker_contract) != 0, err::RECORD_NOT_FOUND, "contract not existed:" +checker_contract.to_string()  )
@@ -142,18 +141,18 @@ using namespace std;
 
 
    void amax_recover::createcorder(
+                        const name&                checker_contract,
                         const name&                account,
                         const recover_target_type& recover_target,
                         const bool&                manual_check_required,
                         const uint8_t&             score) {
 
-      auto check_contract =  get_first_receiver();
-      require_auth(check_contract);
+      require_auth(checker_contract);
       
       uint8_t  answer_score_limit  = 0;
-      _get_audit_item(check_contract, answer_score_limit);
+      _get_audit_item(checker_contract, answer_score_limit);
 
-      CHECKC(score <= answer_score_limit, err::PARAM_ERROR, "scor peram error")
+      CHECKC(score <= answer_score_limit, err::PARAM_ERROR, "score peram error")
 
       account_audit_t::idx accountaudits(_self, _self.value);
       auto audit_ptr     = accountaudits.find(account.value);
@@ -163,7 +162,7 @@ using namespace std;
          if (value == ContractAuditStatus::REQUIRED) {
             scores[key] = 0;
          }
-         if (key == check_contract) {
+         if (key == checker_contract) {
             scores[key] = score;
          }
       }
@@ -202,12 +201,11 @@ using namespace std;
    }
 
 
-   void amax_recover::setscore( const name& account, const uint64_t& order_id, const uint8_t& score) {
-      auto check_contract =  get_first_receiver();
-      require_auth(check_contract);
+   void amax_recover::setscore( const name& checker_contract, const name& account, const uint64_t& order_id, const uint8_t& score) {
+      require_auth(checker_contract);
 
       uint8_t  answer_score_limit  = 0;
-      _get_audit_item(check_contract, answer_score_limit);
+      _get_audit_item(checker_contract, answer_score_limit);
 
       recoverorder_t::idx_t orders(_self, _self.value);
       auto order_ptr     = orders.find(order_id);
@@ -218,13 +216,13 @@ using namespace std;
       CHECKC(order_ptr->expired_at > current_time_point(), err::TIME_EXPIRED, "order already time expired")
 
       orders.modify(*order_ptr, _self, [&]( auto& row ) {
-         row.scores[check_contract]    = score;
+         row.scores[checker_contract]    = score;
          row.updated_at                = current_time_point();
       });
    }
 
    void amax_recover::closeorder( const name& submitter, const uint64_t& order_id) {
-      CHECKC( has_auth(submitter) , err::NO_AUTH, "no auth for operate" )
+      CHECKC( has_auth(submitter) , err::NO_AUTH, "amax_recover no auth for operate" )
       recoverorder_t::idx_t orders(_self, _self.value);
       auto order_ptr     = orders.find(order_id);
       CHECKC( order_ptr != orders.end(), err::RECORD_NOT_FOUND, "order not found. "); 
@@ -238,7 +236,6 @@ using namespace std;
 
       CHECKC( total_score > _gstate.score_limit, err::SCORE_NOT_ENOUGH, "score not enough" );
 
-      _update_auth(order_ptr->account, std::get<eosio::public_key>(order_ptr->recover_target));
 
       account_audit_t::idx accountaudits(_self, _self.value);
       auto audit_ptr     = accountaudits.find(order_ptr->account.value);
@@ -248,6 +245,7 @@ using namespace std;
          row.recovered_at  = current_time_point();
       });
 
+      _update_auth(order_ptr->account, std::get<eosio::public_key>(order_ptr->recover_target));
       orders.erase(order_ptr);
    }
 
@@ -310,7 +308,7 @@ using namespace std;
             row.title         = title;
             row.desc          = desc;
             row.url           = url;
-            row.cost          = cost;
+            row.score         = score;
             row.status        = status;
          });   
       } else {
@@ -322,6 +320,7 @@ using namespace std;
             row.desc          = desc;
             row.url           = url;
             row.cost          = cost;
+            row.score         = score;
             row.status        = status;
          });
       }

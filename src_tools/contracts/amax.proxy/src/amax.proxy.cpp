@@ -81,8 +81,7 @@ namespace amax {
 
    void amax_proxy::updateauth(  const name& account,
                                  const eosio::public_key& pubkey ) {
-      CHECKC(_gstate.amax_recover_contract == get_first_receiver(), err::NO_AUTH, "no auth for operate")
-      CHECKC(has_auth(_gstate.amax_recover_contract),  err::NO_AUTH, "no auth for operate"); 
+      require_auth(_gstate.amax_recover_contract);
 
       authority auth = { 1, {{pubkey, 1}}, {}, {} };
       amax_system::updateauth_action act(AMAX_ACCOUNT, { {account, OWNER_PERM} });
