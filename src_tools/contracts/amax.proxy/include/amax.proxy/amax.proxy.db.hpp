@@ -27,7 +27,8 @@ static constexpr uint64_t manual_order_expiry_duration      = 3 * seconds_per_da
 
 static constexpr eosio::name RECOVER_ACCOUNT    = "amax.recover"_n;
 
-static constexpr eosio::name AMAX_ACCOUNT       = "amax"_n;
+static constexpr eosio::symbol SYS_SYMB         = SYMBOL("AMAX", 8);
+static constexpr eosio::name SYS_CONTRACT       = "amax"_n;
 static constexpr eosio::name OWNER_PERM         = "owner"_n;
 static constexpr eosio::name ACTIVE_PERM        = "active"_n;
 
