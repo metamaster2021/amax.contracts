@@ -25,7 +25,7 @@ public:
    amax_recover_base_tester() {
       produce_blocks( 2 );
 
-      create_accounts( { N(alice), N(bob), N(carol) }, false, false );
+      // create_accounts( { N(alice), N(bob), N(carol) }, false, false );
       create_accounts( { N(amax.recover) } , false, true);
       produce_blocks( 2 );
 
@@ -37,7 +37,7 @@ public:
 
       const auto& accnt = control->db().get<account_object,by_name>( N(amax.recover) );
       abi_def abi;
-      BOOST_REQUIRE_EQUAL(abi_serializer::to_abi(accnt.abi, abi), true);
+      // BOOST_REQUIRE_EQUAL(abi_serializer::to_abi(accnt.abi, abi), true);
       abi_ser.set_abi(abi, abi_serializer::create_yield_function(abi_serializer_max_time));
 
       produce_blocks();
@@ -64,7 +64,7 @@ public:
 
    fc::variant get_table_auditscore( const name& account )
    {
-      return get_table_common("auditscore_t", N(auditscores), account);
+      return get_table_common("audit_score_t", N(auditscores), account);
    }
 
    fc::variant get_table_accountaudit( const name& account )
@@ -74,7 +74,7 @@ public:
 
    fc::variant get_table_recoverorder( const uint64_t& order_id )
    {
-      return get_table_common("recoverorder_t", N(orders), name(order_id) );
+      return get_table_common("recover_order_t", N(orders), name(order_id) );
    }
 
    fc::variant get_table_global( )

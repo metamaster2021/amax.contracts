@@ -48,6 +48,9 @@ namespace AuditType {
     static constexpr eosio::name MOBILENO   {"mobileno"_n };
     static constexpr eosio::name ANSWER     {"answer"_n };
     static constexpr eosio::name DID        {"did"_n };
+    static constexpr eosio::name MANUAL     {"manual"_n };
+    static constexpr eosio::name TG         {"tg"_n };
+    static constexpr eosio::name FACEBOOK    {"facebook"_n };
 }
 
 namespace ActionPermType {
@@ -67,82 +70,100 @@ namespace ManualCheckStatus {
     static constexpr eosio::name FAILURE    {"failure"_n };
 }
 
+namespace ContractStatus {
+    static constexpr eosio::name RUNNING    {"running"_n };
+    static constexpr eosio::name STOPPED    {"stopped"_n };
+}
+
+namespace ContractAuditStatus {
+    static constexpr eosio::name REGISTED    {"registed"_n };
+    static constexpr eosio::name OPTIONAL    {"optional"_n };
+    static constexpr eosio::name REQUIRED    {"required"_n };
+}
+
 typedef std::variant<eosio::public_key, string> recover_target_type;
 
 NTBL("global") global_t {
     uint8_t                     score_limit;
     uint64_t                    last_order_id;
+    name                        amax_proxy_contract;
 
-    EOSLIB_SERIALIZE( global_t, (score_limit)(last_order_id))
+    EOSLIB_SERIALIZE( global_t, (score_limit)(last_order_id)(amax_proxy_contract))
 };
 typedef eosio::singleton< "global"_n, global_t > global_singleton;
 
-TBL accountaudit_t {
-    name                        account;            
-    string                      mobile_hash;
-    map<uint8_t, string>        answers;
+TBL account_audit_t {
+    name                        account;    
+    map<name, name>             audit_contracts;
+    uint32_t                    threshold;
     time_point_sec              created_at;
+    time_point_sec              recovered_at;                            
 
-    accountaudit_t() {}
-    accountaudit_t(const name& i): account(i) {}
+    account_audit_t() {}
+    account_audit_t(const name& i): account(i) {}
 
     uint64_t primary_key()const { return account.value ; }
 
-    typedef eosio::multi_index< "accaudits"_n,  accountaudit_t> idx;
+    typedef eosio::multi_index< "accaudits"_n,  account_audit_t> idx;
 
-    EOSLIB_SERIALIZE( accountaudit_t, (account)(mobile_hash)(answers)(created_at) )
+    EOSLIB_SERIALIZE( account_audit_t, (account)(audit_contracts)(threshold)(created_at)(recovered_at) )
 };
 
 //Scope: default
-TBL recoverorder_t {
-    uint64_t        id                   = 0;                   //PK
-    name            account;                                    //UK
-    name            recover_type;
-    int8_t          mobile_check_score   = -1;        
-    int8_t          answer_check_score   = -1;
-    int8_t          did_check_score      = -1;
-    bool            manual_check_required = false;
-    name            manual_check_result; 
-    name            manual_checker;        
-    name            pay_status;
-    time_point_sec  created_at;
-    time_point_sec  expired_at;
-    time_point_sec  updated_at;
+TBL recover_order_t {
+    uint64_t            id                   = 0;                   //PK
+    uint64_t            serial_num           = 0;                   //UK
+    name                account;                                    //UK
+    name                recover_type;
+    map<name, uint8_t>  scores;                                     //contract
+    bool                manual_check_required = false;       
+    name                pay_status;
+    time_point_sec      created_at;
+    time_point_sec      expired_at;
+    time_point_sec      updated_at;
     recover_target_type recover_target;                             //Eg: pubkey, mobileno
 
-
-    recoverorder_t() {}
-    recoverorder_t(const uint64_t& i): id(i) {}
+    recover_order_t() {}
+    recover_order_t(const uint64_t& i): id(i) {}
 
     uint64_t primary_key()const { return id; }
     uint64_t by_account() const { return account.value; }
 
     typedef eosio::multi_index
-    < "orders"_n,  recoverorder_t,
-        indexed_by<"accountidx"_n, const_mem_fun<recoverorder_t, uint64_t, &recoverorder_t::by_account> >
+    < "orders"_n,  recover_order_t,
+        indexed_by<"accountidx"_n, const_mem_fun<recover_order_t, uint64_t, &recover_order_t::by_account> >
     > idx_t;
 
-    EOSLIB_SERIALIZE( recoverorder_t, (id)(account)(recover_type)
-                                     (mobile_check_score)
-                                     (answer_check_score)(did_check_score)
-                                     (manual_check_required)(manual_check_result)(manual_checker)
+    EOSLIB_SERIALIZE( recover_order_t, (id)(serial_num)(account)(recover_type)
+                                     (scores)
+                                     (manual_check_required)
                                      (pay_status)(created_at)(expired_at)
                                      (updated_at)
                                      (recover_target))
 };
 
-TBL auditscore_t {
-    name           audit_type;              //PK
-    int8_t         score;         
+TBL audit_score_t {
+    name            contract;
+    name            audit_type;
+    asset           cost;
+    string          title;
+    string          desc;
+    string          url;
+    uint8_t         score;
+    bool            required_check = false;
+    name            status;
 
-    auditscore_t() {}
-    auditscore_t(const name& type): audit_type(type) {}
+    audit_score_t() {}
+    audit_score_t(const name& contract): contract(contract) {}
 
-    uint64_t primary_key()const { return audit_type.value; }
+    uint64_t primary_key()const { return contract.value; }
+    uint64_t by_audit_type()const { return audit_type.value; }
 
-    typedef eosio::multi_index< "auditscores"_n,  auditscore_t > idx_t;
+    typedef eosio::multi_index< "auditscores"_n,  audit_score_t,
+        indexed_by<"audittype"_n, const_mem_fun<audit_score_t, uint64_t, &audit_score_t::by_audit_type>>
+     > idx_t;
 
-    EOSLIB_SERIALIZE( auditscore_t, (audit_type)(score) )
+    EOSLIB_SERIALIZE( audit_score_t, (contract)(audit_type)(cost)(title)(desc)(url)(score)(required_check)(status) )
 };
 
 

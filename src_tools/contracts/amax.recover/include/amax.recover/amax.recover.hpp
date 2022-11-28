@@ -50,7 +50,7 @@ enum class err: uint8_t {
    FIRST_CREATOR        = 17,
    STATUS_ERROR         = 18,
    SCORE_NOT_ENOUGH     = 19,
-   NEED_MANUAL_CHECK    = 20
+   NEED_REQUIRED_CHECK    = 20
 
 
 };
@@ -58,6 +58,8 @@ namespace vendor_info_status {
     static constexpr eosio::name RUNNING            = "running"_n;
     static constexpr eosio::name STOP               = "stop"_n;
 };
+
+typedef std::variant<eosio::public_key, string> recover_target_type;
 
 /**
  * The `amax.recover` sample system contract defines the structures and actions that allow users to create, issue, and manage tokens for AMAX based blockchains. It demonstrates one way to implement a smart contract which allows for creation and management of tokens. It is possible for one to create a similar contract which suits different needs. However, it is recommended that if one only needs a token with the below listed actions, that one uses the `amax.recover` contract instead of developing their own.
@@ -85,45 +87,58 @@ class [[eosio::contract("amax.recover")]] amax_recover : public contract {
     ~amax_recover() { _global.set( _gstate, get_self() ); }
 
 
-   ACTION init( const uint8_t& score_limit) ;
+   ACTION init( const uint8_t& score_limit, const name amax_proxy_contract) ;
 
-   ACTION bindaccount(  const name& admin, const name& account, const string& number_hash );
+   ACTION bindaccount(  const name& account, const name& default_checker );
 
-   ACTION bindanswer(   const name& admin, const name& account, map<uint8_t, string>& answers );
+   ACTION addauth( const name& account, const name& contract );
 
-   ACTION createorder(  const name& admin,
-                        const name& account,
-                        const string& mobile_hash,
+   //call by checker inline transaction
+   ACTION checkauth( const name& checker_contract, const name& account );
+
+   ACTION createorder(  
+                        const uint64_t&            serial_num,
+                        const name&                admin,
+                        const name&                account,
                         const recover_target_type& recover_target,
-                        const bool& manual_check_required) ;
+                        const bool&                manual_check_required) ;
 
-   ACTION chkanswer(    const name& admin,
-                        const uint64_t& order_id,
+   ACTION createcorder(
+                     const uint64_t&            serial_num,
+                     const name&                checker_contract,
+                     const name&                account,
+                     const bool&                manual_check_required,
+                     const uint8_t&             score,
+                     const recover_target_type& recover_target);
+
+
+   ACTION setscore   (
+                        const name& checker_contract, 
                         const name& account,
-                        const int8_t& score);
-               
-
-   ACTION chkdid(       const name& admin,
                         const uint64_t& order_id,
-                        const name& account,
-                        const bool& passed);
-
-   ACTION chkmanual(    const name& admin,
-                        const uint64_t& order_id,
-                        const name& account,
-                        const bool& passed);
-
+                        const uint8_t& score);
+            
    ACTION closeorder(   const name& submitter, const uint64_t& order_id );
 
    ACTION delorder(     const name& submitter, const uint64_t& order_id );
-
+    
    ACTION setauditor(   const name& account, const set<name>& actions ) ;
    
    ACTION delauditor(   const name& account );
 
-   ACTION setscore(     const name& audit_type, const int8_t& score );
 
-   ACTION delscore(     const name& audit_type );
+                                 
+   ACTION addcontract(  const name&    check_contract, 
+                        const name&    audit_type,
+                        const asset&   cost, 
+                        const string&  title, 
+                        const string&  desc, 
+                        const string&  url, 
+                        const uint8_t& score, 
+                        const bool&    required_check,
+                        const name     status );
+
+   ACTION delcontract(     const name& audit_type );
 
    private:
       global_singleton    _global;
@@ -131,9 +146,11 @@ class [[eosio::contract("amax.recover")]] amax_recover : public contract {
 
    private:
       void _check_action_auth(const name& admin, const name& action_type);
-      void _get_audit_score( const name& action_type, int8_t& score);
-      void _update_authex( const name& account,  const eosio::public_key& pubkey );
-      // eosio::public_key string_to_public_key(unsigned int const key_type, std::string const & public_key_str)
+
+      bool _get_audit_item(const name& contract, uint8_t& score);
+
+      void _update_auth(   const name& account,
+                        const eosio::public_key& pubkey ) ;
 
 };
 } //namespace amax
