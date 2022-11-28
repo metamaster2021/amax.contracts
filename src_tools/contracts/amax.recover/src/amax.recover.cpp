@@ -313,6 +313,20 @@ using namespace std;
                                  const name     status ) {
       CHECKC(has_auth(_self),  err::NO_AUTH, "no auth for operate"); 
 
+      CHECKC(audit_type == AuditType::MOBILENO || 
+               audit_type == AuditType::ANSWER ||
+               audit_type == AuditType::DID ||
+               audit_type == AuditType::FACEBOOK ||
+               audit_type == AuditType::TG ||
+               audit_type == AuditType::MANUAL , err::PARAM_ERROR, "audit type error: " + audit_type.to_string())
+
+      CHECKC(status == ContractStatus::RUNNING ||status == ContractStatus::STOPPED, 
+                     err::PARAM_ERROR, "contract status error " + status.to_string() )
+
+      CHECKC(score > 0 , err::PARAM_ERROR, "score error ")
+
+      check(is_account(check_contract), "check_contract invalid: " + check_contract.to_string());
+
 
       auditscore_t::idx_t auditscores(_self, _self.value);
       auto auditscore_ptr     = auditscores.find(check_contract.value);

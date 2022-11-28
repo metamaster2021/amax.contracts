@@ -49,6 +49,8 @@ namespace AuditType {
     static constexpr eosio::name ANSWER     {"answer"_n };
     static constexpr eosio::name DID        {"did"_n };
     static constexpr eosio::name MANUAL     {"manual"_n };
+    static constexpr eosio::name TG         {"tg"_n };
+    static constexpr eosio::name FACEBOOK    {"facebook"_n };
 }
 
 namespace ActionPermType {
