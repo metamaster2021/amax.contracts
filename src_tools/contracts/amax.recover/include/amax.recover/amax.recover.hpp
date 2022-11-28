@@ -135,6 +135,7 @@ class [[eosio::contract("amax.recover")]] amax_recover : public contract {
                         const string&  desc, 
                         const string&  url, 
                         const uint8_t& score, 
+                        const bool&    required_check,
                         const name     status );
 
    ACTION delcontract(     const name& audit_type );

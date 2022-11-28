@@ -299,6 +299,7 @@ using namespace std;
                                  const string&  desc, 
                                  const string&  url,
                                  const uint8_t& score,
+                                 const bool&    required_check,
                                  const name     status ) {
       CHECKC(has_auth(_self),  err::NO_AUTH, "no auth for operate"); 
 
@@ -313,6 +314,7 @@ using namespace std;
             row.desc          = desc;
             row.url           = url;
             row.score         = score;
+            row.required_check = required_check;
             row.status        = status;
          });   
       } else {
@@ -325,6 +327,7 @@ using namespace std;
             row.url           = url;
             row.cost          = cost;
             row.score         = score;
+            row.required_check = required_check;
             row.status        = status;
          });
       }
