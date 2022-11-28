@@ -64,7 +64,7 @@ public:
 
    fc::variant get_table_auditscore( const name& account )
    {
-      return get_table_common("auditscore_t", N(auditscores), account);
+      return get_table_common("audit_score_t", N(auditscores), account);
    }
 
    fc::variant get_table_accountaudit( const name& account )
@@ -74,7 +74,7 @@ public:
 
    fc::variant get_table_recoverorder( const uint64_t& order_id )
    {
-      return get_table_common("recoverorder_t", N(orders), name(order_id) );
+      return get_table_common("recover_order_t", N(orders), name(order_id) );
    }
 
    fc::variant get_table_global( )

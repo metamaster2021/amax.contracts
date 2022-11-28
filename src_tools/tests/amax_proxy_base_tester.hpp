@@ -136,7 +136,7 @@ public:
 
 //    fc::variant get_table_recoverorder( const uint64_t& order_id )
 //    {
-//       return get_table_common("recoverorder_t", N(orders), name(order_id) );
+//       return get_table_common("recover_order_t", N(orders), name(order_id) );
 //    }
 
 //    fc::variant get_table_global( )

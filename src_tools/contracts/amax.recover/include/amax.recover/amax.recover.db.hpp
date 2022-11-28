@@ -108,7 +108,7 @@ TBL account_audit_t {
 };
 
 //Scope: default
-TBL recoverorder_t {
+TBL recover_order_t {
     uint64_t            id                   = 0;                   //PK
     uint64_t            serial_num           = 0;                   //UK
     name                account;                                    //UK
@@ -121,18 +121,18 @@ TBL recoverorder_t {
     time_point_sec      updated_at;
     recover_target_type recover_target;                             //Eg: pubkey, mobileno
 
-    recoverorder_t() {}
-    recoverorder_t(const uint64_t& i): id(i) {}
+    recover_order_t() {}
+    recover_order_t(const uint64_t& i): id(i) {}
 
     uint64_t primary_key()const { return id; }
     uint64_t by_account() const { return account.value; }
 
     typedef eosio::multi_index
-    < "orders"_n,  recoverorder_t,
-        indexed_by<"accountidx"_n, const_mem_fun<recoverorder_t, uint64_t, &recoverorder_t::by_account> >
+    < "orders"_n,  recover_order_t,
+        indexed_by<"accountidx"_n, const_mem_fun<recover_order_t, uint64_t, &recover_order_t::by_account> >
     > idx_t;
 
-    EOSLIB_SERIALIZE( recoverorder_t, (id)(serial_num)(account)(recover_type)
+    EOSLIB_SERIALIZE( recover_order_t, (id)(serial_num)(account)(recover_type)
                                      (scores)
                                      (manual_check_required)
                                      (pay_status)(created_at)(expired_at)
@@ -140,7 +140,7 @@ TBL recoverorder_t {
                                      (recover_target))
 };
 
-TBL auditscore_t {
+TBL audit_score_t {
     name            contract;
     name            audit_type;
     asset           cost;
@@ -151,17 +151,17 @@ TBL auditscore_t {
     bool            required_check = false;
     name            status;
 
-    auditscore_t() {}
-    auditscore_t(const name& contract): contract(contract) {}
+    audit_score_t() {}
+    audit_score_t(const name& contract): contract(contract) {}
 
     uint64_t primary_key()const { return contract.value; }
     uint64_t by_audit_type()const { return audit_type.value; }
 
-    typedef eosio::multi_index< "auditscores"_n,  auditscore_t,
-        indexed_by<"audittype"_n, const_mem_fun<auditscore_t, uint64_t, &auditscore_t::by_audit_type>>
+    typedef eosio::multi_index< "auditscores"_n,  audit_score_t,
+        indexed_by<"audittype"_n, const_mem_fun<audit_score_t, uint64_t, &audit_score_t::by_audit_type>>
      > idx_t;
 
-    EOSLIB_SERIALIZE( auditscore_t, (contract)(audit_type)(cost)(title)(desc)(url)(score)(required_check)(status) )
+    EOSLIB_SERIALIZE( audit_score_t, (contract)(audit_type)(cost)(title)(desc)(url)(score)(required_check)(status) )
 };
 
 

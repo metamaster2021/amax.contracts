@@ -110,7 +110,7 @@ using namespace std;
    
       auto duration_second    = order_expiry_duration;
       if (manual_check_required) {
-         auditscore_t::idx_t auditscores(_self, _self.value);
+         audit_score_t::idx_t auditscores(_self, _self.value);
          auto auditscore_idx = auditscores.get_index<"audittype"_n>();
          auto auditscore_itr =  auditscore_idx.find(AuditType::MANUAL.value);
          CHECKC( auditscore_itr != auditscore_idx.end(), err::RECORD_NOT_FOUND, "record not existed, " + AuditType::MANUAL.to_string());
@@ -119,7 +119,7 @@ using namespace std;
          scores[auditscore_itr->contract] = 0;
       }
 
-      recoverorder_t::idx_t orders( _self, _self.value );
+      recover_order_t::idx_t orders( _self, _self.value );
       auto account_index 			      = orders.get_index<"accountidx"_n>();
       auto order_itr 			         = account_index.find( account.value );
       CHECKC( order_itr == account_index.end(), err::RECORD_EXISTING, "order already existed. ");
@@ -170,7 +170,7 @@ using namespace std;
    
       auto duration_second    = order_expiry_duration;
       if (manual_check_required) {
-         auditscore_t::idx_t auditscores(_self, _self.value);
+         audit_score_t::idx_t auditscores(_self, _self.value);
          auto auditscore_idx = auditscores.get_index<"audittype"_n>();
          auto auditscore_itr =  auditscore_idx.find(AuditType::MANUAL.value);
          CHECKC( auditscore_itr != auditscore_idx.end(), err::RECORD_NOT_FOUND, "record not existed, " + AuditType::MANUAL.to_string());
@@ -181,7 +181,7 @@ using namespace std;
 
       scores[checker_contract] = score;
       
-      recoverorder_t::idx_t orders( _self, _self.value );
+      recover_order_t::idx_t orders( _self, _self.value );
       auto account_index 			      = orders.get_index<"accountidx"_n>();
       auto order_itr 			         = account_index.find( account.value );
       CHECKC( order_itr == account_index.end(), err::RECORD_EXISTING, "order already existed. ");
@@ -216,7 +216,7 @@ using namespace std;
       uint8_t  answer_score_limit  = 0;
       _get_audit_item(checker_contract, answer_score_limit);
       
-      recoverorder_t::idx_t orders(_self, _self.value);
+      recover_order_t::idx_t orders(_self, _self.value);
       auto order_ptr     = orders.find(order_id);
       CHECKC( order_ptr != orders.end(), err::RECORD_NOT_FOUND, "order not found. ");
       CHECKC(answer_score_limit >= score && score > 0, err::PARAM_ERROR, "scores exceed limit")
@@ -232,12 +232,12 @@ using namespace std;
 
    void amax_recover::closeorder( const name& submitter, const uint64_t& order_id) {
       CHECKC( has_auth(submitter) , err::NO_AUTH, "amax_recover no auth for operate" )
-      recoverorder_t::idx_t orders(_self, _self.value);
+      recover_order_t::idx_t orders(_self, _self.value);
       auto order_ptr     = orders.find(order_id);
       CHECKC( order_ptr != orders.end(), err::RECORD_NOT_FOUND, "order not found. "); 
       CHECKC(order_ptr->expired_at > current_time_point(), err::TIME_EXPIRED, "order already time expired")
 
-      auditscore_t::idx_t auditscores(_self, _self.value);
+      audit_score_t::idx_t auditscores(_self, _self.value);
       auto auditscore_idx = auditscores.get_index<"audittype"_n>();
       auto auditscore_itr =  auditscore_idx.find(AuditType::MANUAL.value);
    
@@ -265,7 +265,7 @@ using namespace std;
 
    void amax_recover::delorder( const name& submitter, const uint64_t& order_id) {
       CHECKC( has_auth(submitter) , err::NO_AUTH, "no auth for operate" )
-      recoverorder_t::idx_t orders(_self, _self.value);
+      recover_order_t::idx_t orders(_self, _self.value);
       auto order_ptr     = orders.find(order_id);
       CHECKC( order_ptr != orders.end(), err::RECORD_NOT_FOUND, "order not found. "); 
       auto total_score = 0;
@@ -328,7 +328,7 @@ using namespace std;
       check(is_account(check_contract), "check_contract invalid: " + check_contract.to_string());
 
 
-      auditscore_t::idx_t auditscores(_self, _self.value);
+      audit_score_t::idx_t auditscores(_self, _self.value);
       auto auditscore_ptr     = auditscores.find(check_contract.value);
       if( auditscore_ptr != auditscores.end() ) {
          auditscores.modify(*auditscore_ptr, _self, [&]( auto& row ) {
@@ -360,7 +360,7 @@ using namespace std;
    void amax_recover::delcontract(  const name& account ) {
       CHECKC(has_auth(_self),  err::NO_AUTH, "no auth for operate");      
 
-      auditscore_t::idx_t auditscores(_self, _self.value);
+      audit_score_t::idx_t auditscores(_self, _self.value);
       auto auditscore_ptr     = auditscores.find(account.value);
 
       CHECKC( auditscore_ptr != auditscores.end(), err::RECORD_NOT_FOUND, "auditscore not exist. ");
@@ -368,9 +368,9 @@ using namespace std;
    }
 
    bool amax_recover::_get_audit_item(const name& contract, uint8_t& score) {
-      auditscore_t::idx_t auditscores(_self, _self.value);
+      audit_score_t::idx_t auditscores(_self, _self.value);
       auto auditscore_ptr     = auditscores.find(contract.value);
-      CHECKC( auditscore_ptr != auditscores.end(), err::RECORD_NOT_FOUND, "auditscore_t contract not exist:  " + contract.to_string());
+      CHECKC( auditscore_ptr != auditscores.end(), err::RECORD_NOT_FOUND, "audit_score_t contract not exist:  " + contract.to_string());
       CHECKC( auditscore_ptr->status == ContractStatus::RUNNING, err::STATUS_ERROR, "contract status is error: " + contract.to_string());
       score = auditscore_ptr->score;
       return auditscore_ptr->required_check;
