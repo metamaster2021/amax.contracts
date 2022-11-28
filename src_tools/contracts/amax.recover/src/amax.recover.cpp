@@ -208,13 +208,18 @@ using namespace std;
    void amax_recover::setscore( const name& checker_contract, const name& account, const uint64_t& order_id, const uint8_t& score) {
       require_auth(checker_contract);
 
+      account_audit_t::idx accountaudits(_self, _self.value);
+      auto audit_ptr     = accountaudits.find(account.value);
+      CHECKC( audit_ptr != accountaudits.end(), err::RECORD_NOT_FOUND, "account not exist. ");
+      CHECKC(audit_ptr->audit_contracts.count(checker_contract) > 0 , err::NO_AUTH, "no auth for set score: " + account.to_string());
+
       uint8_t  answer_score_limit  = 0;
       _get_audit_item(checker_contract, answer_score_limit);
-
+      
       recoverorder_t::idx_t orders(_self, _self.value);
       auto order_ptr     = orders.find(order_id);
       CHECKC( order_ptr != orders.end(), err::RECORD_NOT_FOUND, "order not found. ");
-      CHECKC(answer_score_limit >= score, err::PARAM_ERROR, "scores exceed limit")
+      CHECKC(answer_score_limit >= score && score > 0, err::PARAM_ERROR, "scores exceed limit")
       CHECKC(order_ptr->account == account , err::PARAM_ERROR, "account error: "+ account.to_string() )
 
       CHECKC(order_ptr->expired_at > current_time_point(), err::TIME_EXPIRED, "order already time expired")
@@ -232,15 +237,20 @@ using namespace std;
       CHECKC( order_ptr != orders.end(), err::RECORD_NOT_FOUND, "order not found. "); 
       CHECKC(order_ptr->expired_at > current_time_point(), err::TIME_EXPIRED, "order already time expired")
 
+      auditscore_t::idx_t auditscores(_self, _self.value);
+      auto auditscore_idx = auditscores.get_index<"audittype"_n>();
+      auto auditscore_itr =  auditscore_idx.find(AuditType::MANUAL.value);
+   
+
       auto total_score = 0;
       for (auto& [key, value]: order_ptr->scores) {
-          CHECKC(value !=0 , err::NEED_REQUIRED_CHECK, "required check: " + key.to_string())
-         total_score += value;
+         CHECKC(value != 0 , err::NEED_REQUIRED_CHECK, "required check: " + key.to_string())
+         if( auditscore_itr == auditscore_idx.end() || auditscore_itr->contract != key ) {
+            total_score += value; 
+         }
       }
 
       CHECKC( total_score > _gstate.score_limit, err::SCORE_NOT_ENOUGH, "score not enough" );
-
-
       account_audit_t::idx accountaudits(_self, _self.value);
       auto audit_ptr     = accountaudits.find(order_ptr->account.value);
       CHECKC( audit_ptr != accountaudits.end(), err::RECORD_NOT_FOUND, "order not exist. ");
