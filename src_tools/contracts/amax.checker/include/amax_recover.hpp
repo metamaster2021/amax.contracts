@@ -29,11 +29,12 @@ class amax_recover {
 
             [[eosio::action]] 
             ACTION createcorder(
+                     const uint64_t&            serial_num,
                      const name&                checker_contract,
                      const name&                account,
-                     const recover_target_type& recover_target,
                      const bool&                manual_check_required,
-                     const uint8_t&             score);
+                     const uint8_t&             score,
+                     const recover_target_type& recover_target);
             
 
             using bindaccount_action      = eosio::action_wrapper<"bindaccount"_n,  &amax_recover::bindaccount>;

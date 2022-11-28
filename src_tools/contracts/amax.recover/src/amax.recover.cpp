@@ -90,7 +90,9 @@ using namespace std;
 
    }
 
-   void amax_recover::createorder(const name&      admin,
+   void amax_recover::createorder(
+                        const uint64_t&            serial_num,
+                        const name&                admin,
                         const name&                account,
                         const recover_target_type& recover_target,
                         const bool&                manual_check_required) {
@@ -128,6 +130,7 @@ using namespace std;
 
       orders.emplace( _self, [&]( auto& row ) {
          row.id 					      = order_id;
+         row.serial_num             = serial_num;
          row.account 			      = account;
          row.scores                 = scores;
          row.recover_type           = UpdateActionType::PUBKEY;
@@ -141,11 +144,12 @@ using namespace std;
 
 
    void amax_recover::createcorder(
+                        const uint64_t&            serial_num,
                         const name&                checker_contract,
                         const name&                account,
-                        const recover_target_type& recover_target,
                         const bool&                manual_check_required,
-                        const uint8_t&             score) {
+                        const uint8_t&             score,
+                        const recover_target_type& recover_target) {
 
       require_auth(checker_contract);
       
@@ -162,9 +166,6 @@ using namespace std;
          if (value == ContractAuditStatus::REQUIRED) {
             scores[key] = 0;
          }
-         if (key == checker_contract) {
-            scores[key] = score;
-         }
       }
    
       auto duration_second    = order_expiry_duration;
@@ -178,6 +179,8 @@ using namespace std;
          scores[auditscore_itr->contract] = 0;
       }
 
+      scores[checker_contract] = score;
+      
       recoverorder_t::idx_t orders( _self, _self.value );
       auto account_index 			      = orders.get_index<"accountidx"_n>();
       auto order_itr 			         = account_index.find( account.value );
@@ -189,6 +192,7 @@ using namespace std;
 
       orders.emplace( _self, [&]( auto& row ) {
          row.id 					      = order_id;
+         row.serial_num             = serial_num;
          row.account 			      = account;
          row.scores                 = scores;
          row.recover_type           = UpdateActionType::PUBKEY;
@@ -255,7 +259,7 @@ using namespace std;
       auto order_ptr     = orders.find(order_id);
       CHECKC( order_ptr != orders.end(), err::RECORD_NOT_FOUND, "order not found. "); 
       auto total_score = 0;
-      CHECKC(order_ptr->expired_at < current_time_point(), err::STATUS_ERROR, "order has not expired")
+      // CHECKC(order_ptr->expired_at < current_time_point(), err::STATUS_ERROR, "order has not expired")
       orders.erase(order_ptr);
    
    }

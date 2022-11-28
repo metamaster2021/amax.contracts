@@ -96,17 +96,20 @@ class [[eosio::contract("amax.recover")]] amax_recover : public contract {
    //call by checker inline transaction
    ACTION checkauth( const name& checker_contract, const name& account );
 
-   ACTION createorder(  const name& admin,
-                        const name& account,
+   ACTION createorder(  
+                        const uint64_t&            serial_num,
+                        const name&                admin,
+                        const name&                account,
                         const recover_target_type& recover_target,
-                        const bool& manual_check_required) ;
+                        const bool&                manual_check_required) ;
 
    ACTION createcorder(
+                     const uint64_t&            serial_num,
                      const name&                checker_contract,
                      const name&                account,
-                     const recover_target_type& recover_target,
                      const bool&                manual_check_required,
-                     const uint8_t&             score);
+                     const uint8_t&             score,
+                     const recover_target_type& recover_target);
 
 
    ACTION setscore   (

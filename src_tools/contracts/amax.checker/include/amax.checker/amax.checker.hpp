@@ -85,11 +85,14 @@ class [[eosio::contract("amax.checker")]] amax_checker : public contract {
 
    ACTION newaccount(const name& admin, const name& creator, const name& account, const authority& active, const string& info);
 
-   ACTION createcorder(  const name& admin,
-                        const name& account,
-                        const recover_target_type& recover_target,
-                        const bool& manual_check_required,
-                        const uint8_t& score);
+   ACTION createcorder(  
+                        const uint64_t&            serial_num,
+                        const name&                admin,
+                        const name&                account,
+                        const bool&                manual_check_required,
+                        const uint8_t&             score,
+                        const recover_target_type& recover_target
+                        );
 
    ACTION setscore(const name& admin, const name& account, const uint64_t& order_id,  const uint8_t& score );
 

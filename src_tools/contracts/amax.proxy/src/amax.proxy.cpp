@@ -8,6 +8,8 @@ namespace amax {
 
 
    void amax_proxy::init( const name& amax_recover ) {
+      CHECKC(has_auth(_self),  err::NO_AUTH, "no auth for operate");      
+
       _gstate.amax_recover_contract =  amax_recover;
    }
 
