@@ -64,7 +64,7 @@ public:
 
    fc::variant get_table_auditscore( const name& account )
    {
-      return get_table_common("audit_score_t", N(auditscores), account);
+      return get_table_common("audit_conf_t", N(auditscores), account);
    }
 
    fc::variant get_table_accountaudit( const name& account )
@@ -96,9 +96,9 @@ public:
    //    return data.empty() ? fc::variant() : abi_ser.binary_to_variant( "account", data, abi_serializer::create_yield_function(abi_serializer_max_time) );
    // }
 
-   action_result action_init( uint8_t score_limit ) {
+   action_result action_init( uint8_t recover_threshold ) {
       return push_action( N(amax.recover), N(init), mvo()
-           ( "score_limit", score_limit)
+           ( "recover_threshold", recover_threshold)
       );
    }
 

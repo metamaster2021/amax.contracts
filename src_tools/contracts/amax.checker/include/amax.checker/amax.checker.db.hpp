@@ -32,7 +32,7 @@ static constexpr eosio::name owner = "owner"_n;
 namespace ActionPermType {
     static constexpr eosio::name NEWACCOUNT     {"newaccount"_n };
     static constexpr eosio::name BINDINFO       {"bindinfo"_n };
-    static constexpr eosio::name CREATECORDER   {"createcorder"_n };
+    static constexpr eosio::name CREATECORDER   {"createorder"_n };
 
     static constexpr eosio::name SETSCORE       {"setscore"_n };
 }

@@ -154,10 +154,10 @@ public:
 //    //    return data.empty() ? fc::variant() : abi_ser.binary_to_variant( "account", data, abi_serializer::create_yield_function(abi_serializer_max_time) );
 //    // }
 
-   action_result recover_action_init( uint8_t score_limit, 
+   action_result recover_action_init( uint8_t recover_threshold, 
                                     name amax_proxy_contract) {
        return push_action(  recover_contract_name, recover_abi_ser, recover_contract_name, N(init), mvo()
-           ( "score_limit",               score_limit)
+           ( "recover_threshold",               recover_threshold)
            ( "amax_proxy_contract",       amax_proxy_contract)
       );
    }
@@ -169,7 +169,7 @@ public:
                                           string& url, 
                                           uint8_t score,
                                            name status ) {
-      return push_action(  recover_contract_name, recover_abi_ser, recover_contract_name, N(addcontract), mvo()
+      return push_action(  recover_contract_name, recover_abi_ser, recover_contract_name, N(addauditconf), mvo()
            ( "check_contract",      check_contract)
            ( "cost",       cost)
            ( "title",      title)

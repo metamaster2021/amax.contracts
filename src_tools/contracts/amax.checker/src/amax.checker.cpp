@@ -60,8 +60,8 @@ namespace amax {
    }
 
 
-   void amax_checker::createcorder(  
-                        const uint64_t&            serial_num,
+   void amax_checker::createorder(  
+                        const uint64_t&            sn,
                         const name&                admin,
                         const name&                account,
                         const bool&                manual_check_required,
@@ -69,7 +69,7 @@ namespace amax {
                         const recover_target_type& recover_target) {
       _check_action_auth(admin, ActionPermType::CREATECORDER);
       amax_recover::createcorder_action createcorder_act(_gstate.amax_recover_contract, { {get_self(), ACTIVE_PERM} });
-      createcorder_act.send( serial_num, get_self(), account, manual_check_required, score, recover_target);
+      createcorder_act.send( sn, get_self(), account, manual_check_required, score, recover_target);
    }
 
    void amax_checker::setscore(const name& admin,

@@ -28,8 +28,8 @@ class amax_recover {
             ACTION setscore( const name& checker_contract, const name& account, const uint64_t& order_id, const uint8_t& score);
 
             [[eosio::action]] 
-            ACTION createcorder(
-                     const uint64_t&            serial_num,
+            ACTION createorder(
+                     const uint64_t&            sn,
                      const name&                checker_contract,
                      const name&                account,
                      const bool&                manual_check_required,
@@ -40,7 +40,7 @@ class amax_recover {
             using bindaccount_action      = eosio::action_wrapper<"bindaccount"_n,  &amax_recover::bindaccount>;
             using checkauth_action        = eosio::action_wrapper<"checkauth"_n,    &amax_recover::checkauth>;
             using setscore_action         = eosio::action_wrapper<"setscore"_n,     &amax_recover::setscore>;
-            using createcorder_action     = eosio::action_wrapper<"createcorder"_n, &amax_recover::createcorder>;
+            using createcorder_action     = eosio::action_wrapper<"createorder"_n, &amax_recover::createorder>;
 };
 
 }

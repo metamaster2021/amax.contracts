@@ -32,7 +32,7 @@ public:
       action_init( 5 );
       // auto g = get_table_global();
       // REQUIRE_MATCHING_OBJECT( g, mvo()
-      //    ("score_limit", 5)
+      //    ("recover_threshold", 5)
       //    ("last_order_id", 0)
       // );
       produce_blocks(1);
