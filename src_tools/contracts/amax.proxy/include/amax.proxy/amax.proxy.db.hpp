@@ -18,12 +18,7 @@ namespace amax {
 
 using namespace std;
 using namespace eosio;
-
-#define HASH256(str) sha256(const_cast<char*>(str.c_str()), str.size())
-
-static constexpr uint64_t seconds_per_day                   = 24 * 3600;
-static constexpr uint64_t order_expiry_duration             = seconds_per_day;
-static constexpr uint64_t manual_order_expiry_duration      = 3 * seconds_per_day;
+#define SYMBOL(sym_code, precision) symbol(symbol_code(sym_code), precision)
 
 static constexpr eosio::name RECOVER_ACCOUNT    = "amax.recover"_n;
 
@@ -32,34 +27,16 @@ static constexpr eosio::name SYS_CONTRACT       = "amax"_n;
 static constexpr eosio::name OWNER_PERM         = "owner"_n;
 static constexpr eosio::name ACTIVE_PERM        = "active"_n;
 
-namespace ActionPermType {
-    static constexpr eosio::name BINDINFO {"bindinfo"_n };
-    static constexpr eosio::name SETSCORE {"setscore"_n };
-}
-
 #define TBL struct [[eosio::table, eosio::contract("amax.proxy")]]
 #define NTBL(name) struct [[eosio::table(name), eosio::contract("amax.proxy")]]
 
 NTBL("global") global_t {
-    name                     amax_recover_contract = RECOVER_ACCOUNT;
-
-    EOSLIB_SERIALIZE( global_t, (amax_recover_contract))
+    name        amax_recover_contract   = RECOVER_ACCOUNT;
+    uint64_t    ram_bytes               = 10000;
+    asset       stake_net_quantity      = asset(100000, SYS_SYMB); //TODO: set params in global table
+    asset       stake_cpu_quantity      = asset(100000, SYS_SYMB);
+    EOSLIB_SERIALIZE( global_t, (amax_recover_contract)(ram_bytes)(stake_net_quantity)(stake_cpu_quantity))
 };
 typedef eosio::singleton< "global"_n, global_t > global_singleton;
-
-
-TBL auditor_t {
-    name                    account;              //PK
-    set<name>               actions;         
-
-    auditor_t() {}
-    auditor_t(const name& i): account(i) {}
-
-    uint64_t primary_key()const { return account.value; }
-
-    typedef eosio::multi_index< "auditors"_n,  auditor_t > idx_t;
-
-    EOSLIB_SERIALIZE( auditor_t, (account)(actions) )
-};
 
 } //namespace amax

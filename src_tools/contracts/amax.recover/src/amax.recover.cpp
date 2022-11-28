@@ -48,7 +48,7 @@ using namespace std;
       accountaudits.emplace( _self, [&]( auto& row ) {
          row.audit_contracts[default_checker]   = required ? ContractAuditStatus::REQUIRED : ContractAuditStatus::OPTIONAL;
          row.account 		                     = account;
-         row.threshold                          = _gstate.recover_threshold;
+         row.threshold                          = score;
          row.created_at                         = now;
       });   
    }
@@ -82,12 +82,12 @@ using namespace std;
       auto now           = current_time_point();
 
       CHECKC(audit_ptr->audit_contracts.count(checker_contract) != 0, err::RECORD_NOT_FOUND, "contract not existed:" +checker_contract.to_string()  )
-      
+
       account_audits.modify(*audit_ptr, _self, [&]( auto& row ) {
          row.audit_contracts[checker_contract]  = required ? ContractAuditStatus::REQUIRED : ContractAuditStatus::OPTIONAL ;
+         if( audit_ptr->threshold < _gstate.recover_threshold ) row.threshold = _gstate.recover_threshold;
          row.created_at                 = now;
-      });   
-
+      });
    }
 
    void amax_recover::createorder(
@@ -220,7 +220,6 @@ using namespace std;
       auto total_score = 0;
       // CHECKC(order_ptr->expired_at < current_time_point(), err::STATUS_ERROR, "order has not expired")
       orders.erase(order_ptr);
-   
    }
 
    void amax_recover::addauditconf( const name& check_contract, const name& audit_type, const audit_conf_s& conf ) {
@@ -246,10 +245,9 @@ using namespace std;
          auditscores.modify(*auditscore_ptr, _self, [&]( auto& row ) {
             row.audit_type    = audit_type;
             row.charge        = conf.charge;
-            row.title         = conf.title;
-            row.desc          = conf.desc;
-            row.url           = conf.url;
-            row.max_score     = conf.max_score;
+            if( conf.title.length() > 0 )       row.title         = conf.title;
+            if( conf.desc.length() > 0 )        row.desc  = conf.desc;
+            if( conf.max_score > 0 )   row.max_score   = conf.max_score;
             row.required_check = conf.required_check;
             row.status        = conf.status;
          });   
