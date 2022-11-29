@@ -11,6 +11,10 @@
 #include <iostream>
 #include <sstream>
 
+// make sure eosio_system_tester derive from backup_block_tester
+// #define TESTER test1::backup_block_tester
+#define TESTER backup_block_tester
+
 #include "amax.system_tester.hpp"
 
 #define LESS(a, b)                     (a) < (b) ? true : false
@@ -339,7 +343,7 @@ struct producer_change_tester : eosio_system_tester {
    block_signing_authority make_producer_authority(name producer_name, uint64_t version = 1){
       auto privkey = get_producer_private_key(producer_name, version);
       auto pubkey = privkey.get_public_key();
-      block_signing_private_keys[pubkey] = privkey;
+      add_block_signing_key(pubkey, privkey);
       return block_signing_authority_v0{
          1, {
             {pubkey, 1}
@@ -682,6 +686,8 @@ BOOST_FIXTURE_TEST_CASE(producer_elects_test, producer_change_tester) try {
    BOOST_REQUIRE_EQUAL( active_backup_schedule.version, 1 );
    BOOST_REQUIRE( active_backup_schedule.producers == backup_schedule);
 
+   producing_backup = true;
+
    produce_blocks(1);
    hbs = control->head_block_state();
    BOOST_REQUIRE( !hbs->active_backup_schedule.schedule && hbs->active_backup_schedule.pre_schedule );
@@ -745,6 +751,11 @@ BOOST_FIXTURE_TEST_CASE(producer_elects_test, producer_change_tester) try {
       }
       // wdump( (elected_change_count_in_db()) );
    }
+   produce_blocks();
+
+   reopen();
+
+   BOOST_REQUIRE_EQUAL(producing_backup, true);
 
    {
       hbs = control->head_block_state();
@@ -787,11 +798,10 @@ BOOST_FIXTURE_TEST_CASE(producer_elects_test, producer_change_tester) try {
 
       // return;
       auto elected_change = get_elected_change_from_db();
-      wdump( (elected_change.size()) );
-      // wdump( (elected_change[0]) );
-      for (size_t i = 0; i < elected_change.size(); i++) {
-         wdump((i)(elected_change[i]));
-      }
+      // wdump( (elected_change.size()) );
+      // for (size_t i = 0; i < elected_change.size(); i++) {
+      //    wdump((i)(elected_change[i]));
+      // }
 
       BOOST_REQUIRE_GT(elected_change.size(), 0);
 
@@ -822,8 +832,10 @@ BOOST_FIXTURE_TEST_CASE(producer_elects_test, producer_change_tester) try {
    }) );
    wdump((control->head_block_num()));
 
-   // produce_block();
+   produce_block();
 
+   reopen();
+   produce_block();
 
 }
 FC_LOG_AND_RETHROW()
