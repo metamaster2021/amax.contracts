@@ -77,6 +77,14 @@ namespace ContractAuditStatus {
     static constexpr eosio::name REQUIRED    {"required"_n };
 }
 
+
+namespace OrderStatus {
+    static constexpr eosio::name CREATED        {"created"_n };
+    static constexpr eosio::name FINISHED       {"finished"_n };
+    static constexpr eosio::name CANCELLED      {"cancelled"_n };
+}
+
+
 /* public key -> update content */
 typedef std::variant<eosio::public_key, string> recover_target_type;
 
@@ -116,6 +124,7 @@ TBL recover_order_t {
     map<name, uint8_t>  scores;                                     //contract -> score
     bool                manual_check_required = false;       
     name                pay_status;
+    name                status;
     time_point_sec      created_at;
     time_point_sec      expired_at;
     time_point_sec      updated_at;

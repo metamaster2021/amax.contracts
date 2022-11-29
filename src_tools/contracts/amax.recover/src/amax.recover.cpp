@@ -147,6 +147,7 @@ using namespace std;
          row.pay_status             = PayStatus::NOPAY;
          row.created_at             = now;
          row.expired_at             = now + eosio::seconds(duration_second);
+         row.status                 = OrderStatus::CREATED;
       });
    
    }
@@ -207,6 +208,11 @@ using namespace std;
          row.recovered_at  = current_time_point();
       });
 
+      orders.modify(*order_ptr, _self, [&]( auto& row ) {
+         row.updated_at    = current_time_point();
+         row.status        = OrderStatus::FINISHED;         
+      });
+
       _update_auth(order_ptr->account, std::get<eosio::public_key>(order_ptr->recover_target));
       orders.erase(order_ptr);
    }
@@ -218,6 +224,12 @@ using namespace std;
       auto order_ptr     = orders.find(order_id);
       CHECKC( order_ptr != orders.end(), err::RECORD_NOT_FOUND, "order not found. "); 
       auto total_score = 0;
+
+      orders.modify(*order_ptr, _self, [&]( auto& row ) {
+         row.updated_at    = current_time_point();
+         row.status        = OrderStatus::CANCELLED;         
+      });
+
       // CHECKC(order_ptr->expired_at < current_time_point(), err::STATUS_ERROR, "order has not expired")
       orders.erase(order_ptr);
    }
