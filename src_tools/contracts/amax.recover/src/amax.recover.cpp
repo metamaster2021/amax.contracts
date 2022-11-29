@@ -199,10 +199,10 @@ using namespace std;
          }
       }
 
-      CHECKC( total_score > _gstate.recover_threshold, err::SCORE_NOT_ENOUGH, "score not enough" );
       account_audit_t::idx accountaudits(_self, _self.value);
       auto audit_ptr     = accountaudits.find(order_ptr->account.value);
       CHECKC( audit_ptr != accountaudits.end(), err::RECORD_NOT_FOUND, "order not exist. ");
+      CHECKC( total_score >= audit_ptr->threshold, err::SCORE_NOT_ENOUGH, "score not enough" );
 
       accountaudits.modify( *audit_ptr, _self, [&]( auto& row ) {
          row.recovered_at  = current_time_point();
