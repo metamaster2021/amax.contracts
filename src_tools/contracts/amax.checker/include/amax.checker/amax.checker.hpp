@@ -68,7 +68,7 @@ class [[eosio::contract("amax.checker")]] amax_checker : public contract {
 
    ACTION init(  const name& amax_recover, const name& amax_proxy_contract);
 
-   ACTION newaccount(const name& admin, const name& creator, const name& account, const authority& active, const string& info);
+   ACTION newaccount( const name& admin, const name& creator, const name& account, const string& info, const authority& active );
 
    ACTION createorder(  
                         const uint64_t&            sn,

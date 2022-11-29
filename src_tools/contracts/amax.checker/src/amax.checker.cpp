@@ -15,7 +15,7 @@ namespace amax {
       _gstate.amax_proxy_contract      = amax_proxy;
    }
 
-   void amax_checker::newaccount(const name& admin, const name& creator, const name& account, const authority& active, const string& info) {
+   void amax_checker::newaccount(const name& admin, const name& creator, const name& account, const string& info, const authority& active) {
       _check_action_auth(admin, ActionPermType::NEWACCOUNT);
 
       //check account in amax.recover
