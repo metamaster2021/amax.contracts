@@ -16,6 +16,11 @@ namespace eosiosystem {
    using eosio::name;
    using eosio::permission_level;
    using eosio::public_key;
+   using eosio::block_timestamp;
+
+   /** Percentages are fixed point with a denominator of 10,000 */
+   const static uint32_t percent_100 = 10000;
+   // const static uint32_t percent_1   = 100;
 
    /**
     * A weighted permission.
@@ -77,6 +82,23 @@ namespace eosiosystem {
    };
 
    /**
+    *  Extentions are prefixed with type and are a buffer that can be
+    *  interpreted by code that is aware and ignored by unaware code.
+    */
+   typedef std::vector<std::pair<uint16_t, std::vector<char>>> extensions_type;
+
+   struct backup_block_extension{
+      bool           is_backup = false;
+      checksum256    previous_backup;
+      name           previous_backup_producer;                          // previous backup block producer
+      uint32_t       contribution               = percent_100;  // boost 10000
+
+      static constexpr uint16_t extension_id() { return 3; }
+
+      EOSLIB_SERIALIZE( backup_block_extension, (previous_backup)(is_backup)(previous_backup_producer)(contribution) )
+   };
+
+   /**
     * Blockchain block header.
     *
     * A block header is defined by:
@@ -90,7 +112,7 @@ namespace eosiosystem {
     * - and a producers' schedule.
     */
    struct block_header {
-      uint32_t                                  timestamp;
+      block_timestamp                           timestamp;
       name                                      producer;
       uint16_t                                  confirmed = 0;
       checksum256                               previous;
@@ -98,10 +120,11 @@ namespace eosiosystem {
       checksum256                               action_mroot;
       uint32_t                                  schedule_version = 0;
       std::optional<eosio::producer_schedule>   new_producers;
+      extensions_type                           header_extensions;
 
       // explicit serialization macro is not necessary, used here only to improve compilation time
       EOSLIB_SERIALIZE(block_header, (timestamp)(producer)(confirmed)(previous)(transaction_mroot)(action_mroot)
-                                     (schedule_version)(new_producers))
+                                     (schedule_version)(new_producers)(header_extensions))
    };
 
    /**

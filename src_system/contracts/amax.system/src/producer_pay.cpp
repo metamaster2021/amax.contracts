@@ -20,9 +20,13 @@ namespace eosiosystem {
 
       require_auth(get_self());
 
-      block_timestamp timestamp;
-      name producer;
-      _ds >> timestamp >> producer;
+      // block_timestamp timestamp;
+      // name producer;
+      // _ds >> timestamp >> producer;
+      block_header bh;
+      _ds >> bh;
+      block_timestamp& timestamp = bh.timestamp;
+      name& producer = bh.producer;
 
       /** until activation, no new rewards are paid */
       if( _gstate.thresh_activated_stake_time == time_point() )
@@ -34,18 +38,37 @@ namespace eosiosystem {
        */
       const auto ct = current_time_point();
       if ( _gstate.inflation_start_time != time_point() && ct >= _gstate.inflation_start_time ) {
-         // TODO: block inflation
-         // int64_t periods = (ct - _gstate.inflation_start_time).count() / (4 * useconds_per_year);
-         // int64_t inflation_per_block = periods >= 0 && periods < 62 ?
-         //       _gstate.initial_inflation_per_block.amount / power(2, periods) : 0;
-         // if (inflation_per_block > 0 ) {
-         //    auto prod = _producers.find( producer.value );
-         //    if ( prod != _producers.end() ) {
-         //       _producers.modify( prod, same_payer, [&](auto& p ) {
-         //             p.unclaimed_rewards.amount += inflation_per_block;
-         //       });
-         //    }
-         // }
+
+         int64_t periods = (ct - _gstate.inflation_start_time).count() / (4 * useconds_per_year);
+         int64_t inflation_per_block = periods >= 0 && periods < 62 ?
+               _gstate.initial_inflation_per_block.amount / power(2, periods) : 0;
+         int64_t inflation_per_prod = inflation_per_block / 2;
+         if (inflation_per_prod > 0 ) {
+            auto prod = _producers.find( producer.value );
+            if ( prod != _producers.end() ) {
+               _producers.modify( prod, same_payer, [&](auto& p ) {
+                     p.unclaimed_rewards.amount += inflation_per_prod;
+               });
+            }
+
+            backup_block_extension bbe;
+            for( size_t i = 0; i < bh.header_extensions.size(); ++i ) {
+               const auto& e = bh.header_extensions[i];
+               auto id = e.first;
+               if (id == backup_block_extension::extension_id()) {
+                  datastream<const char*> ext_ds( e.second.data(), e.second.size() );
+                  ext_ds >> bbe;
+               }
+            }
+            if (!bbe.is_backup && bbe.previous_backup_producer.value != 0) {
+               auto backup_prod = _producers.find( bbe.previous_backup_producer.value );
+               if ( backup_prod != _producers.end() ) {
+                  _producers.modify( backup_prod, same_payer, [&](auto& p ) {
+                        p.unclaimed_rewards.amount += inflation_per_prod;
+                  });
+               }
+            }
+         }
       }
 
       /// only update block producers once every minute
