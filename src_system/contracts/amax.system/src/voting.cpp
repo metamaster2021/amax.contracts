@@ -148,7 +148,9 @@ namespace eosiosystem {
             CHECK(itr != idx.end(), string(title) + ", pos not found! steps:" + to_string(steps) +
                " expectd:" + prod.name.to_string() + ":" + to_string(prod.elected_votes));
             if (itr->owner == prod.name) {
+               #ifdef TRACE_PRODUCER_CHANGES
                print("found position of prod:", prod.name, ":", prod.elected_votes, " steps:", steps, "\n");
+               #endif//TRACE_PRODUCER_CHANGES
                break;
             }
             CHECK(itr->get_elected_votes() == prod.elected_votes && itr->owner < prod.name,
@@ -170,12 +172,16 @@ namespace eosiosystem {
             itr--;
             prev = {itr->owner, itr->total_votes, itr->producer_authority};
             ASSERT(tail < prev);
+            #ifdef TRACE_PRODUCER_CHANGES
             eosio::print(title, " updated: ", itr->owner, ":", itr->total_votes, "\n");
+            #endif//TRACE_PRODUCER_CHANGES
          } else {
             if (check_found) {
                CHECK(false, string(title) + " not found! tail: " + tail.name.to_string() + ":" + to_string(tail.elected_votes))
             }
+            #ifdef TRACE_PRODUCER_CHANGES
             eosio::print(title, " cleared\n");
+            #endif//TRACE_PRODUCER_CHANGES
             prev.clear();
          }
       }
@@ -187,12 +193,16 @@ namespace eosiosystem {
          if (itr != idx.end() && itr->ext) {
             next = {itr->owner, itr->total_votes, itr->producer_authority};
             ASSERT(next < tail);
+            #ifdef TRACE_PRODUCER_CHANGES
             eosio::print(title, " updated: ", itr->owner, ":", itr->total_votes, "\n");
+            #endif//TRACE_PRODUCER_CHANGES
          } else {
             if (check_found) {
                CHECK(false, string(title) + " not found! tail: " + tail.name.to_string() + ":" + to_string(tail.elected_votes))
             }
+            #ifdef TRACE_PRODUCER_CHANGES
             eosio::print(title, " cleared\n");
+            #endif//TRACE_PRODUCER_CHANGES
             next.clear();
          }
       }
@@ -654,6 +664,7 @@ namespace eosiosystem {
       ASSERT(prod_old.name == prod_new.name);
       const auto& cur_name = prod_new.name;
 
+      #ifdef TRACE_PRODUCER_CHANGES
       eosio::print("***** meq.last_producer_count=", meq.last_producer_count, "\n");
       eosio::print("beq.last_producer_count=", beq.last_producer_count, "\n");
       eosio::print("cur prod: ", cur_name, ", new_votes:", prod_new.elected_votes, ", old_votes:", prod_old.elected_votes,  "\n");
@@ -663,6 +674,7 @@ namespace eosiosystem {
       eosio::print("beq tail_prev: ", beq.tail_prev.name, ",", beq.tail_prev.elected_votes, ",", "\n");
       eosio::print("beq tail: ", beq.tail.name, ",", beq.tail.elected_votes, ",", "\n");
       eosio::print("beq tail_next: ", beq.tail_next.name, ",", beq.tail_next.elected_votes, ",", "\n");
+      #endif //TRACE_PRODUCER_CHANGES
 
       auto min_producer_count = _elect_gstate.max_main_producer_count + min_backup_producer_count + 1;
       ASSERT(meq.last_producer_count + beq.last_producer_count + 1 >= min_producer_count);
