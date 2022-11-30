@@ -79,7 +79,7 @@ namespace ContractAuditStatus {
 
 
 namespace OrderStatus {
-    static constexpr eosio::name CREATED        {"created"_n };
+    static constexpr eosio::name PENDING        {"pending"_n };
     static constexpr eosio::name FINISHED       {"finished"_n };
     static constexpr eosio::name CANCELLED      {"cancelled"_n };
 }
