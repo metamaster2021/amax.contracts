@@ -142,7 +142,7 @@ TBL recover_order_t {
     > idx_t;
 
     EOSLIB_SERIALIZE( recover_order_t,  (id)(sn)(account)(recover_type)
-                                        (scores)(manual_check_required)(pay_status)
+                                        (scores)(manual_check_required)(pay_status)(status)
                                         (created_at)(expired_at)(updated_at)
                                         (recover_target))
 };
