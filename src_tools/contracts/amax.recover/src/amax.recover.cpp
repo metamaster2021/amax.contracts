@@ -167,7 +167,7 @@ using namespace std;
       recover_order_t::idx_t orders(_self, _self.value);
       auto order_ptr     = orders.find(order_id);
       CHECKC( order_ptr != orders.end(), err::RECORD_NOT_FOUND, "order not found. ");
-      CHECKC(answer_score_limit >= score && score > 0, err::PARAM_ERROR, "scores exceed limit")
+      CHECKC(answer_score_limit >= score && score > 0, err::PARAM_ERROR, "scores must between 0 and " + to_string(score))
       CHECKC(order_ptr->account == account , err::PARAM_ERROR, "account error: "+ account.to_string() )
 
       CHECKC(order_ptr->expired_at > current_time_point(), err::TIME_EXPIRED, "order already time expired")
@@ -268,11 +268,11 @@ using namespace std;
       }
    }
 
-   void amax_recover::delauditconf(  const name& account ) {
+   void amax_recover::delauditconf(  const name& contract_name ) {
       CHECKC(has_auth(_self),  err::NO_AUTH, "no auth for operate");      
 
       audit_conf_t::idx_t auditscores(_self, _self.value);
-      auto auditscore_ptr     = auditscores.find(account.value);
+      auto auditscore_ptr     = auditscores.find(contract_name.value);
 
       CHECKC( auditscore_ptr != auditscores.end(), err::RECORD_NOT_FOUND, "auditscore not exist. ");
       auditscores.erase(auditscore_ptr);
