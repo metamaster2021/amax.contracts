@@ -16,13 +16,15 @@ using namespace fc;
 
 using mvo = fc::mutable_variant_object;
 
-#ifndef TESTER
-#ifdef NON_VALIDATING_TEST
-#define TESTER tester
-#else
-#define TESTER validating_tester
-#endif
-#endif
+// #ifndef TESTER
+// #ifdef NON_VALIDATING_TEST
+// #define TESTER tester
+// #else
+// #define TESTER validating_tester
+// #endif
+// #endif
+
+#define TESTER backup_block_tester
 
 namespace eosio_system {
 
