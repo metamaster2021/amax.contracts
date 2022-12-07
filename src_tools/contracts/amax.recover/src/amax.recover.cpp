@@ -50,6 +50,7 @@ using namespace std;
          row.account 		                     = account;
          row.threshold                          = score;
          row.created_at                         = now;
+         row.updated_at                         = now;
       });   
    }
 
@@ -68,6 +69,7 @@ using namespace std;
       account_audits.modify( *audit_ptr, _self, [&]( auto& row ) {
          row.audit_contracts[contract]  = ContractAuditStatus::REGISTED;
          row.created_at                 = now;
+         row.updated_at                 = now;
       });   
    }
 

@@ -104,6 +104,8 @@ TBL account_audit_t {
     uint32_t                    threshold;  // >= global.recover_threshold, can be set by user
     time_point_sec              created_at;
     time_point_sec              recovered_at;                            
+    time_point_sec              updated_at;
+
 
     account_audit_t() {}
     account_audit_t(const name& i): account(i) {}
@@ -112,7 +114,7 @@ TBL account_audit_t {
 
     typedef eosio::multi_index< "acctaudits"_n,  account_audit_t> idx;
 
-    EOSLIB_SERIALIZE( account_audit_t, (account)(audit_contracts)(threshold)(created_at)(recovered_at) )
+    EOSLIB_SERIALIZE( account_audit_t, (account)(audit_contracts)(threshold)(created_at)(recovered_at)(updated_at) )
 };
 
 //Scope: self
