@@ -32,14 +32,16 @@ namespace ActionPermType {
 NTBL("global") global_t {
     name                     amax_recover_contract;
     name                     amax_proxy_contract;
+    name                     checker_type;
 
-    EOSLIB_SERIALIZE( global_t, (amax_recover_contract)(amax_proxy_contract))
+    EOSLIB_SERIALIZE( global_t, (amax_recover_contract)(amax_proxy_contract)(checker_type))
 };
 typedef eosio::singleton< "global"_n, global_t > global_singleton;
 
+//scope: _self 
 TBL account_info_t {
     name                        account;    
-    string                      info;
+    string                      audit_info;
     time_point_sec              created_at;
 
     account_info_t() {}
@@ -49,21 +51,21 @@ TBL account_info_t {
 
     typedef eosio::multi_index< "acctinfos"_n,  account_info_t> idx;
 
-    EOSLIB_SERIALIZE( account_info_t, (account)(info)(created_at) )
+    EOSLIB_SERIALIZE( account_info_t, (account)(audit_info)(created_at) )
 };
 
-TBL auditor_t {
-    name                    account;              //PK
+TBL checker_t {
+    name                    checker;              //PK
     set<name>               actions;         
 
-    auditor_t() {}
-    auditor_t(const name& i): account(i) {}
+    checker_t() {}
+    checker_t(const name& i): checker(i) {}
 
-    uint64_t primary_key()const { return account.value; }
+    uint64_t primary_key()const { return checker.value; }
 
-    typedef eosio::multi_index< "auditors"_n,  auditor_t > idx_t;
+    typedef eosio::multi_index< "checkers"_n,  checker_t > idx_t;
 
-    EOSLIB_SERIALIZE( auditor_t, (account)(actions) )
+    EOSLIB_SERIALIZE( checker_t, (checker)(actions) )
 };
 
 } //namespace amax
