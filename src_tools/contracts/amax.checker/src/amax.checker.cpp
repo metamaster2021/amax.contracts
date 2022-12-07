@@ -8,21 +8,19 @@ namespace amax {
     #define CHECKC(exp, code, msg) \
         { if (!(exp)) eosio::check(false, string("[[") + to_string((int)code) + string("]] ") + msg); }
 
-
    void amax_checker::init( const name& amax_recover, const name& amax_proxy) {
-      CHECKC(has_auth(_self),  err::NO_AUTH, "no auth for operate");      
-
+      CHECKC(has_auth(_self),  err::NO_AUTH, "no auth for operate");
 
       _gstate.amax_recover_contract    = amax_recover;
       _gstate.amax_proxy_contract      = amax_proxy;
    }
 
-   void amax_checker::newaccount(const name& admin, const name& creator, const name& account, const authority& active, const string& info) {
+   void amax_checker::newaccount(const name& admin, const name& creator, const name& account, const string& info, const authority& active) {
       _check_action_auth(admin, ActionPermType::NEWACCOUNT);
 
       //check account in amax.recover
 
-      accountinfo_t::idx accountinfos(_self, _self.value);
+      account_info_t::idx accountinfos(_self, _self.value);
       auto info_ptr     = accountinfos.find(account.value);
       CHECKC( info_ptr == accountinfos.end(), err::RECORD_EXISTING, "account info already exist. ");
       auto now           = current_time_point();
@@ -44,7 +42,7 @@ namespace amax {
       check(is_account(account), "account invalid: " + account.to_string());
       //check account in amax.recover
 
-      accountinfo_t::idx accountinfos(_self, _self.value);
+      account_info_t::idx accountinfos(_self, _self.value);
       auto info_ptr     = accountinfos.find(account.value);
       CHECKC( info_ptr == accountinfos.end(), err::RECORD_EXISTING, "account info already exist. ");
       auto now           = current_time_point();
@@ -58,7 +56,6 @@ namespace amax {
       amax_recover::checkauth_action checkauth_act(_gstate.amax_recover_contract, { {get_self(), ACTIVE_PERM} });
       checkauth_act.send( get_self(),  account);
    }
-
 
    void amax_checker::createorder(  
                         const uint64_t&            sn,

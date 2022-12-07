@@ -126,9 +126,6 @@ class amax_system {
 
             using buyrambytes_action = eosio::action_wrapper<"buyrambytes"_n, &amax_system::buyrambytes>;
             using delegatebw_action = eosio::action_wrapper<"delegatebw"_n,   &amax_system::delegatebw>;
-
-
-
 };
 
 }

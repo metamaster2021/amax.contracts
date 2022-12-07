@@ -19,21 +19,10 @@ namespace amax {
 using namespace std;
 using namespace eosio;
 
-#define HASH256(str) sha256(const_cast<char*>(str.c_str()), str.size())
-
-static constexpr uint64_t seconds_per_day                   = 24 * 3600;
-static constexpr uint64_t order_expiry_duration             = seconds_per_day;
-static constexpr uint64_t manual_order_expiry_duration      = 3 * seconds_per_day;
-
-
-static constexpr eosio::name amax_account = "amax"_n;
-static constexpr eosio::name owner = "owner"_n;
-
 namespace ActionPermType {
     static constexpr eosio::name NEWACCOUNT     {"newaccount"_n };
     static constexpr eosio::name BINDINFO       {"bindinfo"_n };
     static constexpr eosio::name CREATECORDER   {"createorder"_n };
-
     static constexpr eosio::name SETSCORE       {"setscore"_n };
 }
 
@@ -48,21 +37,20 @@ NTBL("global") global_t {
 };
 typedef eosio::singleton< "global"_n, global_t > global_singleton;
 
-TBL accountinfo_t {
+TBL account_info_t {
     name                        account;    
     string                      info;
     time_point_sec              created_at;
 
-    accountinfo_t() {}
-    accountinfo_t(const name& i): account(i) {}
+    account_info_t() {}
+    account_info_t(const name& i): account(i) {}
 
     uint64_t primary_key()const { return account.value ; }
 
-    typedef eosio::multi_index< "acctinfos"_n,  accountinfo_t> idx;
+    typedef eosio::multi_index< "acctinfos"_n,  account_info_t> idx;
 
-    EOSLIB_SERIALIZE( accountinfo_t, (account)(info)(created_at) )
+    EOSLIB_SERIALIZE( account_info_t, (account)(info)(created_at) )
 };
-
 
 TBL auditor_t {
     name                    account;              //PK

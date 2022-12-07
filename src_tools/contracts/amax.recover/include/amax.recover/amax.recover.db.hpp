@@ -77,6 +77,14 @@ namespace ContractAuditStatus {
     static constexpr eosio::name REQUIRED    {"required"_n };
 }
 
+
+namespace OrderStatus {
+    static constexpr eosio::name PENDING        {"pending"_n };
+    static constexpr eosio::name FINISHED       {"finished"_n };
+    static constexpr eosio::name CANCELLED      {"cancelled"_n };
+}
+
+
 /* public key -> update content */
 typedef std::variant<eosio::public_key, string> recover_target_type;
 
@@ -96,6 +104,8 @@ TBL account_audit_t {
     uint32_t                    threshold;  // >= global.recover_threshold, can be set by user
     time_point_sec              created_at;
     time_point_sec              recovered_at;                            
+    time_point_sec              updated_at;
+
 
     account_audit_t() {}
     account_audit_t(const name& i): account(i) {}
@@ -104,7 +114,7 @@ TBL account_audit_t {
 
     typedef eosio::multi_index< "acctaudits"_n,  account_audit_t> idx;
 
-    EOSLIB_SERIALIZE( account_audit_t, (account)(audit_contracts)(threshold)(created_at)(recovered_at) )
+    EOSLIB_SERIALIZE( account_audit_t, (account)(audit_contracts)(threshold)(created_at)(recovered_at)(updated_at) )
 };
 
 //Scope: self
@@ -116,6 +126,7 @@ TBL recover_order_t {
     map<name, uint8_t>  scores;                                     //contract -> score
     bool                manual_check_required = false;       
     name                pay_status;
+    name                status;
     time_point_sec      created_at;
     time_point_sec      expired_at;
     time_point_sec      updated_at;
@@ -133,7 +144,7 @@ TBL recover_order_t {
     > idx_t;
 
     EOSLIB_SERIALIZE( recover_order_t,  (id)(sn)(account)(recover_type)
-                                        (scores)(manual_check_required)(pay_status)
+                                        (scores)(manual_check_required)(pay_status)(status)
                                         (created_at)(expired_at)(updated_at)
                                         (recover_target))
 };

@@ -6,7 +6,6 @@
 #include <eosio/action.hpp>
 
 #include <string>
-
 #include <amax.checker/amax.checker.db.hpp>
 #include <wasm_db.hpp>
 #include<amax.system/native.hpp>
@@ -16,19 +15,9 @@ typedef std::variant<eosio::public_key, amax::string> recover_target_type;
 namespace amax {
 
 using std::string;
-using std::vector;
 
-
-#define TRANSFER(bank, to, quantity, memo) \
-    {	mtoken::transfer_action act{ bank, { {_self, active_perm} } };\
-			act.send( _self, to, quantity , memo );}
-         
 using namespace wasm::db;
 using namespace eosio;
-
-static constexpr name      NFT_BANK    = "did.ntoken"_n;
-static constexpr eosio::name active_perm{"active"_n};
-
 
 enum class err: uint8_t {
    NONE                 = 0,
@@ -51,10 +40,6 @@ enum class err: uint8_t {
    STATUS_ERROR         = 18,
    SCORE_NOT_ENOUGH     = 19,
    NEED_MANUAL_CHECK    = 20
-};
-namespace vendor_info_status {
-    static constexpr eosio::name RUNNING            = "running"_n;
-    static constexpr eosio::name STOP               = "stop"_n;
 };
 
 /**
@@ -83,7 +68,7 @@ class [[eosio::contract("amax.checker")]] amax_checker : public contract {
 
    ACTION init(  const name& amax_recover, const name& amax_proxy_contract);
 
-   ACTION newaccount(const name& admin, const name& creator, const name& account, const authority& active, const string& info);
+   ACTION newaccount( const name& admin, const name& creator, const name& account, const string& info, const authority& active );
 
    ACTION createorder(  
                         const uint64_t&            sn,
@@ -94,13 +79,13 @@ class [[eosio::contract("amax.checker")]] amax_checker : public contract {
                         const recover_target_type& recover_target
                         );
 
-   ACTION setscore(const name& admin, const name& account, const uint64_t& order_id,  const uint8_t& score );
+   ACTION setscore( const name& admin, const name& account, const uint64_t& order_id,  const uint8_t& score );
 
-   ACTION bindinfo ( const name& admin, const name& account, const string& info);
+   ACTION bindinfo( const name& admin, const name& account, const string& info);
 
    ACTION setauditor( const name& account, const set<name>& actions );
 
-   ACTION delauditor(  const name& account ) ;
+   ACTION delauditor( const name& account ) ;
 
     private:
         global_singleton    _global;
@@ -108,7 +93,7 @@ class [[eosio::contract("amax.checker")]] amax_checker : public contract {
 
    private:
       void _check_action_auth(const name& admin, const name& action_type);
-   
+
 };
 
 

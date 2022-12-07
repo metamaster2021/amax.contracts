@@ -48,8 +48,9 @@ using namespace std;
       accountaudits.emplace( _self, [&]( auto& row ) {
          row.audit_contracts[default_checker]   = required ? ContractAuditStatus::REQUIRED : ContractAuditStatus::OPTIONAL;
          row.account 		                     = account;
-         row.threshold                          = _gstate.recover_threshold;
+         row.threshold                          = score;
          row.created_at                         = now;
+         row.updated_at                         = now;
       });   
    }
 
@@ -68,6 +69,7 @@ using namespace std;
       account_audits.modify( *audit_ptr, _self, [&]( auto& row ) {
          row.audit_contracts[contract]  = ContractAuditStatus::REGISTED;
          row.created_at                 = now;
+         row.updated_at                 = now;
       });   
    }
 
@@ -82,12 +84,12 @@ using namespace std;
       auto now           = current_time_point();
 
       CHECKC(audit_ptr->audit_contracts.count(checker_contract) != 0, err::RECORD_NOT_FOUND, "contract not existed:" +checker_contract.to_string()  )
-      
+
       account_audits.modify(*audit_ptr, _self, [&]( auto& row ) {
          row.audit_contracts[checker_contract]  = required ? ContractAuditStatus::REQUIRED : ContractAuditStatus::OPTIONAL ;
+         if( audit_ptr->threshold < _gstate.recover_threshold ) row.threshold = _gstate.recover_threshold;
          row.created_at                 = now;
-      });   
-
+      });
    }
 
    void amax_recover::createorder(
@@ -147,6 +149,7 @@ using namespace std;
          row.pay_status             = PayStatus::NOPAY;
          row.created_at             = now;
          row.expired_at             = now + eosio::seconds(duration_second);
+         row.status                 = OrderStatus::PENDING;
       });
    
    }
@@ -166,7 +169,7 @@ using namespace std;
       recover_order_t::idx_t orders(_self, _self.value);
       auto order_ptr     = orders.find(order_id);
       CHECKC( order_ptr != orders.end(), err::RECORD_NOT_FOUND, "order not found. ");
-      CHECKC(answer_score_limit >= score && score > 0, err::PARAM_ERROR, "scores exceed limit")
+      CHECKC(answer_score_limit >= score && score > 0, err::PARAM_ERROR, "scores must between 0 and " + to_string(score))
       CHECKC(order_ptr->account == account , err::PARAM_ERROR, "account error: "+ account.to_string() )
 
       CHECKC(order_ptr->expired_at > current_time_point(), err::TIME_EXPIRED, "order already time expired")
@@ -198,10 +201,10 @@ using namespace std;
          }
       }
 
-      CHECKC( total_score > _gstate.recover_threshold, err::SCORE_NOT_ENOUGH, "score not enough" );
       account_audit_t::idx accountaudits(_self, _self.value);
       auto audit_ptr     = accountaudits.find(order_ptr->account.value);
       CHECKC( audit_ptr != accountaudits.end(), err::RECORD_NOT_FOUND, "order not exist. ");
+      CHECKC( total_score >= audit_ptr->threshold, err::SCORE_NOT_ENOUGH, "score not enough" );
 
       accountaudits.modify( *audit_ptr, _self, [&]( auto& row ) {
          row.recovered_at  = current_time_point();
@@ -217,10 +220,9 @@ using namespace std;
       recover_order_t::idx_t orders(_self, _self.value);
       auto order_ptr     = orders.find(order_id);
       CHECKC( order_ptr != orders.end(), err::RECORD_NOT_FOUND, "order not found. "); 
-      auto total_score = 0;
+
       // CHECKC(order_ptr->expired_at < current_time_point(), err::STATUS_ERROR, "order has not expired")
       orders.erase(order_ptr);
-   
    }
 
    void amax_recover::addauditconf( const name& check_contract, const name& audit_type, const audit_conf_s& conf ) {
@@ -246,10 +248,9 @@ using namespace std;
          auditscores.modify(*auditscore_ptr, _self, [&]( auto& row ) {
             row.audit_type    = audit_type;
             row.charge        = conf.charge;
-            row.title         = conf.title;
-            row.desc          = conf.desc;
-            row.url           = conf.url;
-            row.max_score     = conf.max_score;
+            if( conf.title.length() > 0 )       row.title         = conf.title;
+            if( conf.desc.length() > 0 )        row.desc  = conf.desc;
+            if( conf.max_score > 0 )   row.max_score   = conf.max_score;
             row.required_check = conf.required_check;
             row.status        = conf.status;
          });   
@@ -269,11 +270,11 @@ using namespace std;
       }
    }
 
-   void amax_recover::delauditconf(  const name& account ) {
+   void amax_recover::delauditconf(  const name& contract_name ) {
       CHECKC(has_auth(_self),  err::NO_AUTH, "no auth for operate");      
 
       audit_conf_t::idx_t auditscores(_self, _self.value);
-      auto auditscore_ptr     = auditscores.find(account.value);
+      auto auditscore_ptr     = auditscores.find(contract_name.value);
 
       CHECKC( auditscore_ptr != auditscores.end(), err::RECORD_NOT_FOUND, "auditscore not exist. ");
       auditscores.erase(auditscore_ptr);

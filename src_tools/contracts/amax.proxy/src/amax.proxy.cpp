@@ -6,57 +6,11 @@ namespace amax {
     #define CHECKC(exp, code, msg) \
         { if (!(exp)) eosio::check(false, string("[[") + to_string((int)code) + string("]] ") + msg); }
 
-
    void amax_proxy::init( const name& amax_recover ) {
       CHECKC(has_auth(_self),  err::NO_AUTH, "no auth for operate");      
 
       _gstate.amax_recover_contract =  amax_recover;
    }
-
-    void amax_proxy::setauditor( const name& account, const set<name>& actions ) {
-      CHECKC(has_auth(_self),  err::NO_AUTH, "no auth for operate");      
-
-      auditor_t::idx_t auditors(_self, _self.value);
-      auto auditor_ptr = auditors.find(account.value);
-
-      if( auditor_ptr != auditors.end() ) {
-         auditors.modify(*auditor_ptr, _self, [&]( auto& row ) {
-            row.actions      = actions;
-         });   
-      } else {
-         auditors.emplace(_self, [&]( auto& row ) {
-            row.account      = account;
-            row.actions      = actions;
-         });
-      }
-   }
-
-    void amax_proxy::delauditor(  const name& account ) {
-      CHECKC(has_auth(_self),  err::NO_AUTH, "no auth for operate");      
-
-      auditor_t::idx_t auditors(_self, _self.value);
-      auto auditor_ptr     = auditors.find(account.value);
-
-      CHECKC( auditor_ptr != auditors.end(), err::RECORD_EXISTING, "auditor not exist. ");
-      auditors.erase(auditor_ptr);
-   }
-
-   void amax_proxy::_check_action_auth(const name& admin, const name& action_type) {
-      if(has_auth(_self)) 
-         return;
-      auditor_t::idx_t auditors(_self, _self.value);
-      auto auditor_ptr     = auditors.find(admin.value);
-      CHECKC( auditor_ptr != auditors.end(), err::RECORD_NOT_FOUND, "auditor not exist. ");
-      CHECKC( auditor_ptr->actions.count(action_type), err::NO_AUTH, "no auth for operate ");
-      CHECKC(has_auth(admin),  err::NO_AUTH, "no auth for operate");      
-   }
-
-   //创建账号
-   //   1. set auth
-
-   //buy ram
-   //buy cpu
-   //amax.recover 创建bind 记录 
 
    void amax_proxy::newaccount( const name& checker_contract, const name& creator, const name& account, const authority& active) {
       require_auth(checker_contract);
@@ -67,12 +21,10 @@ namespace amax {
       act.send( creator, account,  owner_auth, active);
 
       amax_system::buyrambytes_action buy_ram_act(SYS_CONTRACT, { {get_self(), ACTIVE_PERM} });
-      buy_ram_act.send( get_self(), account, 10000 ); //TODO
+      buy_ram_act.send( get_self(), account, _gstate.ram_bytes );
 
-      auto stake_net_quantity = asset(100000, SYS_SYMB); //TODO: set params in global table
-      auto stake_cpu_quantity = asset(100000, SYS_SYMB);
       amax_system::delegatebw_action delegatebw_act(SYS_CONTRACT, { {get_self(), ACTIVE_PERM} });
-      delegatebw_act.send( get_self(), account,stake_net_quantity, stake_cpu_quantity,  false );
+      delegatebw_act.send( get_self(), account,  _gstate.stake_net_quantity,  _gstate.stake_cpu_quantity, false );
 
       amax_recover::bindaccount_action bindaccount_act(_gstate.amax_recover_contract, { {get_self(), ACTIVE_PERM} });
       bindaccount_act.send( account, checker_contract);

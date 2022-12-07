@@ -115,7 +115,7 @@ class [[eosio::contract("amax.recover")]] amax_recover : public contract {
                         const name&    audit_type,
                         const audit_conf_s& conf);
 
-   ACTION delauditconf( const name& audit_type );
+   ACTION delauditconf( const name& contract_name );
 
    private:
       global_singleton    _global;
