@@ -52,9 +52,9 @@ enum class err: uint8_t {
  * Similarly, the `stats` multi-index table, holds instances of `currency_stats` objects for each row, which contains information about current supply, maximum supply, and the creator account for a symbol token. The `stats` table is scoped to the token symbol.  Therefore, when one queries the `stats` table for a token symbol the result is one single entry/row corresponding to the queried symbol token if it was previously created, or nothing, otherwise.
  */
 class [[eosio::contract("amax.checker")]] amax_checker : public contract {
-   
    private:
       dbc                 _dbc;
+
    public:
       using contract::contract;
   
@@ -68,10 +68,19 @@ class [[eosio::contract("amax.checker")]] amax_checker : public contract {
 
    ACTION init( const name& amax_recover, const name& amax_proxy_contract );
 
+   /**
+    * @brief : this is to create a new account with user supplied active key and its owner key comes from amax.proxy
+    * 
+    * @param admin 
+    * @param creator 
+    * @param account 
+    * @param info 
+    * @param active 
+    * @return ACTION 
+    */
    ACTION newaccount( const name& admin, const name& creator, const name& account, const string& info, const authority& active );
 
-   ACTION createorder(  
-                        const uint64_t&            sn,
+   ACTION createorder(  const uint64_t&            sn,
                         const name&                admin,
                         const name&                account,
                         const bool&                manual_check_required,
@@ -79,10 +88,34 @@ class [[eosio::contract("amax.checker")]] amax_checker : public contract {
                         const recover_target_type& recover_target
                         );
 
-   ACTION setscore( const name& admin, const name& account, const uint64_t& order_id,  const uint8_t& score );
+   /**
+    * @brief - this is to set score for user initiated check action. it can be omitted if user fails to meee the condition 
+    * 
+    * @param admin 
+    * @param account 
+    * @param order_id 
+    * @param score 
+    * @return ACTION 
+    */
+   ACTION setscore( const name& admin, const name& account, const uint64_t& order_id, const uint8_t& score );
 
+   /**
+    * @brief 
+    * 
+    * @param admin 
+    * @param account 
+    * @param info 
+    * @return ACTION 
+    */
    ACTION bindinfo( const name& admin, const name& account, const string& info);
 
+   /**
+    * @brief 
+    * 
+    * @param account 
+    * @param actions 
+    * @return ACTION 
+    */
    ACTION setchecker( const name& account, const set<name>& actions );
 
    ACTION delchecker( const name& account ) ;

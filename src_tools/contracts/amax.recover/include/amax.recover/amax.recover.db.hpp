@@ -26,62 +26,34 @@ static constexpr uint64_t seconds_per_day                   = 24 * 3600;
 static constexpr uint64_t order_expiry_duration             = seconds_per_day;
 static constexpr uint64_t manual_order_expiry_duration      = 3 * seconds_per_day;
 
-
 #define TBL struct [[eosio::table, eosio::contract("amax.recover")]]
 #define NTBL(name) struct [[eosio::table(name), eosio::contract("amax.recover")]]
 namespace UpdateActionType {
-    static constexpr eosio::name PUBKEY     {"pubkey"_n };
-    static constexpr eosio::name MOBILENO   {"mobileno"_n };
-    static constexpr eosio::name ANSWER     {"answer"_n };
+    static constexpr eosio::name PUBKEY     { "pubkey"_n    };
+    static constexpr eosio::name MOBILENO   { "mobileno"_n  };
+    static constexpr eosio::name ANSWER     { "answer"_n    };
 }
-
 namespace PayStatus {
-    static constexpr eosio::name PAID       {"paid"_n };
-    static constexpr eosio::name NOPAY      {"nopay"_n };
+    static constexpr eosio::name PAID       { "paid"_n      };
+    static constexpr eosio::name NOPAY      { "nopay"_n     };
 }
-
-namespace AuditType {
-    static constexpr eosio::name MOBILENO   {"mobileno"_n };
-    static constexpr eosio::name ANSWER     {"answer"_n };
-    static constexpr eosio::name DID        {"did"_n };
-    static constexpr eosio::name MANUAL     {"manual"_n };
-    static constexpr eosio::name TELEGRAM   {"tg"_n };
-    static constexpr eosio::name FACEBOOK   {"fb"_n };
+namespace RealmeCheckType {
+    static constexpr eosio::name MOBILENO    { "mobileno"_n     };
+    static constexpr eosio::name SAFETYANSWER{ "safetyanswer"_n };
+    static constexpr eosio::name DID         { "did"_n          };
+    static constexpr eosio::name MANUAL      { "manual"_n       };
+    static constexpr eosio::name TELEGRAM    { "tg"_n           };
+    static constexpr eosio::name FACEBOOK    { "fb"_n           };
 }
-
-// namespace ActionPermType {
-//     //initial read-ID binding phase
-//     static constexpr eosio::name BINDACCOUNT{"bindaccount"_n };
-//     static constexpr eosio::name BINDANSWER {"bindanswer"_n };
-
-//     //recovery phase
-//     static constexpr eosio::name CREATEORDER{"createorder"_n };
-//     static constexpr eosio::name CHKANSWER  {"chkanswer"_n };
-//     static constexpr eosio::name CHKDID     {"chkdid"_n };
-//     static constexpr eosio::name CHKMANUAL  {"chkmanual"_n };
-// }
-
-// namespace ManualCheckStatus {
-//     static constexpr eosio::name SUCCESS    {"success"_n };
-//     static constexpr eosio::name FAILURE    {"failure"_n };
-// }
-
 namespace ContractStatus {
-    static constexpr eosio::name RUNNING    {"running"_n };
-    static constexpr eosio::name STOPPED    {"stopped"_n };
+    static constexpr eosio::name RUNNING     { "running"_n };
+    static constexpr eosio::name STOPPED     { "stopped"_n };
 }
-
-namespace ContractAuditStatus {
-    static constexpr eosio::name REGISTED    {"registed"_n };
-    static constexpr eosio::name OPTIONAL    {"optional"_n };
-    static constexpr eosio::name REQUIRED    {"required"_n };
-}
-
 
 namespace OrderStatus {
-    static constexpr eosio::name PENDING        {"pending"_n };
-    static constexpr eosio::name FINISHED       {"finished"_n };
-    static constexpr eosio::name CANCELLED      {"cancelled"_n };
+    static constexpr eosio::name PENDING     { "pending"_n   };
+    static constexpr eosio::name FINISHED    { "finished"_n  };
+    static constexpr eosio::name CANCELLED   { "cancelled"_n };
 }
 
 
@@ -97,24 +69,39 @@ NTBL("global") global_t {
 };
 typedef eosio::singleton< "global"_n, global_t > global_singleton;
 
-//Scope: self
-TBL account_audit_t {
-    name                        account;    
-    map<name, name>             audit_contracts;    //contract -> ContractAuditStatus: register|requierd | optional
-    uint32_t                    threshold;          // >= global.recover_threshold, can be set by user
+//Self: _self
+TBL register_checker_t {
+    name                        account;        //PK
+    name                        checker_contract;
     time_point_sec              created_at;
-    time_point_sec              recovered_at;                            
-    time_point_sec              updated_at;
 
-
-    account_audit_t() {}
-    account_audit_t(const name& i): account(i) {}
+    register_checker_t() {}
+    register_checker_t(const name& i): account(i) {}
 
     uint64_t primary_key()const { return account.value ; }
 
-    typedef eosio::multi_index< "acctaudits"_n,  account_audit_t> idx;
+    typedef eosio::multi_index< "regcheckers"_n,  register_checker_t> idx;
 
-    EOSLIB_SERIALIZE( account_audit_t, (account)(audit_contracts)(threshold)(created_at)(recovered_at)(updated_at) )
+    EOSLIB_SERIALIZE( register_checker_t, (account)(checker_contract)(created_at) )
+};
+
+//Scope: _self
+TBL recover_auth_t {
+    name                        account;    
+    map<name, bool>             checker_requirements;     // contract -> bool: required | optional
+    uint32_t                    recover_threshold;        // >= global.recover_threshold, can be set by user
+    time_point_sec              created_at;
+    time_point_sec              updated_at;
+    time_point_sec              last_recovered_at;     
+
+    recover_auth_t() {}
+    recover_auth_t(const name& i): account(i) {}
+
+    uint64_t primary_key()const { return account.value ; }
+
+    typedef eosio::multi_index< "recoverauths"_n,  recover_auth_t> idx;
+
+    EOSLIB_SERIALIZE( recover_auth_t, (account)(checker_requirements)(recover_threshold)(created_at)(updated_at)(last_recovered_at) )
 };
 
 //Scope: self
@@ -155,7 +142,7 @@ struct audit_conf_s {
     string          desc;
     string          url;
     uint8_t         max_score;
-    bool            required_check = false;
+    bool            check_required = false;
     name            status;
 };
 
@@ -168,7 +155,7 @@ TBL audit_conf_t {
     string          desc;
     string          url;
     uint8_t         max_score;
-    bool            required_check = false;
+    bool            check_required = false;
     name            status;
 
     audit_conf_t() {}
@@ -181,7 +168,7 @@ TBL audit_conf_t {
         indexed_by<"audittype"_n, const_mem_fun<audit_conf_t, uint64_t, &audit_conf_t::by_audit_type>>
      > idx_t;
 
-    EOSLIB_SERIALIZE( audit_conf_t, (contract)(audit_type)(charge)(title)(desc)(url)(max_score)(required_check)(status) )
+    EOSLIB_SERIALIZE( audit_conf_t, (contract)(audit_type)(charge)(title)(desc)(url)(max_score)(check_required)(status) )
 };
 
 } //namespace amax
