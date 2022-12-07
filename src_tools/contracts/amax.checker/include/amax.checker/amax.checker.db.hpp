@@ -50,7 +50,7 @@ typedef eosio::singleton< "global"_n, global_t > global_singleton;
 //Scope: _self 
 TBL account_realme_t {
     name                        account;        //PK
-    set<string>                 realme_info;    //value: set<md5(md5(RM + salt)>
+    string                      realme_info;    //value: md5(md5(RM + salt)
     time_point_sec              created_at;
 
     account_info_t() {}
