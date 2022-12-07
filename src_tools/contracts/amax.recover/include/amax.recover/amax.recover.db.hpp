@@ -99,7 +99,7 @@ TBL recover_auth_t {
 
     uint64_t primary_key()const { return account.value ; }
 
-    typedef eosio::multi_index< "recoverauths"_n,  recover_auth_t> idx;
+    typedef eosio::multi_index< "recauths"_n,  recover_auth_t> idx;
 
     EOSLIB_SERIALIZE( recover_auth_t, (account)(checker_requirements)(recover_threshold)(created_at)(updated_at)(last_recovered_at) )
 };
@@ -126,7 +126,7 @@ TBL recover_order_t {
     uint64_t by_account() const { return account.value; }
 
     typedef eosio::multi_index
-    < "orders"_n,  recover_order_t,
+    < "recorders"_n,  recover_order_t,
         indexed_by<"accountidx"_n, const_mem_fun<recover_order_t, uint64_t, &recover_order_t::by_account> >
     > idx_t;
 
