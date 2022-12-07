@@ -66,7 +66,7 @@ class [[eosio::contract("amax.checker")]] amax_checker : public contract {
     }
     ~amax_checker() { _global.set( _gstate, get_self() ); }
 
-   ACTION init(  const name& amax_recover, const name& amax_proxy_contract);
+   ACTION init( const name& amax_recover, const name& amax_proxy_contract );
 
    ACTION newaccount( const name& admin, const name& creator, const name& account, const string& info, const authority& active );
 
@@ -83,9 +83,9 @@ class [[eosio::contract("amax.checker")]] amax_checker : public contract {
 
    ACTION bindinfo( const name& admin, const name& account, const string& info);
 
-   ACTION setauditor( const name& account, const set<name>& actions );
+   ACTION setchecker( const name& account, const set<name>& actions );
 
-   ACTION delauditor( const name& account ) ;
+   ACTION delchecker( const name& account ) ;
 
     private:
         global_singleton    _global;

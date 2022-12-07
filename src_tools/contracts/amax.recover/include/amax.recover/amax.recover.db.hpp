@@ -100,8 +100,8 @@ typedef eosio::singleton< "global"_n, global_t > global_singleton;
 //Scope: self
 TBL account_audit_t {
     name                        account;    
-    map<name, name>             audit_contracts;
-    uint32_t                    threshold;  // >= global.recover_threshold, can be set by user
+    map<name, name>             audit_contracts;    //contract -> ContractAuditStatus: register|requierd | optional
+    uint32_t                    threshold;          // >= global.recover_threshold, can be set by user
     time_point_sec              created_at;
     time_point_sec              recovered_at;                            
     time_point_sec              updated_at;
