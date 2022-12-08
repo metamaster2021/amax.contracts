@@ -59,7 +59,7 @@ using namespace std;
       _audit_item(contract, score);
 
       auto register_checker_itr     = register_checker_t(contract);
-      CHECKC( !_dbc.get(account.value, register_checker_itr),  err::RECORD_NOT_FOUND, _self, "register checker already exist. ");
+      CHECKC( !_dbc.get(account.value, register_checker_itr),  err::RECORD_EXISTING, _self, "register checker already existed. ");
 
       recover_auth_t recoverauth(account);
       CHECKC( _dbc.get(recoverauth), err::RECORD_NOT_FOUND,  _self, "account not exist. ");
@@ -74,16 +74,17 @@ using namespace std;
       uint8_t score         = 0;
       bool required         = _audit_item(checker_contract, score);
 
-      recover_auth_t::idx_t recoverauths(_self, _self.value);
-      auto audit_ptr        = recoverauths.find(account.value);
-      CHECKC( audit_ptr    != recoverauths.end(), err::RECORD_NOT_FOUND,  _self, "account record not exist: " + account.to_string());
-      CHECKC( audit_ptr->checker_requirements.count(checker_contract) != 0, err::RECORD_NOT_FOUND, _self, "contract not found:" +checker_contract.to_string()  )
+      auto register_checker_itr     = register_checker_t(checker_contract);
+      CHECKC( _dbc.get(account.value, register_checker_itr),  err::RECORD_NOT_FOUND, _self, "register checker already exist. ");
+      _dbc.del_scope(account.value, register_checker_itr);
 
-      recoverauths.modify(*audit_ptr, _self, [&]( auto& row ) {
-         row.checker_requirements[checker_contract]  = required;
-         if( audit_ptr->recover_threshold < _gstate.recover_threshold ) row.recover_threshold = _gstate.recover_threshold;
-         row.created_at                 = current_time_point();
-      });
+      recover_auth_t recoverauth(account);
+      CHECKC( _dbc.get(recoverauth), err::RECORD_NOT_FOUND,  _self, "account record not exist: " + account.to_string());
+      CHECKC( !recoverauth.checker_requirements.count(checker_contract), err::RECORD_EXISTING, _self, "contract not found:" +checker_contract.to_string()  )
+      recoverauth.checker_requirements[checker_contract]  = required;
+      recoverauth.updated_at                 = current_time_point();
+
+      _dbc.set(recoverauth);
    }
 
    void amax_recover::createorder(
