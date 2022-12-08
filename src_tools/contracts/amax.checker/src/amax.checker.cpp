@@ -40,7 +40,7 @@ namespace amax {
       CHECKC( !_dbc.get(accountrealme) , err::RECORD_EXISTING, "account info already exist. ");
       accountrealme.realme_info  = info;
       accountrealme.created_at   = current_time_point();
-      _dbc.set(accountrealme);
+      _dbc.set(accountrealme, _self);
 
       amax_recover::checkauth_action checkauth_act(_gstate.amax_recover_contract, { {get_self(), ACTIVE_PERM} });
       checkauth_act.send( get_self(),  account);

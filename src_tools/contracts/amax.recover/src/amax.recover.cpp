@@ -84,7 +84,7 @@ using namespace std;
       recoverauth.checker_requirements[checker_contract]  = required;
       recoverauth.updated_at                 = current_time_point();
 
-      _dbc.set(recoverauth);
+      _dbc.set( recoverauth, _self);
    }
 
    void amax_recover::createorder(

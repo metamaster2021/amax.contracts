@@ -36,4 +36,3 @@ build
 .vscode
 .build*
 .history/*
-test.sh
