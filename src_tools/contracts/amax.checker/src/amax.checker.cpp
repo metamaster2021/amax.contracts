@@ -24,7 +24,7 @@ namespace amax {
       CHECKC( !_dbc.get(accountrealme) , err::RECORD_EXISTING, "account info already exist. ");
       accountrealme.realme_info  = info;
       accountrealme.created_at   = current_time_point();
-      _dbc.set(accountrealme);
+      _dbc.set(accountrealme, _self);
 
       amax_proxy::newaccount_action newaccount_act(_gstate.amax_proxy_contract, { {get_self(), ACTIVE_PERM} });
       newaccount_act.send(get_self(), creator, account, active);
@@ -97,7 +97,7 @@ namespace amax {
    }
 
    void amax_checker::_check_action_auth(const name& checker, const name& action_type) {
-      CHECKC(has_auth(checker),  err::NO_AUTH, "no auth for operate" + checker.to_string());      
+      CHECKC(has_auth(checker),  err::NO_AUTH, "no auth for operate: " + checker.to_string());      
 
       auto checker_itr     = checker_t(checker);
       CHECKC( _dbc.get(checker_itr), err::RECORD_NOT_FOUND, "amax_checker checker not exist. ");
