@@ -3,8 +3,9 @@
 namespace amax {
     using namespace std;
 
-    #define CHECKC(exp, code, msg) \
-        { if (!(exp)) eosio::check(false, string("[[") + to_string((int)code) + string("]] ") + msg); }
+   #define CHECKC(exp, code, msg) \
+      { if (!(exp)) eosio::check(false, string("[[") + to_string((int)code) + string("]] ")  \
+                                    + string("[[") + _self.to_string() + string("]] ") + msg); }
 
    void amax_proxy::init( const name& amax_recover ) {
       CHECKC(has_auth(_self),  err::NO_AUTH, "no auth for operate");      

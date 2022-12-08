@@ -5,8 +5,9 @@ static constexpr eosio::name ACTIVE_PERM        = "active"_n;
 namespace amax {
     using namespace std;
 
-    #define CHECKC(exp, code, msg) \
-        { if (!(exp)) eosio::check(false, string("[[") + to_string((int)code) + string("]] ") + msg); }
+   #define CHECKC(exp, code, msg) \
+      { if (!(exp)) eosio::check(false, string("[[") + to_string((int)code) + string("]] ")  \
+                                    + string("[[") + _self.to_string() + string("]] ") + msg); }
 
    void amax_checker::init( const name& amax_recover, const name& amax_proxy) {
       CHECKC(has_auth(_self),  err::NO_AUTH, "no auth for operate");
@@ -32,7 +33,7 @@ namespace amax {
    void amax_checker::bindinfo ( const name& checker, const name& account, const string& info) {
       _check_action_auth(checker, ActionType::BINDINFO);
 
-      check(is_account(account), "account invalid: " + account.to_string());
+      CHECKC(is_account(account), err::PARAM_ERROR,  "account invalid: " + account.to_string());
       //check account in amax.recover
 
       account_realme_t accountrealme(account);
