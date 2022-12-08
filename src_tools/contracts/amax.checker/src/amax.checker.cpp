@@ -16,41 +16,30 @@ namespace amax {
    }
 
    void amax_checker::newaccount(const name& checker, const name& creator, const name& account, const string& info, const authority& active) {
-      _check_action_auth(checker, ActionPermType::NEWACCOUNT);
+      _check_action_auth(checker, ActionType::NEWACCOUNT);
 
       //check account in amax.recover
-
-      account_info_t::idx accountinfos(_self, _self.value);
-      auto info_ptr     = accountinfos.find(account.value);
-      CHECKC( info_ptr == accountinfos.end(), err::RECORD_EXISTING, "account info already exist. ");
-      auto now           = current_time_point();
-
-      accountinfos.emplace( _self, [&]( auto& row ) {
-         row.account 		   = account;
-         row.audit_info       = info;
-         row.created_at       = now;
-      });
+      account_realme_t accountrealme(account);
+      CHECKC( !_dbc.get(accountrealme) , err::RECORD_EXISTING, "account info already exist. ");
+      accountrealme.realme_info  = info;
+      accountrealme.created_at   = current_time_point();
+      _dbc.set(accountrealme);
 
       amax_proxy::newaccount_action newaccount_act(_gstate.amax_proxy_contract, { {get_self(), ACTIVE_PERM} });
       newaccount_act.send(get_self(), creator, account, active);
    }
 
    void amax_checker::bindinfo ( const name& checker, const name& account, const string& info) {
-      _check_action_auth(checker, ActionPermType::BINDINFO);
+      _check_action_auth(checker, ActionType::BINDINFO);
 
       check(is_account(account), "account invalid: " + account.to_string());
       //check account in amax.recover
 
-      account_info_t::idx accountinfos(_self, _self.value);
-      auto info_ptr     = accountinfos.find(account.value);
-      CHECKC( info_ptr == accountinfos.end(), err::RECORD_EXISTING, "account info already exist. ");
-      auto now           = current_time_point();
-
-      accountinfos.emplace( _self, [&]( auto& row ) {
-         row.account 		   = account;
-         row.audit_info             = info;
-         row.created_at       = now;
-      });
+      account_realme_t accountrealme(account);
+      CHECKC( !_dbc.get(accountrealme) , err::RECORD_EXISTING, "account info already exist. ");
+      accountrealme.realme_info  = info;
+      accountrealme.created_at   = current_time_point();
+      _dbc.set(accountrealme);
 
       amax_recover::checkauth_action checkauth_act(_gstate.amax_recover_contract, { {get_self(), ACTIVE_PERM} });
       checkauth_act.send( get_self(),  account);
@@ -63,7 +52,7 @@ namespace amax {
                         const bool&                manual_check_required,
                         const uint8_t&             score,
                         const recover_target_type& recover_target) {
-      _check_action_auth(checker, ActionPermType::CREATECORDER);
+      _check_action_auth(checker, ActionType::CREATECORDER);
       amax_recover::createcorder_action createcorder_act(_gstate.amax_recover_contract, { {get_self(), ACTIVE_PERM} });
       createcorder_act.send( sn, get_self(), account, manual_check_required, score, recover_target);
    }
@@ -73,7 +62,7 @@ namespace amax {
                                  const uint64_t& order_id,
                                  const uint8_t& score ) {
 
-      _check_action_auth(checker, ActionPermType::SETSCORE);
+      _check_action_auth(checker, ActionType::SETSCORE);
       amax_recover::setscore_action setscore_act(_gstate.amax_recover_contract, { {get_self(), ACTIVE_PERM} });
       setscore_act.send(get_self(), account, order_id, score);
    }

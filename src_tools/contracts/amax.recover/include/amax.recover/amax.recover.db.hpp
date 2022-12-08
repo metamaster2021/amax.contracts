@@ -69,20 +69,19 @@ NTBL("global") global_t {
 };
 typedef eosio::singleton< "global"_n, global_t > global_singleton;
 
-//Self: _self
+//scope: account
 TBL register_checker_t {
-    name                        account;        //PK
     name                        checker_contract;
     time_point_sec              created_at;
 
     register_checker_t() {}
-    register_checker_t(const name& i): account(i) {}
+    register_checker_t(const name& i): checker_contract(i) {}
 
-    uint64_t primary_key()const { return account.value ; }
+    uint64_t primary_key()const { return checker_contract.value ; }
 
-    typedef eosio::multi_index< "regcheckers"_n,  register_checker_t> idx;
+    typedef eosio::multi_index< "regcheckers"_n,  register_checker_t> idx_t;
 
-    EOSLIB_SERIALIZE( register_checker_t, (account)(checker_contract)(created_at) )
+    EOSLIB_SERIALIZE( register_checker_t, (checker_contract)(created_at) )
 };
 
 //Scope: _self
@@ -99,7 +98,7 @@ TBL recover_auth_t {
 
     uint64_t primary_key()const { return account.value ; }
 
-    typedef eosio::multi_index< "recauths"_n,  recover_auth_t> idx;
+    typedef eosio::multi_index< "recauths"_n,  recover_auth_t> idx_t;
 
     EOSLIB_SERIALIZE( recover_auth_t, (account)(checker_requirements)(recover_threshold)(created_at)(updated_at)(last_recovered_at) )
 };

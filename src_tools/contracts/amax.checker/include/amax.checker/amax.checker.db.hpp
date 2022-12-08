@@ -53,14 +53,14 @@ TBL account_realme_t {
     string                      realme_info;    //value: md5(md5(RM + salt)
     time_point_sec              created_at;
 
-    account_info_t() {}
-    account_info_t(const name& i): account(i) {}
+    account_realme_t() {}
+    account_realme_t(const name& i): account(i) {}
 
     uint64_t primary_key()const { return account.value ; }
 
-    typedef eosio::multi_index< "acctrealme"_n,  account_info_t> idx;
+    typedef eosio::multi_index< "acctrealme"_n,  account_realme_t> idx_t;
 
-    EOSLIB_SERIALIZE( account_info_t, (account)(audit_info)(created_at) )
+    EOSLIB_SERIALIZE( account_realme_t, (account)(realme_info)(created_at) )
 };
 
 //Scope: _self
