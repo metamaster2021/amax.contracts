@@ -28,10 +28,10 @@ using namespace std;
       return calc_precision(digit);
    }
 
-   void amax_recover::init( const uint8_t& recover_threshold, 
+   void amax_recover::init( const uint8_t& recover_threshold_pct, 
                            const name amax_proxy_contract) {
       require_auth( _self );
-      _gstate.recover_threshold           = recover_threshold;
+      _gstate.recover_threshold_pct       = recover_threshold_pct;
       _gstate.amax_proxy_contract         = amax_proxy_contract;
    }
 
@@ -78,11 +78,20 @@ using namespace std;
 
       recover_auth_t recoverauth(account);
       CHECKC( _dbc.get(recoverauth), err::RECORD_NOT_FOUND, "account record not exist: " + account.to_string());
-      CHECKC( !recoverauth.checker_requirements.count(checker_contract), err::RECORD_EXISTING, "contract not found:" +checker_contract.to_string()  )
+    
+      CHECKC( !recoverauth.checker_requirements.count(checker_contract), err::RECORD_EXISTING, "contract not found:" +checker_contract.to_string() )
+      auto count = recoverauth.checker_requirements.size();
+      auto threshold = _get_threshold(count, _gstate.recover_threshold_pct);
+      if( recoverauth.recover_threshold <  threshold) recoverauth.recover_threshold = threshold;
       recoverauth.checker_requirements[checker_contract]  = required;
       recoverauth.updated_at                              = current_time_point();
 
       _dbc.set( recoverauth, _self);
+   }
+
+   uint32_t amax_recover::_get_threshold(uint32_t count, uint32_t pct) {
+      int64_t tmp = 10 * count * pct / 100;
+      return (tmp + 9) / 10;
    }
 
    void amax_recover::createorder(
