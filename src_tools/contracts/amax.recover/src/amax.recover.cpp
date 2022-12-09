@@ -42,12 +42,11 @@ using namespace std;
       CHECKC( !_dbc.get(recoverauth), err::RECORD_EXISTING, "account already exist. ");
       auto now           = current_time_point();
 
-      uint8_t score = 0;
-      bool required = _audit_item(default_checker, score);
+      bool required = _audit_item(default_checker);
       recoverauth.account 		                              = account;
 
       recoverauth.checker_requirements[default_checker]     = required;
-      recoverauth.recover_threshold                         = score;
+      recoverauth.recover_threshold                         = 1;
       recoverauth.created_at                                = now;
       recoverauth.updated_at                                = now;
       _dbc.set(recoverauth, _self);
@@ -55,8 +54,7 @@ using namespace std;
 
    void amax_recover::addauth( const name& account, const name& contract ) {
       CHECKC( has_auth(account) , err::NO_AUTH, "no auth for operate" )
-      uint8_t score = 0;
-      _audit_item(contract, score);
+      _audit_item(contract);
 
       auto register_checker_itr     = register_checker_t(contract);
       CHECKC( !_dbc.get(account.value, register_checker_itr),  err::RECORD_EXISTING, "register checker already existed. ");
@@ -72,7 +70,7 @@ using namespace std;
    void amax_recover::checkauth( const name& checker_contract, const name& account ) {
       require_auth ( checker_contract ); 
       uint8_t score         = 0;
-      bool required         = _audit_item(checker_contract, score);
+      bool required         = _audit_item(checker_contract);
 
       auto register_checker_itr     = register_checker_t(checker_contract);
       CHECKC( _dbc.get(account.value, register_checker_itr),  err::RECORD_NOT_FOUND, "register checker already exist. ");
@@ -97,10 +95,7 @@ using namespace std;
 
       require_auth(checker_contract);
       
-      uint8_t  answer_score_limit  = 0;
-      _audit_item(checker_contract, answer_score_limit);
-
-      CHECKC(score <= answer_score_limit, err::PARAM_ERROR, "score peram error")
+      _audit_item(checker_contract);
 
       recover_auth_t::idx_t recoverauths(_self, _self.value);
       auto audit_ptr     = recoverauths.find(account.value);
@@ -121,7 +116,7 @@ using namespace std;
          scores[auditconf_itr->contract] = 0;
       }
 
-      scores[checker_contract] = score;
+      scores[checker_contract] = 1;
       
       recover_order_t::idx_t orders( _self, _self.value );
       auto account_index 			      = orders.get_index<"accountidx"_n>();
@@ -156,19 +151,17 @@ using namespace std;
       CHECKC( audit_ptr != recoverauths.end(), err::RECORD_NOT_FOUND,"account not exist. ");
       CHECKC(audit_ptr->checker_requirements.count(checker_contract) > 0 , err::NO_AUTH, "no auth for set score: " + account.to_string());
 
-      uint8_t  answer_score_limit  = 0;
-      _audit_item(checker_contract, answer_score_limit);
+      _audit_item(checker_contract);
       
       recover_order_t::idx_t orders(_self, _self.value);
       auto order_ptr     = orders.find(order_id);
       CHECKC( order_ptr != orders.end(), err::RECORD_NOT_FOUND, "order not found. ");
-      CHECKC(answer_score_limit >= score && score > 0, err::PARAM_ERROR, "scores must between 0 and " + to_string(score))
       CHECKC(order_ptr->account == account , err::PARAM_ERROR, "account error: "+ account.to_string() )
 
       CHECKC(order_ptr->expired_at > current_time_point(), err::TIME_EXPIRED,"order already time expired")
 
       orders.modify(*order_ptr, _self, [&]( auto& row ) {
-         row.scores[checker_contract]    = score;
+         row.scores[checker_contract]  = 1;
          row.updated_at                = current_time_point();
       });
    }
@@ -273,14 +266,12 @@ using namespace std;
       auditscores.erase(auditscore_ptr);
    }
 
-   bool amax_recover::_audit_item(const name& contract, uint8_t& score) {
+   bool amax_recover::_audit_item(const name& contract) {
       audit_conf_t::idx_t auditscores(_self, _self.value);
 
       auto auditscore_ptr     = auditscores.find(contract.value);
       CHECKC( auditscore_ptr != auditscores.end(), err::RECORD_NOT_FOUND,  "audit_conf_t contract not exist:  " + contract.to_string());
       CHECKC( auditscore_ptr->status == ContractStatus::RUNNING, err::STATUS_ERROR,  "contract status is error: " + contract.to_string());
-      score = auditscore_ptr->max_score;
-
       return auditscore_ptr->check_required;
    }
 
