@@ -61,7 +61,7 @@ namespace OrderStatus {
 typedef std::variant<eosio::public_key, string> recover_target_type;
 
 NTBL("global") global_t {
-    uint8_t                     recover_threshold_pct;    //minimum score for recovery 
+    uint8_t                     recover_threshold_pct = 70;    //minimum score for recovery 
     uint64_t                    last_order_id;
     name                        amax_proxy_contract;
 
