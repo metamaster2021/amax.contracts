@@ -70,6 +70,7 @@ namespace amax {
 
     void amax_checker::setchecker( const name& checker, const set<name>& actions ) {
       require_auth(_self);      
+      CHECKC(is_account(checker), err::PARAM_ERROR,  "account invalid: " + checker.to_string());
 
       checker_t::idx_t checkers(_self, _self.value);
       auto checker_ptr = checkers.find(checker.value);

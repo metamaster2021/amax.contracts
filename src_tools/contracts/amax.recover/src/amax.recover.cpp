@@ -198,7 +198,7 @@ using namespace std;
 
       recover_auth_t::idx_t recoverauths(_self, _self.value);
       auto audit_ptr     = recoverauths.find(order_ptr->account.value);
-      CHECKC( audit_ptr != recoverauths.end(), err::RECORD_NOT_FOUND, "order not exist. ");
+      CHECKC( audit_ptr != recoverauths.end(), err::RECORD_NOT_FOUND, "recover auth not exist. ");
       CHECKC( total_score >= audit_ptr->recover_threshold, err::SCORE_NOT_ENOUGH, "score not enough" );
 
       recoverauths.modify( *audit_ptr, _self, [&]( auto& row ) {
