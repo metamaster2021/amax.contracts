@@ -1,11 +1,18 @@
 p=realme.dao
+#5J8vd1kjKrUvuajJEiu2enTxVq3KUCcB8pwgnePkUSR1tfw1N5y
 c=arm.mblchk
+#5Kk6Bur5feB495Dj6tnZ8wrVVFmqxQUAu59477v6prJ5sUCpF75
 c2=arm.didchker
+#5KgwdWpx1vPAYiiKZ2ghw6ZWAGqG9cKGxBPnteA5Rjawdv1S1Y7
 c3=rm.qachker
+#5JfhR76wpBrKjJVkp8hnB453eAUi9fGREL147RmhHS3uZBL9UP7
 r=realme.owner
+#5JZaPBTNwjBeN8N9oRrS479NNJYP2nHhK7FJHNzdSg9ZEsk8M5V
+a=arm.admin
+#5KffM7EnR4vypXvC8N4U6fwGGebtf6HKFYtfeqECxA8CQqt44Vy
+
 p1=amaxamaxa2p2
 u1=amaxamaxa2u2
-
 
 # p=realme.dao1
 # c=arm.mblchk1
@@ -15,6 +22,7 @@ u1=amaxamaxa2u2
 # p1=amaxamaxa2p2
 # u1=amaxamaxa2u2
 
+tnew $a
 tnew $p
 tnew $c
 tnew $c2
@@ -44,23 +52,21 @@ tcli set account permission ${c3} active --add-code
 tcli set account permission ${r} active --add-code
 
 
-a=arm.admin
-tnew $a
 
-#5KffM7EnR4vypXvC8N4U6fwGGebtf6HKFYtfeqECxA8CQqt44Vy
+
 
 tcli push action $c setchecker '["'$a'",  ["newaccount","bindinfo","bindanswer","createcorder","setscore"] ]' -p $c
 tcli push action $c3 setchecker '["'$a'",  ["newaccount","bindinfo","bindanswer","createorder","setscore"] ]' -p $c3
 tcli push action $c2 setchecker '["'$a'",  ["newaccount","bindinfo","bindanswer","createorder","setscore"] ]' -p $c2
 
 
-tcli push action $r addauditconf '["'$c'", "mobileno", ["0.00000000 AMAX", "title:'$c'","desc:'$c'", "url:'$c'",3, true, "running"] ]' -p $r
+tcli push action $r addauditconf '["'$c'","mobileno", ["0.00000000 AMAX", "title:'$c'","desc:'$c'", "url:'$c'",3, true, "running"] ]' -p $r
 tcli push action $r addauditconf '["'$c2'", "safetyanswer", ["0.00000000 AMAX", "title:'$c'","desc:'$c'", "url:'$c'",3, false, "running"] ]' -p $r
 tcli push action $r addauditconf '["'$c3'", "did", ["0.00000000 AMAX", "title:'$c3'","desc:'$c3'", "https://did-dev.ambt.art",3, false, "running"] ]' -p $r
 
 amcli -u http://hk-t1.nchain.me:18887 create key  --to-console
 
-tcli push action $c newaccount '["'$a'", "'$p'","'$p1'", "mobieinfo", {"threshold":1,"keys":[{"key":"AM6baM8PU6YYt5ckf5nLWN9bSaSjBY7dmZaDRJ1aPssqmvQgmBhn","weight":1}],"waits":[],"accounts":[]}]' -p $a
+tcli push action $c newaccount '["'$a'", "'$p'","'$p1'", "mobieinfo", {"threshold":1,"keys":[{"key":"AM62wTJnzBXuMxWeQe5ydbThNkFg8yfrihDZNyNaEZ8daNyGmJsf","weight":1}],"waits":[],"accounts":[]}]' -p $a
 
 tcli push action $c newaccount '["'$a'", "'$p1'","'$u1'",  "mobieinfo", {"threshold":1,"keys":[{"key":"AM7xU3pJTt7jkhYFWZE7ryZFYFxy6ML3nNvHXXa2oxhsnVVhsnoa","weight":1}],"waits":[],"accounts":[]}]' -p $a
 
