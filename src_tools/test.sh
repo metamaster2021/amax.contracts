@@ -1,26 +1,18 @@
-p=realme.dao
+p=realme.owner
+#5JZaPBTNwjBeN8N9oRrS479NNJYP2nHhK7FJHNzdSg9ZEsk8M5V
+r=realme.dao
 #5J8vd1kjKrUvuajJEiu2enTxVq3KUCcB8pwgnePkUSR1tfw1N5y
 c=arm.mblchk
 #5Kk6Bur5feB495Dj6tnZ8wrVVFmqxQUAu59477v6prJ5sUCpF75
 c2=arm.didchker
 #5KgwdWpx1vPAYiiKZ2ghw6ZWAGqG9cKGxBPnteA5Rjawdv1S1Y7
-c3=rm.qachker
+c3=arm.qachker
 #5JfhR76wpBrKjJVkp8hnB453eAUi9fGREL147RmhHS3uZBL9UP7
-r=realme.owner
-#5JZaPBTNwjBeN8N9oRrS479NNJYP2nHhK7FJHNzdSg9ZEsk8M5V
 a=arm.admin
 #5KffM7EnR4vypXvC8N4U6fwGGebtf6HKFYtfeqECxA8CQqt44Vy
 
-p1=amaxamaxa2p2
+p1=arminviter11
 u1=amaxamaxa2u2
-
-# p=realme.dao1
-# c=arm.mblchk1
-# c2=arm.didchker1
-# c3=rm.qachker1
-# r=realme.owner1
-# p1=amaxamaxa2p2
-# u1=amaxamaxa2u2
 
 tnew $a
 tnew $p
@@ -66,7 +58,7 @@ tcli push action $r addauditconf '["'$c3'", "did", ["0.00000000 AMAX", "title:'$
 
 amcli -u http://hk-t1.nchain.me:18887 create key  --to-console
 
-tcli push action $c newaccount '["'$a'", "'$p'","'$p1'", "mobieinfo", {"threshold":1,"keys":[{"key":"AM62wTJnzBXuMxWeQe5ydbThNkFg8yfrihDZNyNaEZ8daNyGmJsf","weight":1}],"waits":[],"accounts":[]}]' -p $a
+tcli push action $c newaccount '["'$a'", "'$p'","'$p1'", "mobieinfo", {"threshold":1,"keys":[{"key":"AM8QPn2K5CuyhYee1CATE4XJfL4o5qCt888XhxMXhY3ZeNQ9jVa2","weight":1}],"waits":[],"accounts":[]}]' -p $a
 
 tcli push action $c newaccount '["'$a'", "'$p1'","'$u1'",  "mobieinfo", {"threshold":1,"keys":[{"key":"AM7xU3pJTt7jkhYFWZE7ryZFYFxy6ML3nNvHXXa2oxhsnVVhsnoa","weight":1}],"waits":[],"accounts":[]}]' -p $a
 
