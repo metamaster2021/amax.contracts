@@ -81,7 +81,7 @@ using namespace std;
     
       CHECKC( !recoverauth.checker_requirements.count(checker_contract), err::RECORD_EXISTING, "contract not found:" +checker_contract.to_string() )
       auto count = recoverauth.checker_requirements.size();
-      auto threshold = _get_threshold(count, _gstate.recover_threshold_pct);
+      auto threshold = _get_threshold(count + 1, _gstate.recover_threshold_pct);
       if( recoverauth.recover_threshold <  threshold) recoverauth.recover_threshold = threshold;
       recoverauth.checker_requirements[checker_contract]  = required;
       recoverauth.updated_at                              = current_time_point();
