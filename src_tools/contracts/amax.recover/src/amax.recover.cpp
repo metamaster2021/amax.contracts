@@ -80,7 +80,7 @@ using namespace std;
       CHECKC( _dbc.get(recoverauth), err::RECORD_NOT_FOUND, "account record not exist: " + account.to_string());
       CHECKC( !recoverauth.checker_requirements.count(checker_contract), err::RECORD_EXISTING, "contract not found:" +checker_contract.to_string()  )
       recoverauth.checker_requirements[checker_contract]  = required;
-      recoverauth.updated_at                 = current_time_point();
+      recoverauth.updated_at                              = current_time_point();
 
       _dbc.set( recoverauth, _self);
    }
