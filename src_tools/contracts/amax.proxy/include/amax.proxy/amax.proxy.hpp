@@ -84,7 +84,7 @@ class [[eosio::contract("amax.proxy")]] amax_proxy : public contract {
 
    ACTION init(  const name& amax_recover);
 
-   ACTION newaccount(const name& checker_contract, const name& creator, const name& account, const authority& active);
+   ACTION newaccount(const name& auth_contract, const name& creator, const name& account, const authority& active);
 
    ACTION updateauth( const name& account, const eosio::public_key& pubkey );
 

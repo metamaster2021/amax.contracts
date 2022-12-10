@@ -11,8 +11,8 @@ struct contracts {
    static std::vector<uint8_t> proxy_wasm() { return read_wasm("${CMAKE_BINARY_DIR}/../contracts/amax.proxy/amax.proxy.wasm"); }
    static std::vector<char>    proxy_abi() { return read_abi("${CMAKE_BINARY_DIR}/../contracts/amax.proxy/amax.proxy.abi"); }
 
-   static std::vector<uint8_t> checker_wasm() { return read_wasm("${CMAKE_BINARY_DIR}/../contracts/amax.checker/amax.checker.wasm"); }
-   static std::vector<char>    checker_abi() { return read_abi("${CMAKE_BINARY_DIR}/../contracts/amax.checker/amax.checker.abi"); }
+   static std::vector<uint8_t> auth_wasm() { return read_wasm("${CMAKE_BINARY_DIR}/../contracts/amax.auth/amax.auth.wasm"); }
+   static std::vector<char>    auth_abi() { return read_abi("${CMAKE_BINARY_DIR}/../contracts/amax.auth/amax.auth.abi"); }
 
 };
 }} //ns eosio::testing

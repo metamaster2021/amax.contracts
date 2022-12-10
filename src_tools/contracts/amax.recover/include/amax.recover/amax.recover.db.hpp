@@ -70,24 +70,24 @@ NTBL("global") global_t {
 typedef eosio::singleton< "global"_n, global_t > global_singleton;
 
 //scope: account
-TBL register_checker_t {
-    name                        checker_contract;
+TBL register_auth_t {
+    name                        auth_contract;
     time_point_sec              created_at;
 
-    register_checker_t() {}
-    register_checker_t(const name& i): checker_contract(i) {}
+    register_auth_t() {}
+    register_auth_t(const name& i): auth_contract(i) {}
 
-    uint64_t primary_key()const { return checker_contract.value ; }
+    uint64_t primary_key()const { return auth_contract.value ; }
 
-    typedef eosio::multi_index< "regcheckers"_n,  register_checker_t> idx_t;
+    typedef eosio::multi_index< "regauths"_n,  register_auth_t> idx_t;
 
-    EOSLIB_SERIALIZE( register_checker_t, (checker_contract)(created_at) )
+    EOSLIB_SERIALIZE( register_auth_t, (auth_contract)(created_at) )
 };
 
 //Scope: _self
 TBL recover_auth_t {
     name                        account;    
-    map<name, bool>             checker_requirements;     // contract -> bool: required | optional
+    map<name, bool>             auth_requirements;     // contract -> bool: required | optional
     uint32_t                    recover_threshold;        // >= global.recover_threshold, can be set by user
     time_point_sec              created_at;
     time_point_sec              updated_at;
@@ -100,7 +100,7 @@ TBL recover_auth_t {
 
     typedef eosio::multi_index< "recauths"_n,  recover_auth_t> idx_t;
 
-    EOSLIB_SERIALIZE( recover_auth_t, (account)(checker_requirements)(recover_threshold)(created_at)(updated_at)(last_recovered_at) )
+    EOSLIB_SERIALIZE( recover_auth_t, (account)(auth_requirements)(recover_threshold)(created_at)(updated_at)(last_recovered_at) )
 };
 
 //Scope: self

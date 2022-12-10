@@ -24,9 +24,9 @@ tnew $r
 
 
 tset $p amax.proxy
-tset $c amax.checker
-tset $c2 amax.checker
-tset $c3 amax.checker
+tset $c amax.auth
+tset $c2 amax.auth
+tset $c3 amax.auth
 tset $r amax.recover
 
 
@@ -47,14 +47,14 @@ tcli set account permission ${r} active --add-code
 
 
 
-tcli push action $c setchecker '["'$a'",  ["newaccount","bindinfo","bindanswer","createcorder","setscore"] ]' -p $c
-tcli push action $c3 setchecker '["'$a'",  ["newaccount","bindinfo","bindanswer","createorder","setscore"] ]' -p $c3
-tcli push action $c2 setchecker '["'$a'",  ["newaccount","bindinfo","bindanswer","createorder","setscore"] ]' -p $c2
+tcli push action $c setauth '["'$a'",  ["newaccount","bindinfo","bindanswer","createorder","setscore"] ]' -p $c
+tcli push action $c3 setauth '["'$a'",  ["newaccount","bindinfo","bindanswer","createorder","setscore"] ]' -p $c3
+tcli push action $c2 setauth '["'$a'",  ["newaccount","bindinfo","bindanswer","createorder","setscore"] ]' -p $c2
 
 
-tcli push action $r addauditconf '["'$c'","mobileno", ["0.00000000 AMAX", "title:'$c'","desc:'$c'", "url:'$c'",3, true, "running"] ]' -p $r
-tcli push action $r addauditconf '["'$c2'", "safetyanswer", ["0.00000000 AMAX", "title:'$c'","desc:'$c'", "url:'$c'",3, false, "running"] ]' -p $r
-tcli push action $r addauditconf '["'$c3'", "did", ["0.00000000 AMAX", "title:'$c3'","desc:'$c3'", "https://did-dev.ambt.art",3, false, "running"] ]' -p $r
+tcli push action $r addauditconf cc,"mobileno", ["0.00000000 AMAX", "title:'$c'","desc:'$c'", "url:'$c'",3, true, "running"] ]' -p $r
+tcli push action $r addauditconf '["'$c3'", "safetyanswer", ["0.00000000 AMAX", "title:'$c'","desc:'$c'", "url:'$c'",3, false, "running"] ]' -p $r
+tcli push action $r addauditconf '["'$c2'", "did", ["0.00000000 AMAX", "title:'$c3'","desc:'$c3'", "https://did-dev.ambt.art",3, false, "running"] ]' -p $r
 
 amcli -u http://hk-t1.nchain.me:18887 create key  --to-console
 

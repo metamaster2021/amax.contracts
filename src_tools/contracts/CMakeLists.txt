@@ -28,7 +28,7 @@ set(VOTING_ICON_URI   "voting.png#db28cd3db6e62d4509af3644ce7d377329482a14bb4bfa
 # add_subdirectory(amax.daodev)
 # add_subdirectory(amax.split)
  add_subdirectory(amax.recover)
- add_subdirectory(amax.checker)
+ add_subdirectory(amax.auth)
  add_subdirectory(amax.proxy)
 # 
 

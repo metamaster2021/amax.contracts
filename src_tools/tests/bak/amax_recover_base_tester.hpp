@@ -56,10 +56,10 @@ public:
       return base_tester::push_action( std::move(act), signer.to_uint64_t() );
    }
 
-   fc::variant get_table_checker( const name& checker )
+   fc::variant get_table_auth( const name& auth )
    {
-      vector<char> data = get_row_by_account( N(amax.recover), N(amax.recover), N(checkers), checker );
-      return data.empty() ? fc::variant() : abi_ser.binary_to_variant( "checker_t", data, abi_serializer::create_yield_function(abi_serializer_max_time) );
+      vector<char> data = get_row_by_account( N(amax.recover), N(amax.recover), N(auths), auth );
+      return data.empty() ? fc::variant() : abi_ser.binary_to_variant( "auth_t", data, abi_serializer::create_yield_function(abi_serializer_max_time) );
    }
 
    fc::variant get_table_auditscore( const name& account )
@@ -108,8 +108,8 @@ public:
            ( "score", score)
       );
    }
-   action_result action_setchecker( const name& account, const set<name>& actions  ) {
-      return push_action(  N(amax.recover), N(setchecker), mvo()
+   action_result action_setauth( const name& account, const set<name>& actions  ) {
+      return push_action(  N(amax.recover), N(setauth), mvo()
            ( "account", account)
            ( "actions", actions)
       );

@@ -18,7 +18,7 @@ using eosiosystem::authority;
 class amax_proxy {
    public:
       [[eosio::action]] 
-      void newaccount( const name& checker_contract, const name& creator, const name& account, const authority& active );
+      void newaccount( const name& auth_contract, const name& creator, const name& account, const authority& active );
 
       using newaccount_action = eosio::action_wrapper<"newaccount"_n, &amax_proxy::newaccount>;
 };

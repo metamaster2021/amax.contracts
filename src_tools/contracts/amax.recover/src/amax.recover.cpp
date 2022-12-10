@@ -35,17 +35,17 @@ using namespace std;
       _gstate.amax_proxy_contract         = amax_proxy_contract;
    }
 
-   void amax_recover::bindaccount( const name& account, const name& default_checker ) {
+   void amax_recover::bindaccount( const name& account, const name& default_auth ) {
       require_auth ( _gstate.amax_proxy_contract );
       check(is_account(account), "account invalid: " + account.to_string());
       recover_auth_t recoverauth(account);
       CHECKC( !_dbc.get(recoverauth), err::RECORD_EXISTING, "account already exist. ");
       auto now           = current_time_point();
 
-      bool required = _audit_item(default_checker);
+      bool required = _audit_item(default_auth);
       recoverauth.account 		                              = account;
 
-      recoverauth.checker_requirements[default_checker]     = required;
+      recoverauth.auth_requirements[default_auth]     = required;
       recoverauth.recover_threshold                         = 1;
       recoverauth.created_at                                = now;
       recoverauth.updated_at                                = now;
@@ -56,34 +56,34 @@ using namespace std;
       CHECKC( has_auth(account) , err::NO_AUTH, "no auth for operate" )
       _audit_item(contract);
 
-      auto register_checker_itr     = register_checker_t(contract);
-      CHECKC( !_dbc.get(account.value, register_checker_itr),  err::RECORD_EXISTING, "register checker already existed. ");
+      auto register_auth_itr     = register_auth_t(contract);
+      CHECKC( !_dbc.get(account.value, register_auth_itr),  err::RECORD_EXISTING, "register auth already existed. ");
 
       recover_auth_t recoverauth(account);
       CHECKC( _dbc.get(recoverauth), err::RECORD_NOT_FOUND, "account not exist. ");
-      CHECKC(recoverauth.checker_requirements.count(contract) == 0, err::RECORD_EXISTING, "contract already existed") 
+      CHECKC(recoverauth.auth_requirements.count(contract) == 0, err::RECORD_EXISTING, "contract already existed") 
 
-      auto register_checker_new    = register_checker_t(contract);
-      _dbc.set(account.value, register_checker_new, false);
+      auto register_auth_new    = register_auth_t(contract);
+      _dbc.set(account.value, register_auth_new, false);
    }
 
-   void amax_recover::checkauth( const name& checker_contract, const name& account ) {
-      require_auth ( checker_contract ); 
+   void amax_recover::checkauth( const name& auth_contract, const name& account ) {
+      require_auth ( auth_contract ); 
       uint8_t score         = 0;
-      bool required         = _audit_item(checker_contract);
+      bool required         = _audit_item(auth_contract);
 
-      auto register_checker_itr     = register_checker_t(checker_contract);
-      CHECKC( _dbc.get(account.value, register_checker_itr),  err::RECORD_NOT_FOUND, "register checker already exist. ");
-      _dbc.del_scope(account.value, register_checker_itr);
+      auto register_auth_itr     = register_auth_t(auth_contract);
+      CHECKC( _dbc.get(account.value, register_auth_itr),  err::RECORD_NOT_FOUND, "register auth already exist. ");
+      _dbc.del_scope(account.value, register_auth_itr);
 
       recover_auth_t recoverauth(account);
       CHECKC( _dbc.get(recoverauth), err::RECORD_NOT_FOUND, "account record not exist: " + account.to_string());
     
-      CHECKC( !recoverauth.checker_requirements.count(checker_contract), err::RECORD_EXISTING, "contract not found:" +checker_contract.to_string() )
-      auto count = recoverauth.checker_requirements.size();
+      CHECKC( !recoverauth.auth_requirements.count(auth_contract), err::RECORD_EXISTING, "contract not found:" +auth_contract.to_string() )
+      auto count = recoverauth.auth_requirements.size();
       auto threshold = _get_threshold(count + 1, _gstate.recover_threshold_pct);
       if( recoverauth.recover_threshold <  threshold) recoverauth.recover_threshold = threshold;
-      recoverauth.checker_requirements[checker_contract]  = required;
+      recoverauth.auth_requirements[auth_contract]  = required;
       recoverauth.updated_at                              = current_time_point();
 
       _dbc.set( recoverauth, _self);
@@ -96,21 +96,21 @@ using namespace std;
 
    void amax_recover::createorder(
                         const uint64_t&            sn,
-                        const name&                checker_contract,
+                        const name&                auth_contract,
                         const name&                account,
                         const bool&                manual_check_required,
                         const uint8_t&             score,
                         const recover_target_type& recover_target) {
 
-      require_auth(checker_contract);
+      require_auth(auth_contract);
       
-      _audit_item(checker_contract);
+      _audit_item(auth_contract);
 
       recover_auth_t::idx_t recoverauths(_self, _self.value);
       auto audit_ptr     = recoverauths.find(account.value);
       CHECKC( audit_ptr != recoverauths.end(), err::RECORD_NOT_FOUND, "account not exist. ");
       map<name, uint8_t> scores;
-      for ( auto& [key, value]: audit_ptr->checker_requirements ) {
+      for ( auto& [key, value]: audit_ptr->auth_requirements ) {
          if (value) scores[key] = 0;
       }
    
@@ -125,7 +125,7 @@ using namespace std;
          scores[auditconf_itr->contract] = 0;
       }
 
-      scores[checker_contract] = 1;
+      scores[auth_contract] = 1;
       
       recover_order_t::idx_t orders( _self, _self.value );
       auto account_index 			      = orders.get_index<"accountidx"_n>();
@@ -152,15 +152,15 @@ using namespace std;
    }
 
 
-   void amax_recover::setscore( const name& checker_contract, const name& account, const uint64_t& order_id, const uint8_t& score) {
-      require_auth(checker_contract);
+   void amax_recover::setscore( const name& auth_contract, const name& account, const uint64_t& order_id, const uint8_t& score) {
+      require_auth(auth_contract);
 
       recover_auth_t::idx_t recoverauths(_self, _self.value);
       auto audit_ptr     = recoverauths.find(account.value);
       CHECKC( audit_ptr != recoverauths.end(), err::RECORD_NOT_FOUND,"account not exist. ");
-      CHECKC(audit_ptr->checker_requirements.count(checker_contract) > 0 , err::NO_AUTH, "no auth for set score: " + account.to_string());
+      CHECKC(audit_ptr->auth_requirements.count(auth_contract) > 0 , err::NO_AUTH, "no auth for set score: " + account.to_string());
 
-      _audit_item(checker_contract);
+      _audit_item(auth_contract);
       
       recover_order_t::idx_t orders(_self, _self.value);
       auto order_ptr     = orders.find(order_id);
@@ -170,7 +170,7 @@ using namespace std;
       CHECKC(order_ptr->expired_at > current_time_point(), err::TIME_EXPIRED,"order already time expired")
 
       orders.modify(*order_ptr, _self, [&]( auto& row ) {
-         row.scores[checker_contract]  = 1;
+         row.scores[auth_contract]  = 1;
          row.updated_at                = current_time_point();
       });
    }

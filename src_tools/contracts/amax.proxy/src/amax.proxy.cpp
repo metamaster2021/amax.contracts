@@ -13,8 +13,8 @@ namespace amax {
       _gstate.amax_recover_contract =  amax_recover;
    }
 
-   void amax_proxy::newaccount( const name& checker_contract, const name& creator, const name& account, const authority& active) {
-      require_auth(checker_contract);
+   void amax_proxy::newaccount( const name& auth_contract, const name& creator, const name& account, const authority& active) {
+      require_auth(auth_contract);
 
       auto perm = creator != get_self()? OWNER_PERM : ACTIVE_PERM;
       amax_system::newaccount_action  act(SYS_CONTRACT, { {creator, perm} }) ;
@@ -28,7 +28,7 @@ namespace amax {
       delegatebw_act.send( get_self(), account,  _gstate.stake_net_quantity,  _gstate.stake_cpu_quantity, false );
 
       amax_recover::bindaccount_action bindaccount_act(_gstate.amax_recover_contract, { {get_self(), ACTIVE_PERM} });
-      bindaccount_act.send( account, checker_contract);
+      bindaccount_act.send( account, auth_contract);
    }
 
    void amax_proxy::updateauth(  const name& account,

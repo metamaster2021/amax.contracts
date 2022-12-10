@@ -41,7 +41,7 @@ public:
 
       set<name> actions = {N(bindaccount), N(bindanswer), N(createorder), N(chkanswer), N(chkdid), N(chkmanual)};
       
-      // action_setchecker(N(admin), actions);
+      // action_setauth(N(admin), actions);
       produce_blocks(1);
    }
 };
