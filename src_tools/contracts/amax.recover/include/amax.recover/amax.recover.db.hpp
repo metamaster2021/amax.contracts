@@ -128,7 +128,7 @@ TBL recover_order_t {
     typedef eosio::multi_index
     < "recorders"_n,  recover_order_t,
         indexed_by<"accountidx"_n, const_mem_fun<recover_order_t, uint64_t, &recover_order_t::by_account> >,
-        indexed_by<"snidx"_n, const_mem_fun<recover_order_t, uint64_t, &recover_order_t::by_sn> >,
+        indexed_by<"snidx"_n, const_mem_fun<recover_order_t, uint64_t, &recover_order_t::by_sn> >
     > idx_t;
 
     EOSLIB_SERIALIZE( recover_order_t,  (id)(sn)(account)(recover_type)
