@@ -64,6 +64,7 @@ using namespace std;
       CHECKC(recoverauth.auth_requirements.count(contract) == 0, err::RECORD_EXISTING, "contract already existed") 
 
       auto register_auth_new    = register_auth_t(contract);
+      register_auth_new.created_at = current_time_point();
       _dbc.set(account.value, register_auth_new, false);
    }
 
@@ -73,7 +74,7 @@ using namespace std;
       bool required         = _audit_item(auth_contract);
 
       auto register_auth_itr     = register_auth_t(auth_contract);
-      CHECKC( _dbc.get(account.value, register_auth_itr),  err::RECORD_NOT_FOUND, "register auth already exist. ");
+      CHECKC( _dbc.get(account.value, register_auth_itr),  err::RECORD_NOT_FOUND, "register auth not exist. ");
       _dbc.del_scope(account.value, register_auth_itr);
 
       recover_auth_t recoverauth(account);
@@ -88,7 +89,7 @@ using namespace std;
 
       _dbc.set( recoverauth, _self);
    }
-
+   
    uint32_t amax_recover::_get_threshold(uint32_t count, uint32_t pct) {
       int64_t tmp = 10 * count * pct / 100;
       return (tmp + 9) / 10;
@@ -131,6 +132,10 @@ using namespace std;
       auto account_index 			      = orders.get_index<"accountidx"_n>();
       auto order_itr 			         = account_index.find( account.value );
       CHECKC( order_itr == account_index.end(), err::RECORD_EXISTING, "order already existed. ");
+
+      auto sn_index                    = orders.get_index<"snidx"_n>();
+      auto sn_itr                      = sn_index.find( sn );
+      CHECKC( sn_itr == sn_index.end(), err::RECORD_EXISTING, "sn already existed. ");
 
       _gstate.last_order_id ++;
       auto order_id           = _gstate.last_order_id; 
@@ -216,7 +221,7 @@ using namespace std;
       auto order_ptr     = orders.find(order_id);
       CHECKC( order_ptr != orders.end(), err::RECORD_NOT_FOUND, "order not found. "); 
 
-      // CHECKC(order_ptr->expired_at < current_time_point(), err::STATUS_ERROR, "order has not expired")
+      CHECKC(order_ptr->expired_at < current_time_point(), err::STATUS_ERROR, "order has not expired")
       orders.erase(order_ptr);
    }
 

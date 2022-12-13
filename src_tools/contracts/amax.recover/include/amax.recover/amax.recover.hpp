@@ -117,6 +117,11 @@ class [[eosio::contract("amax.recover")]] amax_recover : public contract {
 
    ACTION delauditconf( const name& contract_name );
 
+   ACTION test( const uint32_t& count){
+
+      auto t = _get_threshold( count , _gstate.recover_threshold_pct);
+      check( false, to_string(t));
+   }
    private:
       global_singleton    _global;
       global_t            _gstate;
