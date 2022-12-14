@@ -25,9 +25,10 @@ namespace ActionType {
     static constexpr eosio::name CREATECORDER   { "createorder"_n }; //create recover order
     static constexpr eosio::name SETSCORE       { "setscore"_n    }; //set score for user verfication
 }
+static constexpr uint32_t MAX_TITLE_SIZE        = 256;
 
-#define TBL struct [[eosio::table, eosio::contract("amax.checker")]]
-#define NTBL(name) struct [[eosio::table(name), eosio::contract("amax.checker")]]
+#define TBL struct [[eosio::table, eosio::contract("amax.auth")]]
+#define NTBL(name) struct [[eosio::table(name), eosio::contract("amax.auth")]]
 
 namespace RealmeCheckType {
     static constexpr eosio::name MOBILENO       { "mobileno"_n     };
@@ -41,9 +42,9 @@ namespace RealmeCheckType {
 NTBL("global") global_t {
     name                        amax_recover_contract;
     name                        amax_proxy_contract;
-    name                        checker_type;   //E.g. RealmeCheckType::MOBILENO
+    name                        auth_type;   //E.g. RealmeCheckType::MOBILENO
 
-    EOSLIB_SERIALIZE( global_t, (amax_recover_contract)(amax_proxy_contract)(checker_type))
+    EOSLIB_SERIALIZE( global_t, (amax_recover_contract)(amax_proxy_contract)(auth_type))
 };
 typedef eosio::singleton< "global"_n, global_t > global_singleton;
 
@@ -53,29 +54,29 @@ TBL account_realme_t {
     string                      realme_info;    //value: md5(md5(RM + salt)
     time_point_sec              created_at;
 
-    account_info_t() {}
-    account_info_t(const name& i): account(i) {}
+    account_realme_t() {}
+    account_realme_t(const name& i): account(i) {}
 
     uint64_t primary_key()const { return account.value ; }
 
-    typedef eosio::multi_index< "acctrealme"_n,  account_info_t> idx;
+    typedef eosio::multi_index< "acctrealme"_n,  account_realme_t> idx_t;
 
-    EOSLIB_SERIALIZE( account_info_t, (account)(audit_info)(created_at) )
+    EOSLIB_SERIALIZE( account_realme_t, (account)(realme_info)(created_at) )
 };
 
 //Scope: _self
-TBL checker_t {
-    name                        checker;              //PK
+TBL auth_t {
+    name                        auth;              //PK
     set<name>                   actions;              //set of action types
 
-    checker_t() {}
-    checker_t(const name& i): checker(i) {}
+    auth_t() {}
+    auth_t(const name& i): auth(i) {}
 
-    uint64_t primary_key()const { return checker.value; }
+    uint64_t primary_key()const { return auth.value; }
 
-    typedef eosio::multi_index< "checkers"_n,  checker_t > idx_t;
+    typedef eosio::multi_index< "auths"_n,  auth_t > idx_t;
 
-    EOSLIB_SERIALIZE( checker_t, (checker)(actions) )
+    EOSLIB_SERIALIZE( auth_t, (auth)(actions) )
 };
 
 } //namespace amax

@@ -36,7 +36,7 @@ class amax_proxy_base_tester : public tester {
 public:
    abi_serializer proxy_abi_ser;
    abi_serializer recover_abi_ser;
-   abi_serializer checker_abi_ser;
+   abi_serializer auth_abi_ser;
 
    amax_proxy_base_tester() {
 
@@ -45,17 +45,17 @@ public:
       initialize_recover_contract( recover_contract_name);
 
 
-      initialize_checker_contract( check_mobile_contract_name);
-      initialize_checker_contract( check_answer_contract_name);
+      initialize_auth_contract( check_mobile_contract_name);
+      initialize_auth_contract( check_answer_contract_name);
       produce_blocks( 2 );
 
-      initialize_abi_ser(check_mobile_contract_name, checker_abi_ser);
+      initialize_abi_ser(check_mobile_contract_name, auth_abi_ser);
       produce_blocks( 2 );
 
-      checker_action_init(check_mobile_contract_name, recover_contract_name);
+      auth_action_init(check_mobile_contract_name, recover_contract_name);
       produce_blocks( 2 );
 
-      checker_action_init(check_answer_contract_name, recover_contract_name);
+      auth_action_init(check_answer_contract_name, recover_contract_name);
       produce_blocks( 2 );
 
    }
@@ -84,8 +84,8 @@ public:
 
    }
 
-   void initialize_checker_contract( name contract_name) {
-      initialize_contract(contract_name, contracts::checker_wasm(), contracts::checker_abi());
+   void initialize_auth_contract( name contract_name) {
+      initialize_contract(contract_name, contracts::auth_wasm(), contracts::auth_abi());
    }
 
    void initialize_contract( name contract_name, std::vector<uint8_t> wasm_file, std::vector<char> abi_file ) {
@@ -224,31 +224,31 @@ public:
    }
 
 
-   action_result checker_action_init( name check_contract, name amax_recover) {
-      std::cout << "checker_action_init :" << check_contract << "," << amax_recover <<"---- end\n"; 
+   action_result auth_action_init( name check_contract, name amax_recover) {
+      std::cout << "auth_action_init :" << check_contract << "," << amax_recover <<"---- end\n"; 
 
-      return push_action(  check_contract, checker_abi_ser, check_contract, N(init), mvo()
+      return push_action(  check_contract, auth_abi_ser, check_contract, N(init), mvo()
             ( "amax_recover",              amax_recover)
       );   
    }
 
-   action_result checker_action_bindinfo (  name checker_contract, const name& admin, const name& account, const string& info) {
-       return push_action(  checker_contract, checker_abi_ser, checker_contract, N(bindinfo), mvo()
-            ( "checker_contract",               checker_contract)
+   action_result auth_action_bindinfo (  name auth_contract, const name& admin, const name& account, const string& info) {
+       return push_action(  auth_contract, auth_abi_ser, auth_contract, N(bindinfo), mvo()
+            ( "auth_contract",               auth_contract)
             ( "admin",                          admin)
             ( "account",                        account)
             ( "info",                           info)
       );  
    }
 
-   action_result checker_action_createcorder (  
-                        name checker_contract,
+   action_result auth_action_createcorder (  
+                        name auth_contract,
                         const name& admin,
                         const name& account,
                         const recover_target_type& recover_target,
                         const bool& manual_check_required,
                         const uint8_t& score) {
-       return push_action( checker_contract, checker_abi_ser, checker_contract, N(bindinfo), mvo()
+       return push_action( auth_contract, auth_abi_ser, auth_contract, N(bindinfo), mvo()
             ( "admin",                 admin)
             ( "account",               account)
             ( "recover_target",        recover_target)
@@ -257,13 +257,13 @@ public:
       );  
    }
 
-   action_result checker_action_setscore(
-                                 const name& checker_contract,
+   action_result auth_action_setscore(
+                                 const name& auth_contract,
                                  const name& admin,
                                  const name& account,
                                  const uint64_t& order_id,
                                  const uint8_t& score ) {
-       return push_action( checker_contract, checker_abi_ser, checker_contract, N(bindinfo), mvo()
+       return push_action( auth_contract, auth_abi_ser, auth_contract, N(bindinfo), mvo()
             ( "admin",                 admin)
             ( "account",               account)
             ( "order_id",              order_id)

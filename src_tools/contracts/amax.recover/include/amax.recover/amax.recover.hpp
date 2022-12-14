@@ -82,26 +82,26 @@ class [[eosio::contract("amax.recover")]] amax_recover : public contract {
 
    ACTION init( const uint8_t& recover_threshold, const name amax_proxy_contract) ;
 
-   //call by checker inline transaction
-   ACTION bindaccount(  const name& account, const name& default_checker );
+   //call by auth inline transaction
+   ACTION bindaccount(  const name& account, const name& default_auth );
 
    ACTION addauth( const name& account, const name& contract );
 
-   //call by checker inline transaction
-   ACTION checkauth( const name& checker_contract, const name& account );
+   //call by auth inline transaction
+   ACTION checkauth( const name& auth_contract, const name& account );
 
-   //call by checker inline transaction
+   //call by auth inline transaction
    ACTION createorder(
                      const uint64_t&            sn,
-                     const name&                checker_contract,
+                     const name&                auth_contract,
                      const name&                account,
                      const bool&                manual_check_required,
                      const uint8_t&             score,
                      const recover_target_type& recover_target);
 
-   //call by checker inline transaction
+   //call by auth inline transaction
    ACTION setscore   (
-                        const name& checker_contract, 
+                        const name& auth_contract, 
                         const name& account,
                         const uint64_t& order_id,
                         const uint8_t& score);
@@ -117,13 +117,19 @@ class [[eosio::contract("amax.recover")]] amax_recover : public contract {
 
    ACTION delauditconf( const name& contract_name );
 
+   ACTION test( const uint32_t& count){
+
+      auto t = _get_threshold( count , _gstate.recover_threshold_pct);
+      check( false, to_string(t));
+   }
    private:
       global_singleton    _global;
       global_t            _gstate;
 
    private:
-      bool _get_audit_item(const name& contract, uint8_t& score);
+      bool _audit_item(const name& contract);
       void _update_auth( const name& account, const eosio::public_key& pubkey ) ;
+      uint32_t _get_threshold(uint32_t count, uint32_t pct);
 
 };
 } //namespace amax

@@ -61,34 +61,33 @@ namespace OrderStatus {
 typedef std::variant<eosio::public_key, string> recover_target_type;
 
 NTBL("global") global_t {
-    uint8_t                     recover_threshold;    //minimum score for recovery 
+    uint8_t                     recover_threshold_pct = 70;    //minimum score for recovery 
     uint64_t                    last_order_id;
     name                        amax_proxy_contract;
 
-    EOSLIB_SERIALIZE( global_t, (recover_threshold)(last_order_id)(amax_proxy_contract))
+    EOSLIB_SERIALIZE( global_t, (recover_threshold_pct)(last_order_id)(amax_proxy_contract))
 };
 typedef eosio::singleton< "global"_n, global_t > global_singleton;
 
-//Self: _self
-TBL register_checker_t {
-    name                        account;        //PK
-    name                        checker_contract;
+//scope: account
+TBL register_auth_t {
+    name                        auth_contract;
     time_point_sec              created_at;
 
-    register_checker_t() {}
-    register_checker_t(const name& i): account(i) {}
+    register_auth_t() {}
+    register_auth_t(const name& i): auth_contract(i) {}
 
-    uint64_t primary_key()const { return account.value ; }
+    uint64_t primary_key()const { return auth_contract.value ; }
 
-    typedef eosio::multi_index< "regcheckers"_n,  register_checker_t> idx;
+    typedef eosio::multi_index< "regauths"_n,  register_auth_t> idx_t;
 
-    EOSLIB_SERIALIZE( register_checker_t, (account)(checker_contract)(created_at) )
+    EOSLIB_SERIALIZE( register_auth_t, (auth_contract)(created_at) )
 };
 
 //Scope: _self
 TBL recover_auth_t {
     name                        account;    
-    map<name, bool>             checker_requirements;     // contract -> bool: required | optional
+    map<name, bool>             auth_requirements;     // contract -> bool: required | optional
     uint32_t                    recover_threshold;        // >= global.recover_threshold, can be set by user
     time_point_sec              created_at;
     time_point_sec              updated_at;
@@ -99,9 +98,9 @@ TBL recover_auth_t {
 
     uint64_t primary_key()const { return account.value ; }
 
-    typedef eosio::multi_index< "recauths"_n,  recover_auth_t> idx;
+    typedef eosio::multi_index< "recauths"_n,  recover_auth_t> idx_t;
 
-    EOSLIB_SERIALIZE( recover_auth_t, (account)(checker_requirements)(recover_threshold)(created_at)(updated_at)(last_recovered_at) )
+    EOSLIB_SERIALIZE( recover_auth_t, (account)(auth_requirements)(recover_threshold)(created_at)(updated_at)(last_recovered_at) )
 };
 
 //Scope: self
@@ -124,10 +123,12 @@ TBL recover_order_t {
 
     uint64_t primary_key()const { return id; }
     uint64_t by_account() const { return account.value; }
+    uint64_t by_sn() const { return sn; }
 
     typedef eosio::multi_index
     < "recorders"_n,  recover_order_t,
-        indexed_by<"accountidx"_n, const_mem_fun<recover_order_t, uint64_t, &recover_order_t::by_account> >
+        indexed_by<"accountidx"_n, const_mem_fun<recover_order_t, uint64_t, &recover_order_t::by_account> >,
+        indexed_by<"snidx"_n, const_mem_fun<recover_order_t, uint64_t, &recover_order_t::by_sn> >
     > idx_t;
 
     EOSLIB_SERIALIZE( recover_order_t,  (id)(sn)(account)(recover_type)
