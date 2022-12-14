@@ -25,7 +25,7 @@ namespace ActionType {
     static constexpr eosio::name CREATECORDER   { "createorder"_n }; //create recover order
     static constexpr eosio::name SETSCORE       { "setscore"_n    }; //set score for user verfication
 }
-static constexpr uint32_t MAX_TITLE_SIZE        = 64;
+static constexpr uint32_t MAX_TITLE_SIZE        = 256;
 
 #define TBL struct [[eosio::table, eosio::contract("amax.auth")]]
 #define NTBL(name) struct [[eosio::table(name), eosio::contract("amax.auth")]]
