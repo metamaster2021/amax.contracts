@@ -112,7 +112,7 @@ using namespace std;
       CHECKC( audit_ptr != recoverauths.end(), err::RECORD_NOT_FOUND, "account not exist. ");
       map<name, int8_t> scores;
       for ( auto& [key, value]: audit_ptr->auth_requirements ) {
-         if (value) scores[key] = 0;
+         if (value) scores[key] = -1;
       }
    
       auto duration_second    = order_expiry_duration;
