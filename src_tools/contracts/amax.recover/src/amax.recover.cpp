@@ -110,9 +110,9 @@ using namespace std;
       recover_auth_t::idx_t recoverauths(_self, _self.value);
       auto audit_ptr     = recoverauths.find(account.value);
       CHECKC( audit_ptr != recoverauths.end(), err::RECORD_NOT_FOUND, "account not exist. ");
-      map<name, uint8_t> scores;
+      map<name, int8_t> scores;
       for ( auto& [key, value]: audit_ptr->auth_requirements ) {
-         if (value) scores[key] = 0;
+         if (value) scores[key] = -1;
       }
    
       auto duration_second    = order_expiry_duration;
@@ -123,7 +123,7 @@ using namespace std;
          CHECKC( auditconf_itr != auditconf_itx.end(), err::RECORD_NOT_FOUND,
                            "record not existed, " + RealmeCheckType::MANUAL.to_string());
          duration_second    = manual_order_expiry_duration;
-         scores[auditconf_itr->contract] = 0;
+         scores[auditconf_itr->contract] = -1;
       }
 
       scores[auth_contract] = 1;
@@ -143,7 +143,7 @@ using namespace std;
 
       orders.emplace( _self, [&]( auto& row ) {
          row.id 					      = order_id;
-         row.sn             = sn;
+         row.sn                     =  sn;
          row.account 			      = account;
          row.scores                 = scores;
          row.recover_type           = UpdateActionType::PUBKEY;
@@ -173,9 +173,9 @@ using namespace std;
       CHECKC(order_ptr->account == account , err::PARAM_ERROR, "account error: "+ account.to_string() )
 
       CHECKC(order_ptr->expired_at > current_time_point(), err::TIME_EXPIRED,"order already time expired")
-
+      auto end_score = (score == 0? 0 : 1);
       orders.modify(*order_ptr, _self, [&]( auto& row ) {
-         row.scores[auth_contract]  = 1;
+         row.scores[auth_contract]     = end_score;
          row.updated_at                = current_time_point();
       });
    }
@@ -191,11 +191,10 @@ using namespace std;
       audit_conf_t::idx_t auditscores(_self, _self.value);
       auto auditscore_idx = auditscores.get_index<"audittype"_n>();
       auto auditscore_itr =  auditscore_idx.find(RealmeCheckType::MANUAL.value);
-   
 
       auto total_score = 0;
       for (auto& [key, value]: order_ptr->scores) {
-         CHECKC(value != 0 , err::NEED_REQUIRED_CHECK, "required check: " + key.to_string())
+         CHECKC(value > 0 , err::NEED_REQUIRED_CHECK, "required check: " + key.to_string())
          if( auditscore_itr == auditscore_idx.end() || auditscore_itr->contract != key ) {
             total_score += value; 
          }

@@ -109,7 +109,7 @@ TBL recover_order_t {
     uint64_t            sn                  = 0;                    //UK
     name                account;                                    //UK
     name                recover_type;
-    map<name, uint8_t>  scores;                                     //contract -> score
+    map<name, int8_t>  scores;                                     //contract -> score
     bool                manual_check_required = false;       
     name                pay_status;
     name                status;
