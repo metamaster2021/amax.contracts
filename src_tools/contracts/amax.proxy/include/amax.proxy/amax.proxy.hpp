@@ -82,7 +82,7 @@ class [[eosio::contract("amax.proxy")]] amax_proxy : public contract {
     }
     ~amax_proxy() { _global.set( _gstate, get_self() ); }
 
-   ACTION init(  const name& amax_recover);
+   ACTION init(  const name& amax_recover, const asset& stake_net_quantity, const asset& stake_cpu_quantity);
 
    ACTION newaccount(const name& auth_contract, const name& creator, const name& account, const authority& active);
 

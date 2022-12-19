@@ -7,10 +7,12 @@ namespace amax {
       { if (!(exp)) eosio::check(false, string("[[") + to_string((int)code) + string("]] ")  \
                                     + string("[[") + _self.to_string() + string("]] ") + msg); }
 
-   void amax_proxy::init( const name& amax_recover ) {
+   void amax_proxy::init( const name& amax_recover, const asset& stake_net_quantity, const asset& stake_cpu_quantity ) {
       CHECKC(has_auth(_self),  err::NO_AUTH, "no auth for operate");      
 
-      _gstate.amax_recover_contract =  amax_recover;
+      _gstate.amax_recover_contract = amax_recover;
+      _gstate.stake_net_quantity    = stake_net_quantity;
+      _gstate.stake_cpu_quantity    = stake_cpu_quantity;
    }
 
    void amax_proxy::newaccount( const name& auth_contract, const name& creator, const name& account, const authority& active) {

@@ -45,7 +45,7 @@ using namespace std;
       bool required = _audit_item(default_auth);
       recoverauth.account 		                              = account;
 
-      recoverauth.auth_requirements[default_auth]     = required;
+      recoverauth.auth_requirements[default_auth]           = required;
       recoverauth.recover_threshold                         = 1;
       recoverauth.created_at                                = now;
       recoverauth.updated_at                                = now;
