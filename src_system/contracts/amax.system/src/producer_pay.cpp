@@ -113,10 +113,30 @@ namespace eosiosystem {
 
 
       const auto ct = current_time_point();
-      check( ct >= _gstate.inflation_start_time, "inflation has not been started");
+      check( ct >= _gstate.inflation_start_time, "inflation has not yet started");
 
-      check( false, "inflation and claimrewards are not supported" );
-      // check( ct - prod.last_claimed_time > microseconds(useconds_per_day), "already claimed rewards within past day" );
+      // check( false, "inflation and claimrewards are not supported" );
+
+      ASSERT(prod.ext->reward_shared_ratio <= ratio_boost);
+
+      check(prod.unclaimed_rewards.amount > 0, "There are no more rewards to claim");
+      int64_t shared_amount = multiply_decimal64(prod.unclaimed_rewards.amount, prod.ext->reward_shared_ratio, ratio_boost);
+      ASSERT(shared_amount >= 0 && prod.unclaimed_rewards.amount >= shared_amount);
+      uint64_t self_amount = prod.unclaimed_rewards.amount - shared_amount;
+
+      token::issue_action issue_act{ token_account, { {get_self(), active_permission} } };
+      issue_act.send( get_self(), prod.unclaimed_rewards, "issue tokens for producer rewards" );
+
+      if (shared_amount > 0) {
+         ASSERT(_gstate.reward_dispatcher.value != 0);
+         token::transfer_action transfer_act{ token_account, { {get_self(), active_permission} } };
+         transfer_act.send( get_self(), _gstate.reward_dispatcher, asset(shared_amount, prod.unclaimed_rewards.symbol), "producer shared rewards" );
+      }
+
+      if (self_amount > 0) {
+         token::transfer_action transfer_act{ token_account, { {get_self(), active_permission} } };
+         transfer_act.send( get_self(), prod.owner, asset(self_amount, prod.unclaimed_rewards.symbol), "producer self rewards" );
+      }
 
    }
 } //namespace eosiosystem

@@ -82,6 +82,17 @@ namespace eosiosystem {
          return ( flags & ~static_cast<F>(field) );
    }
 
+   template<typename T>
+   int128_t multiply_decimal(int128_t a, int128_t b, int128_t precision) {
+      // with rounding-off method
+      int128_t tmp = 10 * a * b / precision;
+      CHECK(tmp >= std::numeric_limits<T>::min() && tmp <= std::numeric_limits<T>::max(),
+            "overflow exception of multiply_decimal");
+      return (tmp + 5) / 10;
+   }
+
+   #define multiply_decimal64(a, b, precision) multiply_decimal<int64_t>(a, b, precision)
+
    static constexpr uint32_t seconds_per_year      = 52 * 7 * 24 * 3600;
    static constexpr uint32_t seconds_per_day       = 24 * 3600;
    static constexpr uint32_t seconds_per_hour      = 3600;
@@ -95,6 +106,8 @@ namespace eosiosystem {
    static constexpr int64_t  ram_gift_bytes        = 1400;
 
    static constexpr uint32_t refund_delay_sec      = 3 * seconds_per_day;
+
+   static constexpr uint32_t ratio_boost           = 10000;
 
   /**
    * The `amax.system` smart contract is provided by `Armoniax` as a sample system contract, and it defines the structures and actions needed for blockchain's core functionality.
@@ -245,6 +258,7 @@ namespace eosiosystem {
 
    struct producer_info_ext {
       double         elected_votes     = 0;
+      uint32_t       reward_shared_ratio = 0;
    };
 
    // Defines `producer_info` structure to be stored in `producer_info` table, added after version 1.0
