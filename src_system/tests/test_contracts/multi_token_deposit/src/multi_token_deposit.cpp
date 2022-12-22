@@ -35,9 +35,8 @@ namespace amax_xtoken {
             execute_function(&multi_token_deposit::on_token_transfer);
 
         } else if (ntokens.count(token_contract)) {
-
+            execute_function(&multi_token_deposit::on_ntoken_transfer);
         }
-
     }
 
 
