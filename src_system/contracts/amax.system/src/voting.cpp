@@ -495,12 +495,14 @@ namespace eosiosystem {
       std::map<name, std::pair<double, bool /*new*/> > producer_deltas;
       if ( voter->last_vote_weight > 0 ) {
          if( voter->proxy ) {
-            auto old_proxy = _voters.find( voter->proxy.value );
-            check( old_proxy != _voters.end(), "old proxy not found" ); //data corruption
-            _voters.modify( old_proxy, same_payer, [&]( auto& vp ) {
-                  vp.proxied_vote_weight -= voter->last_vote_weight;
-               });
-            propagate_weight_change( *old_proxy, voter_name );
+            if (!proxy || proxy != voter->proxy ) {
+               auto old_proxy = _voters.find( voter->proxy.value );
+               check( old_proxy != _voters.end(), "old proxy not found" ); //data corruption
+               _voters.modify( old_proxy, same_payer, [&]( auto& vp ) {
+                     vp.proxied_vote_weight -= voter->last_vote_weight;
+                  });
+               propagate_weight_change( *old_proxy, voter_name );
+            }
          } else {
             for( const auto& p : voter->producers ) {
                auto& d = producer_deltas[p];
@@ -514,9 +516,14 @@ namespace eosiosystem {
          auto new_proxy = _voters.find( proxy.value );
          check( new_proxy != _voters.end(), "invalid proxy specified" ); //if ( !voting ) { data corruption } else { wrong vote }
          check( !voting || new_proxy->is_proxy, "proxy not found" );
-         if ( new_vote_weight >= 0 ) {
+         double old_proxy_weight = 0;
+         if (voter->proxy && proxy == voter->proxy) {
+            old_proxy_weight = voter->last_vote_weight;
+         }
+
+         if ( new_vote_weight >= 0 || old_proxy_weight > 0 ) {
             _voters.modify( new_proxy, same_payer, [&]( auto& vp ) {
-                  vp.proxied_vote_weight += new_vote_weight;
+                  vp.proxied_vote_weight += new_vote_weight - old_proxy_weight;
                });
             propagate_weight_change( *new_proxy, voter_name );
          }
