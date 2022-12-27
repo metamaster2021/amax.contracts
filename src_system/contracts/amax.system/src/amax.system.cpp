@@ -280,20 +280,6 @@ namespace eosiosystem {
       _gstate.revision = revision;
    }
 
-   void system_contract::setinflation(  time_point inflation_start_time, const asset& initial_inflation_per_block ) {
-      require_auth(get_self());
-      check(initial_inflation_per_block.symbol == core_symbol(), "inflation symbol mismatch with core symbol");
-
-      const auto& ct = eosio::current_time_point();
-      if (_gstate.inflation_start_time != time_point() ) {
-         check( ct < _gstate.inflation_start_time, "inflation has been started");
-      }
-      check(inflation_start_time > ct, "inflation start time must larger then current time");
-
-      _gstate.inflation_start_time = inflation_start_time;
-      _gstate.initial_inflation_per_block = initial_inflation_per_block;
-   }
-
    /**
     *  Called after a new account is created. This code enforces resource-limits rules
     *  for new accounts as well as new account naming conventions.

@@ -1335,6 +1335,24 @@ namespace eosiosystem {
          void setinflation( time_point inflation_start_time, const asset& initial_inflation_per_block );
 
          /**
+          *  Initialize reward
+          * Only be initialized after contract init().
+          *
+          * @param inflation_start_time - inflation start time
+          * @param initial_inflation_per_block initial inflation per block.
+          */
+         [[eosio::action]]
+         void initreward( const name& reward_dispatcher );
+
+         /**
+          * initialize elect producers
+          *
+          * @param payer - the resource buyer
+          */
+         [[eosio::action]]
+         void initelects( uint32_t max_backup_producer_count );
+
+         /**
           * Configure the `power` market. The market becomes available the first time this
           * action is invoked.
           */
@@ -1363,14 +1381,6 @@ namespace eosiosystem {
           */
          [[eosio::action]]
          void powerup( const name& payer, const name& receiver, uint32_t days, int64_t net_frac, int64_t cpu_frac, const asset& max_payment );
-
-         /**
-          * initialize elect producers
-          *
-          * @param payer - the resource buyer
-          */
-         [[eosio::action]]
-         void initelects( const name& payer, uint32_t max_backup_producer_count );
 
          using init_action = eosio::action_wrapper<"init"_n, &system_contract::init>;
          using setacctram_action = eosio::action_wrapper<"setacctram"_n, &system_contract::setacctram>;

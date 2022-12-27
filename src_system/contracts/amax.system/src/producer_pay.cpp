@@ -60,7 +60,7 @@ namespace eosiosystem {
                   ext_ds >> bbe;
                }
             }
-            if (!bbe.is_backup && bbe.previous_backup_producer.value != 0) {
+            if (!bbe.is_backup && bool(bbe.previous_backup_producer)) {
                auto backup_prod = _producers.find( bbe.previous_backup_producer.value );
                if ( backup_prod != _producers.end() ) {
                   _producers.modify( backup_prod, same_payer, [&](auto& p ) {
@@ -111,6 +111,7 @@ namespace eosiosystem {
       check( _gstate.thresh_activated_stake_time != time_point(),
                     "cannot claim rewards until the chain is activated (at least 5% of all tokens participate in voting)" );
 
+      check(bool(_gstate.reward_dispatcher), "reward has not been initialized");
 
       const auto ct = current_time_point();
       check( ct >= _gstate.inflation_start_time, "inflation has not yet started");
@@ -128,7 +129,6 @@ namespace eosiosystem {
       issue_act.send( get_self(), prod.unclaimed_rewards, "issue tokens for producer rewards" );
 
       if (shared_amount > 0) {
-         ASSERT(_gstate.reward_dispatcher.value != 0);
          token::transfer_action transfer_act{ token_account, { {get_self(), active_permission} } };
          transfer_act.send( get_self(), _gstate.reward_dispatcher, asset(shared_amount, prod.unclaimed_rewards.symbol), "producer shared rewards" );
       }

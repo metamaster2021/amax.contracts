@@ -47,6 +47,12 @@ namespace eosiosystem {
 
    static constexpr uint32_t min_backup_producer_count = 3;
 
+   struct reward_dispatcher_t {
+      void updatevotes(const name& voter, const name& producer, double old_votes, double new_votes);
+
+      using updatevotes_action = eosio::action_wrapper<"vote"_n, &reward_dispatcher_t::updatevotes>;
+   };
+
    inline bool operator == ( const eosio::key_weight& lhs, const eosio::key_weight& rhs ) {
       return tie( lhs.key, lhs.weight ) == tie( rhs.key, rhs.weight );
    }
@@ -209,8 +215,29 @@ namespace eosiosystem {
 
    }
 
-   void system_contract::initelects( const name& payer, uint32_t max_backup_producer_count ) {
-      require_auth( payer );
+   void system_contract::setinflation(  time_point inflation_start_time, const asset& initial_inflation_per_block ) {
+      require_auth(get_self());
+      check(initial_inflation_per_block.symbol == core_symbol(), "inflation symbol mismatch with core symbol");
+
+      const auto& ct = eosio::current_time_point();
+      if (_gstate.inflation_start_time != time_point() ) {
+         check( ct < _gstate.inflation_start_time, "inflation has been started");
+      }
+      check(inflation_start_time > ct, "inflation start time must larger then current time");
+
+      _gstate.inflation_start_time = inflation_start_time;
+      _gstate.initial_inflation_per_block = initial_inflation_per_block;
+   }
+
+   void system_contract::initreward( const name& reward_dispatcher ) {
+      require_auth(get_self());
+      check(is_account(reward_dispatcher), "the new reward_dispatcher account is not found");
+      check(!_gstate.reward_dispatcher, "reward_dispatcher has been set");
+      _gstate.reward_dispatcher = reward_dispatcher;
+   }
+
+   void system_contract::initelects( uint32_t max_backup_producer_count ) {
+      require_auth( get_self() );
       check(_gstate.thresh_activated_stake_time != time_point(),
          "cannot initelects until the chain is activated (at least 5% of all tokens participate in voting)");
       check(max_backup_producer_count >= min_backup_producer_count,
@@ -238,10 +265,10 @@ namespace eosiosystem {
 
       // TODO: need using location to order producers?
       for( auto it = idx.cbegin(); it != idx.cend() && 0 < it->total_votes && it->active(); ++it ) {
-         idx.modify( it, payer, [&]( auto& p ) {
+         idx.modify( it, get_self(), [&]( auto& p ) {
             p.update_elected_votes(true);
             if (elect_idx.iterator_to(p) == elect_idx.end()) {
-               elect_idx.emplace_index(p, payer);
+               elect_idx.emplace_index(p, get_self());
             }
          });
          if (main_changes.changes.size() < _elect_gstate.max_main_producer_count) {
@@ -558,6 +585,12 @@ namespace eosiosystem {
                _gstate.total_producer_vote_weight += pd.second.first;
                //check( p.total_votes >= 0, "something bad happened" );
             });
+
+            if (_gstate.reward_dispatcher) {
+               reward_dispatcher_t::updatevotes_action vote_act{ _gstate.reward_dispatcher, { {get_self(), active_permission} } };
+               vote_act.send( voter_name, pitr->owner, elected_info_old.elected_votes, pitr->get_elected_votes() );
+            }
+
             if (_elect_gstate.is_init() && pitr->ext) {
                ASSERT(elect_idx.iterator_to(*pitr) != elect_idx.end());
                process_elected_producer(elected_info_old, pitr->get_elected_info(), changes);
@@ -639,6 +672,11 @@ namespace eosiosystem {
                   p.update_elected_votes();
                   _gstate.total_producer_vote_weight += delta;
                });
+
+               if (_gstate.reward_dispatcher) {
+                  reward_dispatcher_t::updatevotes_action vote_act{ _gstate.reward_dispatcher, { {get_self(), active_permission} } };
+                  vote_act.send( voter.owner, prod.owner, elected_info_old.elected_votes, prod.get_elected_votes() );
+               }
 
                if (_elect_gstate.is_init() && prod.ext) {
                   ASSERT(elect_idx.iterator_to(prod) != elect_idx.end());
