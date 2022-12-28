@@ -1,22 +1,20 @@
-   #pragma once
+#pragma once
 
 #include <eosio/asset.hpp>
-#include <eosio/eosio.hpp>
-#include <eosio/permission.hpp>
-#include <eosio/action.hpp>
+// #include <eosio/action.hpp>
 
 #include <string>
 
 #include <amax.recover/amax.recover.db.hpp>
 #include <wasm_db.hpp>
-#include<amax.system/native.hpp>
-#include<amax.system/amax.system.hpp>
+#include <amax_system.hpp>
+
 
 namespace amax {
 
 using std::string;
 using std::vector;
-using eosiosystem::authority;
+using amax::authority;
 
 
 #define TRANSFER(bank, to, quantity, memo) \
@@ -83,7 +81,7 @@ class [[eosio::contract("amax.recover")]] amax_recover : public contract {
    ACTION init( const uint8_t& recover_threshold, const name amax_proxy_contract) ;
 
    //call by auth inline transaction
-   ACTION bindaccount(  const name& account, const name& default_auth );
+   ACTION newaccount( const name& auth_contract, const name& creator, const name& account, const authority& active );
 
    ACTION addauth( const name& account, const name& contract );
 

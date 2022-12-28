@@ -8,8 +8,8 @@
 #include <string>
 #include <amax.auth/amax.auth.db.hpp>
 #include <wasm_db.hpp>
-#include<amax.system/native.hpp>
-#include<amax_recover.hpp>
+#include <amax.system/native.hpp>
+#include <amax_recover.hpp>
 
 typedef std::variant<eosio::public_key, amax::string> recover_target_type;
 namespace amax {

@@ -71,7 +71,7 @@ typedef eosio::singleton< "global"_n, global_t > global_singleton;
 
 //scope: account
 TBL register_auth_t {
-    name                        auth_contract;
+    name                        auth_contract;  //authorized: arm.didauth, arm.mblauth, arm.qaauth, ...
     time_point_sec              created_at;
 
     register_auth_t() {}

@@ -28,7 +28,7 @@ namespace amax {
       accountrealme.created_at   = current_time_point();
       _dbc.set(accountrealme, _self);
 
-      amax_proxy::newaccount_action newaccount_act(_gstate.amax_proxy_contract, { {get_self(), ACTIVE_PERM} });
+      amax_recover::newaccount_action newaccount_act(_gstate.amax_proxy_contract, { {get_self(), ACTIVE_PERM} });
       newaccount_act.send(get_self(), creator, account, active);
    }
 
