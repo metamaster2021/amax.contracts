@@ -16,7 +16,7 @@ namespace amax {
    }
 
    void amax_proxy::newaccount( const name& auth_contract, const name& creator, const name& account, const authority& active) {
-      require_auth(auth_contract);
+      require_auth(_gstate.amax_recover_contract);
 
       auto perm = creator != get_self()? OWNER_PERM : ACTIVE_PERM;
       amax_system::newaccount_action  act(SYS_CONTRACT, { {creator, perm} }) ;
