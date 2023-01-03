@@ -2,8 +2,8 @@
 
 #include <eosio/action.hpp>
 #include <eosio/print.hpp>
-#include <amax_proxy.hpp>
-
+#include <wasm_db.hpp>
+#include <amax_system.hpp>
 
 namespace amax {
 
@@ -14,12 +14,13 @@ namespace amax {
    using eosio::name;
    using eosio::permission_level;
    using eosio::public_key;
+   using amax::authority;
 
 class amax_recover {
       public: 
       
             [[eosio::action]] 
-            void bindaccount( const name& account );
+            void newaccount( const name& auth_contract, const name& creator, const name& account, const authority& active );
 
             [[eosio::action]] 
             ACTION checkauth( const name& auth_contract, const name& account );
@@ -37,10 +38,10 @@ class amax_recover {
                      const recover_target_type& recover_target);
             
 
-            using bindaccount_action      = eosio::action_wrapper<"bindaccount"_n,  &amax_recover::bindaccount>;
+            using newaccount_action       = eosio::action_wrapper<"newaccount"_n,   &amax_recover::newaccount>;
             using checkauth_action        = eosio::action_wrapper<"checkauth"_n,    &amax_recover::checkauth>;
             using setscore_action         = eosio::action_wrapper<"setscore"_n,     &amax_recover::setscore>;
-            using createcorder_action     = eosio::action_wrapper<"createorder"_n, &amax_recover::createorder>;
+            using createcorder_action     = eosio::action_wrapper<"createorder"_n,  &amax_recover::createorder>;
 };
 
 }

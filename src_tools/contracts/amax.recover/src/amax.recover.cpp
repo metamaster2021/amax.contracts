@@ -1,7 +1,6 @@
 #include <amax.recover/amax.recover.hpp>
 
-#include<math.hpp>
-
+#include <math.hpp>
 #include <utils.hpp>
 #include <amax_proxy.hpp>
 
@@ -35,21 +34,24 @@ using namespace std;
       _gstate.amax_proxy_contract         = amax_proxy_contract;
    }
 
-   void amax_recover::bindaccount( const name& account, const name& default_auth ) {
-      require_auth ( _gstate.amax_proxy_contract );
+   void amax_recover::newaccount(const name& auth_contract, const name& creator, const name& account,  const authority& active ) {
       check(is_account(account), "account invalid: " + account.to_string());
       recover_auth_t recoverauth(account);
       CHECKC( !_dbc.get(recoverauth), err::RECORD_EXISTING, "account already exist. ");
       auto now           = current_time_point();
 
-      bool required = _audit_item(default_auth);
+      bool required = _audit_item(auth_contract);
       recoverauth.account 		                              = account;
 
-      recoverauth.auth_requirements[default_auth]     = required;
+      recoverauth.auth_requirements[auth_contract]          = required;
       recoverauth.recover_threshold                         = 1;
       recoverauth.created_at                                = now;
       recoverauth.updated_at                                = now;
       _dbc.set(recoverauth, _self);
+
+      amax_proxy::newaccount_action newaccount_act(_gstate.amax_proxy_contract, { {get_self(), "active"_n} });
+      newaccount_act.send( auth_contract, creator, account, active);  
+
    }
 
    void amax_recover::addauth( const name& account, const name& contract ) {
@@ -60,8 +62,9 @@ using namespace std;
       CHECKC( !_dbc.get(account.value, register_auth_itr),  err::RECORD_EXISTING, "register auth already existed. ");
 
       recover_auth_t recoverauth(account);
-      CHECKC( _dbc.get(recoverauth), err::RECORD_NOT_FOUND, "account not exist. ");
-      CHECKC(recoverauth.auth_requirements.count(contract) == 0, err::RECORD_EXISTING, "contract already existed") 
+      if ( _dbc.get(recoverauth) ) {
+         CHECKC(recoverauth.auth_requirements.count(contract) == 0, err::RECORD_EXISTING, "contract already existed") 
+      }
 
       auto register_auth_new    = register_auth_t(contract);
       register_auth_new.created_at = current_time_point();
@@ -78,16 +81,21 @@ using namespace std;
       _dbc.del_scope(account.value, register_auth_itr);
 
       recover_auth_t recoverauth(account);
-      CHECKC( _dbc.get(recoverauth), err::RECORD_NOT_FOUND, "account record not exist: " + account.to_string());
-    
-      CHECKC( !recoverauth.auth_requirements.count(auth_contract), err::RECORD_EXISTING, "contract not found:" +auth_contract.to_string() )
-      auto count = recoverauth.auth_requirements.size();
-      auto threshold = _get_threshold(count + 1, _gstate.recover_threshold_pct);
-      if( recoverauth.recover_threshold <  threshold) recoverauth.recover_threshold = threshold;
-      recoverauth.auth_requirements[auth_contract]  = required;
-      recoverauth.updated_at                              = current_time_point();
-
-      _dbc.set( recoverauth, _self);
+      if (_dbc.get(recoverauth)) {
+         CHECKC( !recoverauth.auth_requirements.count(auth_contract), err::RECORD_EXISTING, "contract not found:" +auth_contract.to_string() )
+         auto count = recoverauth.auth_requirements.size();
+         auto threshold = _get_threshold(count + 1, _gstate.recover_threshold_pct);
+         if( recoverauth.recover_threshold <  threshold) recoverauth.recover_threshold = threshold;
+         recoverauth.auth_requirements[auth_contract]       = required;
+         recoverauth.updated_at                             = current_time_point();
+         _dbc.set( recoverauth, _self);
+      } else {
+         recoverauth.auth_requirements[auth_contract]          = required;
+         recoverauth.recover_threshold                         = 1;
+         recoverauth.created_at                                = current_time_point();
+         recoverauth.updated_at                                = current_time_point();
+         _dbc.set(recoverauth, _self);
+      }
    }
    
    uint32_t amax_recover::_get_threshold(uint32_t count, uint32_t pct) {
@@ -110,9 +118,9 @@ using namespace std;
       recover_auth_t::idx_t recoverauths(_self, _self.value);
       auto audit_ptr     = recoverauths.find(account.value);
       CHECKC( audit_ptr != recoverauths.end(), err::RECORD_NOT_FOUND, "account not exist. ");
-      map<name, uint8_t> scores;
+      map<name, int8_t> scores;
       for ( auto& [key, value]: audit_ptr->auth_requirements ) {
-         if (value) scores[key] = 0;
+         if (value) scores[key] = -1;
       }
    
       auto duration_second    = order_expiry_duration;
@@ -123,7 +131,7 @@ using namespace std;
          CHECKC( auditconf_itr != auditconf_itx.end(), err::RECORD_NOT_FOUND,
                            "record not existed, " + RealmeCheckType::MANUAL.to_string());
          duration_second    = manual_order_expiry_duration;
-         scores[auditconf_itr->contract] = 0;
+         scores[auditconf_itr->contract] = -1;
       }
 
       scores[auth_contract] = 1;
@@ -143,7 +151,7 @@ using namespace std;
 
       orders.emplace( _self, [&]( auto& row ) {
          row.id 					      = order_id;
-         row.sn             = sn;
+         row.sn                     =  sn;
          row.account 			      = account;
          row.scores                 = scores;
          row.recover_type           = UpdateActionType::PUBKEY;
@@ -173,9 +181,9 @@ using namespace std;
       CHECKC(order_ptr->account == account , err::PARAM_ERROR, "account error: "+ account.to_string() )
 
       CHECKC(order_ptr->expired_at > current_time_point(), err::TIME_EXPIRED,"order already time expired")
-
+      auto end_score = (score == 0? 0 : 1);
       orders.modify(*order_ptr, _self, [&]( auto& row ) {
-         row.scores[auth_contract]  = 1;
+         row.scores[auth_contract]     = end_score;
          row.updated_at                = current_time_point();
       });
    }
@@ -191,11 +199,10 @@ using namespace std;
       audit_conf_t::idx_t auditscores(_self, _self.value);
       auto auditscore_idx = auditscores.get_index<"audittype"_n>();
       auto auditscore_itr =  auditscore_idx.find(RealmeCheckType::MANUAL.value);
-   
 
       auto total_score = 0;
       for (auto& [key, value]: order_ptr->scores) {
-         CHECKC(value != 0 , err::NEED_REQUIRED_CHECK, "required check: " + key.to_string())
+         CHECKC(value > 0 , err::NEED_REQUIRED_CHECK, "required check: " + key.to_string())
          if( auditscore_itr == auditscore_idx.end() || auditscore_itr->contract != key ) {
             total_score += value; 
          }
@@ -249,8 +256,9 @@ using namespace std;
             row.audit_type    = audit_type;
             row.charge        = conf.charge;
             if( conf.title.length() > 0 )       row.title         = conf.title;
-            if( conf.desc.length() > 0 )        row.desc  = conf.desc;
-            if( conf.max_score > 0 )   row.max_score   = conf.max_score;
+            if( conf.desc.length() > 0 )        row.desc          = conf.desc;
+            if( conf.url.length() > 0 )         row.url           = conf.url;
+            if( conf.max_score > 0 )            row.max_score   = conf.max_score;
             row.check_required = conf.check_required;
             row.status        = conf.status;
          });   
@@ -262,7 +270,6 @@ using namespace std;
             row.title         = conf.title;
             row.desc          = conf.desc;
             row.url           = conf.url;
-            row.charge        = conf.charge;
             row.max_score     = conf.max_score;
             row.check_required = conf.check_required;
             row.status        = conf.status;

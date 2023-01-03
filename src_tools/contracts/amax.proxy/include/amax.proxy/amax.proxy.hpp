@@ -10,7 +10,6 @@
 #include <amax.proxy/amax.proxy.db.hpp>
 #include <wasm_db.hpp>
 #include <amax_system.hpp>
-#include <amax_recover.hpp>
 
 namespace amax {
 
@@ -82,9 +81,9 @@ class [[eosio::contract("amax.proxy")]] amax_proxy : public contract {
     }
     ~amax_proxy() { _global.set( _gstate, get_self() ); }
 
-   ACTION init(  const name& amax_recover);
+   ACTION init( const name& amax_recover, const asset& stake_net_quantity, const asset& stake_cpu_quantity);
 
-   ACTION newaccount(const name& auth_contract, const name& creator, const name& account, const authority& active);
+   ACTION newaccount( const name& auth_contract, const name& creator, const name& account, const authority& active);
 
    ACTION updateauth( const name& account, const eosio::public_key& pubkey );
 

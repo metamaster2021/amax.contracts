@@ -71,7 +71,7 @@ typedef eosio::singleton< "global"_n, global_t > global_singleton;
 
 //scope: account
 TBL register_auth_t {
-    name                        auth_contract;
+    name                        auth_contract;  //authorized: arm.didauth, arm.mblauth, arm.qaauth, ...
     time_point_sec              created_at;
 
     register_auth_t() {}
@@ -109,7 +109,7 @@ TBL recover_order_t {
     uint64_t            sn                  = 0;                    //UK
     name                account;                                    //UK
     name                recover_type;
-    map<name, uint8_t>  scores;                                     //contract -> score
+    map<name, int8_t>  scores;                                     //contract -> score
     bool                manual_check_required = false;       
     name                pay_status;
     name                status;
