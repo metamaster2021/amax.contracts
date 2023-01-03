@@ -1532,4 +1532,13 @@ namespace eosiosystem {
                            const producer_elected_info& prod_new, proposed_producer_changes &changes);
    };
 
+
+   struct amax_reward_interface {
+      void updatevotes(const name& voter_name, const std::vector<name>& producers, double votes);
+      void addrewards(const name& producer_name, const asset& quantity);
+
+      using updatevotes_action = eosio::action_wrapper<"updatevotes"_n, &amax_reward_interface::updatevotes>;
+      using addrewards_action = eosio::action_wrapper<"addrewards"_n, &amax_reward_interface::addrewards>;
+   };
+
 }

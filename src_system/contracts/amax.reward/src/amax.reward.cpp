@@ -115,6 +115,7 @@ void amax_reward::updatevotes(const name& voter_name, const std::set<name>& prod
 
 
 void amax_reward::addrewards(const name& producer_name, const asset& quantity) {
+   require_auth( SYSTEM_CONTRACT );
    require_auth(producer_name);
    check(is_account(producer_name), "producer account not found");
    check(quantity.symbol == CORE_SYMBOL, "symbol mismatch");
@@ -124,7 +125,7 @@ void amax_reward::addrewards(const name& producer_name, const asset& quantity) {
 
    producer::table producer_tbl(get_self(), get_self().value);
    auto prod_itr = producer_tbl.find(producer_name.value);
-   db::set(producer_tbl, prod_itr, producer_name, [&]( auto& p, bool is_new ) {
+   db::set(producer_tbl, prod_itr, producer_name, producer_name, [&]( auto& p, bool is_new ) {
       if (is_new) {
          p.owner =  producer_name;
       }

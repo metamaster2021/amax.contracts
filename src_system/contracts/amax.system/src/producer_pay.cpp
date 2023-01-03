@@ -129,8 +129,12 @@ namespace eosiosystem {
       issue_act.send( get_self(), prod.unclaimed_rewards, "issue tokens for producer rewards" );
 
       if (shared_amount > 0) {
+         auto shared_quant = asset(shared_amount, prod.unclaimed_rewards.symbol);
          token::transfer_action transfer_act{ token_account, { {get_self(), active_permission} } };
-         transfer_act.send( get_self(), _gstate.reward_dispatcher, asset(shared_amount, prod.unclaimed_rewards.symbol), "producer shared rewards" );
+         transfer_act.send( get_self(), _gstate.reward_dispatcher, shared_quant, "producer shared rewards" );
+         amax_reward_interface::addrewards_action addrewards_act{ _gstate.reward_dispatcher,
+                  { {get_self(), active_permission}, {owner, active_permission} } };
+         addrewards_act.send( owner, shared_quant );
       }
 
       if (self_amount > 0) {

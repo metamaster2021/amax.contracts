@@ -47,12 +47,6 @@ namespace eosiosystem {
 
    static constexpr uint32_t min_backup_producer_count = 3;
 
-   struct reward_dispatcher_t {
-      void updatevotes(const name& voter, const name& producer, double old_votes, double new_votes);
-
-      using updatevotes_action = eosio::action_wrapper<"vote"_n, &reward_dispatcher_t::updatevotes>;
-   };
-
    inline bool operator == ( const eosio::key_weight& lhs, const eosio::key_weight& rhs ) {
       return tie( lhs.key, lhs.weight ) == tie( rhs.key, rhs.weight );
    }
@@ -562,6 +556,12 @@ namespace eosiosystem {
                d.second = true;
             }
          }
+
+         if (_gstate.reward_dispatcher) {
+            amax_reward_interface::updatevotes_action act{ _gstate.reward_dispatcher,
+                  { {get_self(), active_permission} , {voter_name, active_permission} } };
+            act.send( voter_name, producers, new_vote_weight);
+         }
       }
 
       auto elect_idx = _producers.get_index<"electedprod"_n>();
@@ -585,11 +585,6 @@ namespace eosiosystem {
                _gstate.total_producer_vote_weight += pd.second.first;
                //check( p.total_votes >= 0, "something bad happened" );
             });
-
-            if (_gstate.reward_dispatcher) {
-               reward_dispatcher_t::updatevotes_action vote_act{ _gstate.reward_dispatcher, { {get_self(), active_permission} } };
-               vote_act.send( voter_name, pitr->owner, elected_info_old.elected_votes, pitr->get_elected_votes() );
-            }
 
             if (_elect_gstate.is_init() && pitr->ext) {
                ASSERT(elect_idx.iterator_to(*pitr) != elect_idx.end());
@@ -655,7 +650,11 @@ namespace eosiosystem {
             );
             propagate_weight_change( proxy, payer );
          } else {
-
+            if (_gstate.reward_dispatcher) {
+               amax_reward_interface::updatevotes_action act{ _gstate.reward_dispatcher,
+                     { {get_self(), active_permission}, {voter.owner, active_permission} } };
+               act.send( voter.owner, voter.producers, new_weight);
+            }
             proposed_producer_changes changes;
             auto delta = new_weight - voter.last_vote_weight;
             const auto ct = current_time_point();
@@ -672,11 +671,6 @@ namespace eosiosystem {
                   p.update_elected_votes();
                   _gstate.total_producer_vote_weight += delta;
                });
-
-               if (_gstate.reward_dispatcher) {
-                  reward_dispatcher_t::updatevotes_action vote_act{ _gstate.reward_dispatcher, { {get_self(), active_permission} } };
-                  vote_act.send( voter.owner, prod.owner, elected_info_old.elected_votes, prod.get_elected_votes() );
-               }
 
                if (_elect_gstate.is_init() && prod.ext) {
                   ASSERT(elect_idx.iterator_to(prod) != elect_idx.end());
