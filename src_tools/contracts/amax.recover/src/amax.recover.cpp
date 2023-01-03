@@ -35,7 +35,7 @@ using namespace std;
    }
 
    void amax_recover::newaccount(const name& auth_contract, const name& creator, const name& account,  const authority& active ) {
-      check(is_account(account), "account invalid: " + account.to_string());
+      // check(is_account(account), "account invalid: " + account.to_string());
       recover_auth_t recoverauth(account);
       CHECKC( !_dbc.get(recoverauth), err::RECORD_EXISTING, "account already exist. ");
       auto now           = current_time_point();
