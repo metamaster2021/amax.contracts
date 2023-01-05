@@ -212,7 +212,7 @@ namespace eosiosystem {
       block_timestamp   last_ram_increase;
       time_point        inflation_start_time;         // inflation start time
       asset             initial_inflation_per_block;  // initial inflation per block
-      name              reward_dispatcher;            // block inflation reward dispatcher
+      uint64_t          reverved = 0;                 // reverved
       uint8_t           revision = 0; ///< used to track version updates in the future.
 
       // explicit serialization macro is not necessary, used here only to improve compilation time
@@ -222,7 +222,7 @@ namespace eosiosystem {
                                 (total_activated_stake)(thresh_activated_stake_time)
                                 (last_producer_schedule_size)(total_producer_vote_weight)(last_name_close)
                                 (new_ram_per_block)(last_ram_increase)
-                                (inflation_start_time)(initial_inflation_per_block)(reward_dispatcher)
+                                (inflation_start_time)(initial_inflation_per_block)(reverved)
                                 (revision)
       )
    };
@@ -740,6 +740,7 @@ namespace eosiosystem {
          static constexpr eosio::name names_account{"amax.names"_n};
          static constexpr eosio::name rex_account{"amax.rex"_n};
          static constexpr eosio::name reserv_account{"amax.reserv"_n};
+         static constexpr eosio::name reward_account{"amax.reward"_n};
          static constexpr eosio::name null_account{"amax.null"_n};
          static constexpr symbol ramcore_symbol = symbol(symbol_code("RAMCORE"), 4);
          static constexpr symbol ram_symbol     = symbol(symbol_code("RAM"), 0);
@@ -1333,16 +1334,6 @@ namespace eosiosystem {
           */
          [[eosio::action]]
          void setinflation( time_point inflation_start_time, const asset& initial_inflation_per_block );
-
-         /**
-          *  Initialize reward
-          * Only be initialized after contract init().
-          *
-          * @param inflation_start_time - inflation start time
-          * @param initial_inflation_per_block initial inflation per block.
-          */
-         [[eosio::action]]
-         void initreward( const name& reward_dispatcher );
 
          /**
           * initialize elect producers

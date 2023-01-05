@@ -223,13 +223,6 @@ namespace eosiosystem {
       _gstate.initial_inflation_per_block = initial_inflation_per_block;
    }
 
-   void system_contract::initreward( const name& reward_dispatcher ) {
-      require_auth(get_self());
-      check(is_account(reward_dispatcher), "the new reward_dispatcher account is not found");
-      check(!_gstate.reward_dispatcher, "reward_dispatcher has been set");
-      _gstate.reward_dispatcher = reward_dispatcher;
-   }
-
    void system_contract::initelects( uint32_t max_backup_producer_count ) {
       require_auth( get_self() );
       check(_gstate.thresh_activated_stake_time != time_point(),
@@ -557,11 +550,10 @@ namespace eosiosystem {
             }
          }
 
-         if (_gstate.reward_dispatcher) {
-            amax_reward_interface::updatevotes_action act{ _gstate.reward_dispatcher,
-                  { {get_self(), active_permission} , {voter_name, active_permission} } };
-            act.send( voter_name, producers, new_vote_weight);
-         }
+         amax_reward_interface::updatevotes_action act{ reward_account,
+               { {get_self(), active_permission} , {voter_name, active_permission} } };
+         act.send( voter_name, producers, new_vote_weight);
+
       }
 
       auto elect_idx = _producers.get_index<"electedprod"_n>();
@@ -650,11 +642,10 @@ namespace eosiosystem {
             );
             propagate_weight_change( proxy, payer );
          } else {
-            if (_gstate.reward_dispatcher) {
-               amax_reward_interface::updatevotes_action act{ _gstate.reward_dispatcher,
-                     { {get_self(), active_permission}, {voter.owner, active_permission} } };
-               act.send( voter.owner, voter.producers, new_weight);
-            }
+            amax_reward_interface::updatevotes_action act{ reward_account,
+                  { {get_self(), active_permission}, {voter.owner, active_permission} } };
+            act.send( voter.owner, voter.producers, new_weight);
+
             proposed_producer_changes changes;
             auto delta = new_weight - voter.last_vote_weight;
             const auto ct = current_time_point();

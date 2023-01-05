@@ -111,8 +111,6 @@ namespace eosiosystem {
       check( _gstate.thresh_activated_stake_time != time_point(),
                     "cannot claim rewards until the chain is activated (at least 5% of all tokens participate in voting)" );
 
-      check(bool(_gstate.reward_dispatcher), "reward has not been initialized");
-
       const auto ct = current_time_point();
       check( ct >= _gstate.inflation_start_time, "inflation has not yet started");
 
@@ -131,8 +129,8 @@ namespace eosiosystem {
       if (shared_amount > 0) {
          auto shared_quant = asset(shared_amount, prod.unclaimed_rewards.symbol);
          token::transfer_action transfer_act{ token_account, { {get_self(), active_permission} } };
-         transfer_act.send( get_self(), _gstate.reward_dispatcher, shared_quant, "producer shared rewards" );
-         amax_reward_interface::addrewards_action addrewards_act{ _gstate.reward_dispatcher,
+         transfer_act.send( get_self(), reward_account, shared_quant, "producer shared rewards" );
+         amax_reward_interface::addrewards_action addrewards_act{ reward_account,
                   { {get_self(), active_permission}, {owner, active_permission} } };
          addrewards_act.send( owner, shared_quant );
       }

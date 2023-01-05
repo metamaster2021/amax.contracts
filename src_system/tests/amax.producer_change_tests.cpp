@@ -135,7 +135,7 @@ struct amax_global_state: public eosio::chain::chain_config {
    block_timestamp_type   last_ram_increase;
    time_point        inflation_start_time;         // inflation start time
    asset             initial_inflation_per_block;  // initial inflation per block
-   name              reward_dispatcher;            // block inflation reward dispatcher
+   uint64_t          reverved = 0;                 // reverved
    uint8_t           revision = 0; ///< used to track version updates in the future.
 };
 
@@ -145,7 +145,7 @@ FC_REFLECT_DERIVED( amax_global_state, (eosio::chain::chain_config),
                   (total_activated_stake)(thresh_activated_stake_time)
                   (last_producer_schedule_size)(total_producer_vote_weight)(last_name_close)
                   (new_ram_per_block)(last_ram_increase)
-                  (inflation_start_time)(initial_inflation_per_block)(reward_dispatcher)
+                  (inflation_start_time)(initial_inflation_per_block)(reverved)
                   (revision)
 )
 
