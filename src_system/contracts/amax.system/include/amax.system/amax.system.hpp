@@ -1171,7 +1171,7 @@ namespace eosiosystem {
           * @pre Authority of producer to register
           */
          [[eosio::action]]
-         void regproducer( const name& producer, const public_key& producer_key, const std::string& url, uint16_t location );
+         void regproducer( const name& producer, const public_key& producer_key, const std::string& url, uint16_t location, uint32_t reward_shared_ratio );
 
          /**
           * Register producer action, indicates that a particular account wishes to become a producer,
@@ -1187,7 +1187,7 @@ namespace eosiosystem {
           * @pre Authority of producer to register
           */
          [[eosio::action]]
-         void regproducer2( const name& producer, const eosio::block_signing_authority& producer_authority, const std::string& url, uint16_t location );
+         void regproducer2( const name& producer, const eosio::block_signing_authority& producer_authority, const std::string& url, uint16_t location, uint32_t reward_shared_ratio );
 
          /**
           * Unregister producer action, deactivates the block producer with account name `producer`.
@@ -1474,7 +1474,7 @@ namespace eosiosystem {
          void update_voting_power( const name& voter, const asset& total_update );
 
          // defined in voting.cpp
-         void register_producer( const name& producer, const eosio::block_signing_authority& producer_authority, const std::string& url, uint16_t location );
+         void register_producer( const name& producer, const eosio::block_signing_authority& producer_authority, const std::string& url, uint16_t location, uint32_t reward_shared_ratio );
          void update_elected_producers( const block_timestamp& timestamp );
          void update_elected_producer_changes( const block_timestamp& timestamp );
          void update_votes( const name& voter, const name& proxy, const std::vector<name>& producers, bool voting );

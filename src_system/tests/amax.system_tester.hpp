@@ -791,6 +791,8 @@ public:
                           ("producer_key", get_public_key( acnt, "active" ) )
                           ("url", "" )
                           ("location", 0 )
+                          ("reward_shared_ratio", 0 )
+
       );
       BOOST_REQUIRE_EQUAL( success(), r);
       return r;

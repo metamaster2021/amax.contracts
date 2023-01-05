@@ -357,6 +357,7 @@ struct producer_change_tester : eosio_system_tester {
                           ("producer_key", get_producer_public_key( acnt, version ) )
                           ("url", "" )
                           ("location", 0 )
+                          ("reward_shared_ratio", 0 )
       );
    }
 

@@ -1030,6 +1030,7 @@ BOOST_FIXTURE_TEST_CASE( producer_register_unregister, eosio_system_tester ) try
                                                ("producer_key", key )
                                                ("url", "https://armoniax.com/")
                                                ("location", 1)
+                                               ("reward_shared_ratio", 0)
                         )
    );
 
@@ -1045,6 +1046,7 @@ BOOST_FIXTURE_TEST_CASE( producer_register_unregister, eosio_system_tester ) try
                                                ("producer_key", key )
                                                ("url", "http://block.two")
                                                ("location", 1)
+                                               ("reward_shared_ratio", 0)
                         )
    );
    info = get_producer_info( "alice1111111" );
@@ -1059,6 +1061,7 @@ BOOST_FIXTURE_TEST_CASE( producer_register_unregister, eosio_system_tester ) try
                                                ("producer_key", key2 )
                                                ("url", "http://block.two")
                                                ("location", 2)
+                                               ("reward_shared_ratio", 0)
                         )
    );
    info = get_producer_info( "alice1111111" );
@@ -1199,6 +1202,7 @@ BOOST_FIXTURE_TEST_CASE( producer_wtmsig, eosio_system_tester ) try {
    //                                             ("producer_key", get_public_key( N(alice1111111), "active") )
    //                                             ("url","")
    //                                             ("location", 0)
+   //                                             ("reward_shared_ratio", 0)
    //                      )
    // );
    // BOOST_REQUIRE_EQUAL( success(), stake( N(alice1111111), core_sym::from_string("100000000.0000"), core_sym::from_string("100000000.0000") ) );
@@ -1269,6 +1273,7 @@ BOOST_FIXTURE_TEST_CASE( producer_wtmsig, eosio_system_tester ) try {
 //                                                ("producer_key", get_public_key( N(alice1111111), "active") )
 //                                                ("url","")
 //                                                ("location", 0)
+//                                                ("reward_shared_ratio", 0)
 //                         )
 //    );
 
@@ -1292,6 +1297,7 @@ BOOST_FIXTURE_TEST_CASE( vote_for_producer, eosio_system_tester, * boost::unit_t
                                                ("producer_key", get_public_key( N(alice1111111), "active") )
                                                ("url", "https://armoniax.com/")
                                                ("location", 0 )
+                                               ("reward_shared_ratio", 0)
                         )
    );
    auto prod = get_producer_info( "alice1111111" );
@@ -1383,6 +1389,7 @@ BOOST_FIXTURE_TEST_CASE( unregistered_producer_voting, eosio_system_tester, * bo
                                                ("producer_key", get_public_key( N(alice1111111), "active") )
                                                ("url", "")
                                                ("location", 0)
+                                               ("reward_shared_ratio", 0)
                         )
    );
    //and then unregisters
@@ -1426,6 +1433,7 @@ BOOST_FIXTURE_TEST_CASE( vote_same_producer_30_times, eosio_system_tester ) try 
                                                ("producer_key", get_public_key(N(alice1111111), "active") )
                                                ("url", "")
                                                ("location", 0)
+                                               ("reward_shared_ratio", 0)
                         )
    );
 
@@ -1448,6 +1456,7 @@ BOOST_FIXTURE_TEST_CASE( producer_keep_votes, eosio_system_tester, * boost::unit
                                                ("producer_key", get_public_key( N(alice1111111), "active") )
                                                ("url", "")
                                                ("location", 0)
+                                               ("reward_shared_ratio", 0)
                         )
    );
 
@@ -1482,6 +1491,7 @@ BOOST_FIXTURE_TEST_CASE( producer_keep_votes, eosio_system_tester, * boost::unit
                                                ("producer_key", get_public_key( N(alice1111111), "active") )
                                                ("url", "")
                                                ("location", 0)
+                                               ("reward_shared_ratio", 0)
                         )
    );
    prod = get_producer_info( "alice1111111" );
@@ -1495,6 +1505,7 @@ BOOST_FIXTURE_TEST_CASE( producer_keep_votes, eosio_system_tester, * boost::unit
                                                ("producer_key", get_public_key( N(alice1111111), "active") )
                                                ("url","")
                                                ("location", 0)
+                                               ("reward_shared_ratio", 0)
                         )
    );
    prod = get_producer_info( "alice1111111" );
@@ -1515,6 +1526,7 @@ BOOST_FIXTURE_TEST_CASE( vote_for_two_producers, eosio_system_tester, * boost::u
                                                ("producer_key", get_public_key( N(alice1111111), "active") )
                                                ("url","")
                                                ("location", 0)
+                                               ("reward_shared_ratio", 0)
                         )
    );
    //bob111111111 becomes a producer
@@ -1525,6 +1537,7 @@ BOOST_FIXTURE_TEST_CASE( vote_for_two_producers, eosio_system_tester, * boost::u
                                                ("producer_key", get_public_key( N(alice1111111), "active") )
                                                ("url","")
                                                ("location", 0)
+                                               ("reward_shared_ratio", 0)
                         )
    );
 
