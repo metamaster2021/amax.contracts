@@ -217,9 +217,8 @@ namespace eosiosystem {
       if (_gstate.inflation_start_time != time_point() ) {
          check( ct < _gstate.inflation_start_time, "inflation has been started");
       }
-      check(inflation_start_time > ct, "inflation start time must larger then current time");
 
-      _gstate.inflation_start_time = inflation_start_time;
+      _gstate.inflation_start_time = inflation_start_time > ct ? inflation_start_time : ct;
       _gstate.initial_inflation_per_block = initial_inflation_per_block;
    }
 
