@@ -81,6 +81,7 @@ using namespace std;
       _dbc.del_scope(account.value, register_auth_itr);
 
       recover_auth_t recoverauth(account);
+      
       if (_dbc.get(recoverauth)) {
          CHECKC( !recoverauth.auth_requirements.count(auth_contract), err::RECORD_EXISTING, "contract not found:" +auth_contract.to_string() )
          auto count = recoverauth.auth_requirements.size();
@@ -240,6 +241,9 @@ using namespace std;
                audit_type == RealmeCheckType::DID ||
                audit_type == RealmeCheckType::TELEGRAM ||
                audit_type == RealmeCheckType::FACEBOOK ||
+               audit_type == RealmeCheckType::FACEBOOK ||
+               audit_type == RealmeCheckType::WHATSAPP ||
+               audit_type == RealmeCheckType::MAIL ||
                audit_type == RealmeCheckType::MANUAL , err::PARAM_ERROR, "audit type error: " + audit_type.to_string())
 
       CHECKC( conf.status == ContractStatus::RUNNING || conf.status == ContractStatus::STOPPED, 

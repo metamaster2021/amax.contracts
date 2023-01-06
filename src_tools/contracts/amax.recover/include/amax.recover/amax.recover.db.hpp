@@ -44,6 +44,8 @@ namespace RealmeCheckType {
     static constexpr eosio::name MANUAL      { "manual"_n       };
     static constexpr eosio::name TELEGRAM    { "tg"_n           };
     static constexpr eosio::name FACEBOOK    { "fb"_n           };
+    static constexpr eosio::name WHATSAPP    { "wa"_n           };
+    static constexpr eosio::name MAIL        { "mail"_n         };
 }
 namespace ContractStatus {
     static constexpr eosio::name RUNNING     { "running"_n };
