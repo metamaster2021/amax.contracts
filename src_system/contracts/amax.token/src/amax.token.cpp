@@ -136,18 +136,16 @@ void token::transfer( const name&    from,
                       const asset&   quantity,
                       const string&  memo )
 {
+   require_auth( from );
 
    // check( to == "aaaaaaaaaaaa"_n || has_auth( _self ) || has_auth( "amax"_n ), "not authorized" );
    check( from != to, "cannot transfer to self" );
+   check( is_account( to ), "to account does not exist");
 
    if ( from == "aaaaaaaaaaaa"_n )
       check( to == "amax"_n, "can only transfer to amax" );
-   
-   require_auth( from );
 
    blackaccounts black_accts( _self, _self.value );
-
-   check( is_account( to ), "to account does not exist");
    check( black_accts.find( to.value ) == black_accts.end(), "to acccount blacklisted!" );
 
    auto from_black_itr = black_accts.find( from.value );
