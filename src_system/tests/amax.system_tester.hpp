@@ -36,7 +36,7 @@ public:
       produce_blocks( 2 );
 
       create_accounts({ N(amax.token), N(amax.ram), N(amax.ramfee), N(amax.stake),
-               N(amax.bpay), N(amax.vpay), N(amax.saving), N(amax.names), N(amax.rex) });
+               N(amax.bpay), N(amax.vpay), N(amax.saving), N(amax.names), N(amax.rex), N(amax.reward) });
 
 
       produce_blocks( 100 );
@@ -48,6 +48,10 @@ public:
          BOOST_REQUIRE_EQUAL(abi_serializer::to_abi(accnt.abi, abi), true);
          token_abi_ser.set_abi(abi, abi_serializer::create_yield_function(abi_serializer_max_time));
       }
+      produce_block();
+
+      set_code( N(amax.reward), contracts::reward_wasm());
+      set_abi( N(amax.reward), contracts::reward_abi().data() );
    }
 
    void create_core_token( symbol core_symbol = symbol{CORE_SYM} ) {

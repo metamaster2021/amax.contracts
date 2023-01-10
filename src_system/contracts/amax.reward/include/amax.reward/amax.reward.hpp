@@ -85,7 +85,7 @@ namespace amax {
       private:
 
 
-         struct [[eosio::table]] global_state {
+         struct [[eosio::table("global")]] global_state {
             asset                reward_balance = CORE_ASSET(0);
             asset                total_rewards  = CORE_ASSET(0);
 
@@ -107,7 +107,7 @@ namespace amax {
          };
 
 
-         struct [[eosio::table]] vote_reward_info {
+         struct vote_reward_info {
             double               last_reward_per_vote;
          };
 

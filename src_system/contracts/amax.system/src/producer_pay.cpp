@@ -140,5 +140,9 @@ namespace eosiosystem {
          transfer_act.send( get_self(), prod.owner, asset(self_amount, prod.unclaimed_rewards.symbol), "producer self rewards" );
       }
 
+      _producers.modify( prod, same_payer, [&](auto& p ) {
+            p.unclaimed_rewards.amount = 0;
+            p.last_claimed_time = ct;
+      });
    }
 } //namespace eosiosystem

@@ -58,12 +58,12 @@ void amax_reward::updatevotes(const name& voter_name, const std::set<name>& prod
 
    auto voter_itr = voter_tbl.find(voter_name.value);
    if (voter_itr != voter_tbl.end()) {
-      // old_votes = voter_itr->votes;
+      // auto old_votes = voter_itr->votes;
       if (voter_itr->votes > 0) {
          for ( const auto& voted_prod : voter_itr->producers) {
             const auto& prod_name = voted_prod.first;
             auto &last_reward_per_vote = voted_prod.second.last_reward_per_vote;
-            auto prod = producer_tbl.get(prod_name.value, "the voted producer not found");
+            const auto& prod = producer_tbl.get(prod_name.value, "the voted producer not found");
 
             producer_tbl.modify( prod, eosio::same_payer, [&]( auto& p ) {
                // allocate rewards
@@ -77,7 +77,6 @@ void amax_reward::updatevotes(const name& voter_name, const std::set<name>& prod
                }
                p.votes += votes - voter_itr->votes;
             });
-
 
             if (producers.count(prod_name)) {
                new_producers[prod_name].last_reward_per_vote =  prod.reward_per_vote;

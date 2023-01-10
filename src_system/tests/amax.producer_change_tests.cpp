@@ -7,6 +7,7 @@
 #include <eosio/chain/resource_limits.hpp>
 #include <eosio/chain/wast_to_wasm.hpp>
 #include <eosio/chain/config.hpp>
+#include <eosio/chain/fork_database.hpp>
 #include <fc/log/logger.hpp>
 #include <iostream>
 #include <sstream>
@@ -151,8 +152,9 @@ FC_REFLECT_DERIVED( amax_global_state, (eosio::chain::chain_config),
 
 struct producer_info_ext {
    double         elected_votes     = 0;
+   uint32_t       reward_shared_ratio = 0;
 };
-FC_REFLECT( producer_info_ext, (elected_votes))
+FC_REFLECT( producer_info_ext, (elected_votes)(reward_shared_ratio))
 
 struct producer_info {
    name                                                     owner;
@@ -304,12 +306,19 @@ struct producer_change_tester : eosio_system_tester {
       return base_tester::push_action( config::system_account_name, name, signer, data);
    }
 
-   // void initelects( const name& payer, uint32_t max_backup_producer_count );
-   transaction_trace_ptr initelects(const name& payer, uint32_t max_backup_producer_count) {
+   // void initelects( uint32_t max_backup_producer_count );
+   transaction_trace_ptr initelects(uint32_t max_backup_producer_count) {
       // push action without commit current block
-      return push_action(payer, N(initelects), mvo()
-                  ("payer", payer)
+      return push_action(config::system_account_name, N(initelects), mvo()
                   ("max_backup_producer_count", max_backup_producer_count)
+      );
+   }
+
+   transaction_trace_ptr setinflation(const time_point& inflation_start_time, const asset& initial_inflation_per_block ) {
+      // push action without commit current block
+      return push_action(config::system_account_name, N(setinflation), mvo()
+                  ("inflation_start_time", inflation_start_time)
+                  ("initial_inflation_per_block", initial_inflation_per_block)
       );
    }
 
@@ -330,6 +339,11 @@ struct producer_change_tester : eosio_system_tester {
    elect_global_state get_elect_global_state() {
       return get_row_by_account<elect_global_state>( config::system_account_name, config::system_account_name,
          N(electglobal), N(electglobal) );
+   }
+
+   producer_info get_producer_info(const name& producer_name) {
+      return get_row_by_account<producer_info>( config::system_account_name, config::system_account_name,
+         N(producers), producer_name );
    }
 
    static auto get_producer_private_key( name producer_name, uint64_t version = 1 ) {
@@ -357,7 +371,7 @@ struct producer_change_tester : eosio_system_tester {
                           ("producer_key", get_producer_public_key( acnt, version ) )
                           ("url", "" )
                           ("location", 0 )
-                          ("reward_shared_ratio", 0 )
+                          ("reward_shared_ratio", 8000 )
       );
    }
 
@@ -510,6 +524,17 @@ struct producer_change_tester : eosio_system_tester {
       return producers[index];
    }
 
+   optional<producer_authority> calc_backup_scheduled_producer( const backup_producer_schedule_ptr &schedule, block_timestamp_type t ) const {
+      optional<producer_authority> result;
+      if (schedule && schedule->producers.size() > 0) {
+         auto index = t.slot % (schedule->producers.size() * config::backup_producer_repetitions);
+         index /= config::backup_producer_repetitions;
+         const auto& itr = schedule->producers.nth(index);
+         return producer_authority{itr->first, itr->second};
+      }
+      return optional<producer_authority>{};
+   }
+
    template<typename T>
    inline bool vector_matched( const std::vector<T>& a, const std::vector<T>& b, size_t sz ) {
       wdump( (a.size() )  (b.size()) (sz));
@@ -606,7 +631,7 @@ BOOST_FIXTURE_TEST_CASE(producer_elects_test, producer_change_tester) try {
    wdump( (gstate.thresh_activated_stake_time) );
    BOOST_REQUIRE( gstate.thresh_activated_stake_time == control->pending_block_time() );
 
-   initelects(config::system_account_name, 43);
+   initelects(43);
    elect_gstate = get_elect_global_state();
    BOOST_REQUIRE_EQUAL( elect_gstate.elected_version, 1 );
    BOOST_REQUIRE(gpo.proposed_schedule_block_num);
@@ -693,6 +718,57 @@ BOOST_FIXTURE_TEST_CASE(producer_elects_test, producer_change_tester) try {
    hbs = control->head_block_state();
    BOOST_REQUIRE( !hbs->active_backup_schedule.schedule && hbs->active_backup_schedule.pre_schedule );
    BOOST_REQUIRE_EQUAL( hbs->header.producer, calc_main_scheduled_producer(hbs->active_schedule.producers, hbs->header.timestamp).producer_name );
+
+   auto old_hbs = hbs;
+   auto old_backup_head_block = control->fork_db().get_backup_head_block(hbs->header.previous);
+   BOOST_REQUIRE( old_backup_head_block );
+
+   auto next_main_prod = calc_main_scheduled_producer(hbs->active_schedule.producers, hbs->header.timestamp.next()).producer_name;
+   auto next_main_prod_info = get_producer_info(next_main_prod);
+   wdump((next_main_prod_info));
+   BOOST_REQUIRE_EQUAL(next_main_prod, next_main_prod_info.owner);
+   BOOST_REQUIRE(next_main_prod_info.last_claimed_time < hbs->header.timestamp.to_time_point());
+   BOOST_REQUIRE_EQUAL(next_main_prod_info.unclaimed_rewards, core_sym::from_string("0.0000"));
+   BOOST_REQUIRE_EQUAL(next_main_prod_info.ext.value.elected_votes, next_main_prod_info.total_votes);
+   BOOST_REQUIRE(next_main_prod_info.ext.value.reward_shared_ratio == 8000);
+
+   auto backup_prod = calc_backup_scheduled_producer(
+         hbs->active_backup_schedule.get_schedule(), hbs->header.timestamp)->producer_name;
+   auto backup_prod_info = get_producer_info(backup_prod);
+
+   BOOST_REQUIRE_EQUAL(backup_prod, old_backup_head_block->header.producer);
+   BOOST_REQUIRE_EQUAL(backup_prod, backup_prod_info.owner);
+   BOOST_REQUIRE(backup_prod_info.last_claimed_time < hbs->header.timestamp.to_time_point());
+   BOOST_REQUIRE_EQUAL(backup_prod_info.unclaimed_rewards, core_sym::from_string("0.0000"));
+   BOOST_REQUIRE_EQUAL(backup_prod_info.ext.value.elected_votes, backup_prod_info.total_votes);
+   BOOST_REQUIRE(backup_prod_info.ext.value.reward_shared_ratio == 8000);
+
+   setinflation(control->head_block_time(), core_sym::from_string("0.2000"));
+   produce_block();
+
+   hbs = control->head_block_state();
+
+   BOOST_REQUIRE_EQUAL( hbs->header.backup_ext().is_backup, false );
+   BOOST_REQUIRE( !hbs->header.backup_ext().previous_backup.empty() );
+   BOOST_REQUIRE( bool(hbs->header.backup_ext().previous_backup_producer) );
+   BOOST_REQUIRE_EQUAL( hbs->header.backup_ext().contribution, config::percent_100 );
+
+   BOOST_REQUIRE_EQUAL(hbs->header.producer, next_main_prod);
+   auto main_prod_info = get_producer_info(hbs->header.producer);
+   wdump((main_prod_info));
+   BOOST_REQUIRE_EQUAL(main_prod_info.unclaimed_rewards, core_sym::from_string("0.1000"));
+
+
+   auto previous_backup_block = control->fork_db().get_block(hbs->header.backup_ext().previous_backup);
+   BOOST_REQUIRE( previous_backup_block );
+
+   BOOST_REQUIRE_EQUAL( previous_backup_block, old_backup_head_block );
+   BOOST_REQUIRE_EQUAL( previous_backup_block->header.producer, hbs->header.backup_ext().previous_backup_producer );
+
+   BOOST_REQUIRE_EQUAL( hbs->header.backup_ext().previous_backup_producer, backup_prod );
+   backup_prod_info = get_producer_info(backup_prod);
+
+   BOOST_REQUIRE_EQUAL(backup_prod_info.unclaimed_rewards, core_sym::from_string("0.1000"));
 
    regproducer( elected_producers[24].name );
    produce_block();
