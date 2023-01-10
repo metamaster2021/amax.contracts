@@ -88,13 +88,14 @@ void amax_reward::updatevotes(const name& voter_name, const std::set<name>& prod
    for (const auto &prod_name : producers) {
       if (new_producers.count(prod_name) == 0) {
          auto prod_itr = producer_tbl.find(prod_name.value);
-         if (prod_itr != producer_tbl.end()) {
-            new_producers[prod_name].last_reward_per_vote = prod_itr->reward_per_vote;
-         }
          db::set(producer_tbl, prod_itr, voter_name, [&]( auto& p, bool is_new ) {
-            p.owner = prod_name;
+            if (is_new) {
+               p.owner = prod_name;
+            }
             p.votes += votes;
             p.update_at = now;
+
+            new_producers[prod_name].last_reward_per_vote = p.reward_per_vote;
          });
       }
    }

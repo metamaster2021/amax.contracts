@@ -3,6 +3,7 @@
 #include <eosio/asset.hpp>
 #include <eosio/eosio.hpp>
 #include <eosio/singleton.hpp>
+#include <eosio/privileged.hpp>
 
 #include <string>
 
@@ -17,10 +18,33 @@ namespace amax {
 
    static constexpr name      SYSTEM_CONTRACT = "amax"_n;
    static constexpr name      CORE_TOKEN = "amax.token"_n;
-   static const     symbol    CORE_SYMBOL     = symbol("AMAX", 8);
 
+   struct amax_system {
+      // Defines new global state parameters.
+      struct [[eosio::table("global"), eosio::contract("amax.system")]] amax_global_state : eosio::blockchain_parameters {
+         symbol               core_symbol;
+
+         EOSLIB_SERIALIZE_DERIVED( amax_global_state, eosio::blockchain_parameters, (core_symbol) )
+
+         typedef eosio::singleton< "global"_n, amax_global_state >  table;
+      };
+
+      static symbol _core_symbol;
+
+      static inline const symbol& core_symbol() {
+         if (!_core_symbol.is_valid()) {
+            amax_global_state::table tbl(SYSTEM_CONTRACT, SYSTEM_CONTRACT.value);
+            auto g = tbl.get();
+            _core_symbol = g.core_symbol;
+            eosio::check(_core_symbol.is_valid(), "core symbol of system contract is invalid");
+         }
+         return _core_symbol;
+      }
+   };
+
+
+   #define CORE_SYMBOL        amax_system::core_symbol()
    #define CORE_ASSET(amount) asset(amount, CORE_SYMBOL)
-
    /**
     * The `amax.reward` contract is used as a reward dispatcher contract for amax.system contract.
     *
@@ -108,17 +132,15 @@ namespace amax {
 
 
          struct vote_reward_info {
-            double               last_reward_per_vote;
+            double               last_reward_per_vote          = 0;
          };
 
          struct [[eosio::table]] voter {
             name                             owner;
-            // name                 producer;
-            double                           votes;
-            // double               last_reward_per_vote;
+            double                           votes             = 0;
             std::map<name, vote_reward_info> producers;
-            asset                            unclaimed_rewards;
-            asset                            claimed_rewards;
+            asset                            unclaimed_rewards = CORE_ASSET(0);
+            asset                            claimed_rewards   = CORE_ASSET(0);
             block_timestamp                  update_at;
 
             uint64_t primary_key()const { return owner.value; }
