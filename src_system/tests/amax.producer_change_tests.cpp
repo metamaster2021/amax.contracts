@@ -194,17 +194,17 @@ struct producer_shared_reward {
    asset                   allocating_rewards;
    asset                   allocated_rewards;
    double                  votes                = 0;
-   double                  reward_per_vote      = 0;
+   double                  rewards_per_vote     = 0;
    block_timestamp_type    update_at;
 };
 
 FC_REFLECT( producer_shared_reward, (owner)(unallocated_rewards)(allocating_rewards)(allocated_rewards)
-                                    (votes)(reward_per_vote)(update_at) )
+                                    (votes)(rewards_per_vote)(update_at) )
 
 struct vote_reward_info {
-   double               last_reward_per_vote;
+   double               last_rewards_per_vote = 0;
 };
-FC_REFLECT( vote_reward_info, (last_reward_per_vote) )
+FC_REFLECT( vote_reward_info, (last_rewards_per_vote) )
 
 struct voter_reward {
    name                             owner;
@@ -381,7 +381,7 @@ struct producer_change_tester : eosio_system_tester {
          N(producers), producer_name );
    }
 
-   voter_reward get_voter_reward(const name& owner) {
+   voter_reward get_voter_reward_info(const name& owner) {
       return get_row_by_account<voter_reward>( N(amax.reward), N(amax.reward),
          N(voters), owner );
    }
@@ -450,9 +450,9 @@ struct producer_change_tester : eosio_system_tester {
                          ("owner",     owner));
    }
 
-   auto voter_claimrewards( const name& owner ) {
-      return base_tester::push_action( N(amax.reward), N(claimrewards), owner, mutable_variant_object()
-                                ("owner",       owner) );
+   auto voter_claimrewards( const name& voter_name ) {
+      return base_tester::push_action( N(amax.reward), N(claimrewards), voter_name, mutable_variant_object()
+                                ("voter_name",       voter_name) );
    }
 
 
@@ -847,29 +847,35 @@ BOOST_FIXTURE_TEST_CASE(producer_elects_test, producer_change_tester) try {
    BOOST_REQUIRE_EQUAL( main_shared_reward_info.allocating_rewards, shared_rewards );
    BOOST_REQUIRE_EQUAL( main_shared_reward_info.votes, main_prod_info.ext.value.elected_votes );
    BOOST_REQUIRE( main_shared_reward_info.votes > 0 );
-   BOOST_REQUIRE_EQUAL( main_shared_reward_info.reward_per_vote, shared_rewards.get_amount() / main_shared_reward_info.votes );
+   BOOST_REQUIRE_EQUAL( main_shared_reward_info.rewards_per_vote, shared_rewards.get_amount() / main_shared_reward_info.votes );
 
    auto main_prod_voters = get_voters_of_producer(main_prod);
    auto main_voter_info = main_prod_voters.begin();
    auto main_voter = main_voter_info->first;
 
    auto main_voter_balance = get_balance(main_voter);
-   auto main_voter_reward_info = get_voter_reward(main_voter);
+   auto main_voter_reward_info = get_voter_reward_info(main_voter);
    BOOST_REQUIRE_EQUAL( main_voter_reward_info.owner, main_voter );
    BOOST_REQUIRE_EQUAL( main_voter_reward_info.votes, main_voter_info->second );
-   wdump((main_prod));
-   wdump((*main_voter_info));
-   wdump((voter_map[main_voter]));
-   wdump((main_voter_reward_info));
+
    BOOST_REQUIRE( main_voter_reward_info.producers.find(main_prod) != main_voter_reward_info.producers.end() );
    BOOST_REQUIRE_EQUAL( main_voter_reward_info.unclaimed_rewards, CORE_ASSET(0) );
    BOOST_REQUIRE_EQUAL( main_voter_reward_info.claimed_rewards, CORE_ASSET(0) );
 
+   asset main_voter_rewards = CORE_ASSET(main_shared_reward_info.rewards_per_vote * main_voter_reward_info.votes);
+
+   voter_claimrewards(main_voter);
+
+   main_voter_reward_info = get_voter_reward_info(main_voter);
+    main_voter_rewards = CORE_ASSET(main_shared_reward_info.rewards_per_vote * main_voter_reward_info.votes);
+
+   BOOST_REQUIRE_EQUAL( main_voter_reward_info.claimed_rewards, main_voter_rewards );
+   BOOST_REQUIRE_LT( main_voter_reward_info.claimed_rewards, shared_rewards );
+
+   BOOST_REQUIRE_EQUAL( get_balance(main_voter), main_voter_balance + main_voter_rewards );
+
    regproducer( elected_producers[24].name );
    produce_block();
-
-   // get_voters_of_producer();
-
 
    // wdump( (elect_gstate) );
    BOOST_REQUIRE_EQUAL(elect_gstate.backup_elected_queue.last_producer_count, 3);
@@ -890,8 +896,9 @@ BOOST_FIXTURE_TEST_CASE(producer_elects_test, producer_change_tester) try {
    BOOST_REQUIRE(elect_gstate.backup_elected_queue.tail_next   == elected_producers[25]);
 
    for (size_t i = 0; i < voters.size(); i++) {
-      if (i % 20 == 0)
+      if (i % 20 == 0) {
          produce_block();
+      }
       auto voter = voters[voters.size() - i - 1];
       auto& voter_info = voter_map[voter];
       std::map<name, double> producer_deltas;

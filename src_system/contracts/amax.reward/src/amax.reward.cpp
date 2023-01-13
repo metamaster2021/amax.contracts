@@ -62,14 +62,18 @@ void amax_reward::updatevotes(const name& voter_name, const std::set<name>& prod
       if (voter_itr->votes > 0) {
          for ( const auto& voted_prod : voter_itr->producers) {
             const auto& prod_name = voted_prod.first;
-            auto &last_reward_per_vote = voted_prod.second.last_reward_per_vote;
+            const auto& last_rewards_per_vote = voted_prod.second.last_rewards_per_vote;
             const auto& prod = producer_tbl.get(prod_name.value, "the voted producer not found");
 
             producer_tbl.modify( prod, eosio::same_payer, [&]( auto& p ) {
                // allocate rewards
-               if (last_reward_per_vote > p.reward_per_vote) {
-                  uint64_t amount = (last_reward_per_vote - p.reward_per_vote) * voter_itr->votes;
-                  check(p.allocating_rewards.amount >= amount, "producer allocating rewards insufficient");
+               if (p.rewards_per_vote > last_rewards_per_vote ) {
+                  int64_t amount = (p.rewards_per_vote - last_rewards_per_vote) * voter_itr->votes;
+                  CHECK(p.allocating_rewards.amount >= amount, "producer allocating rewards insufficient. "
+                        "amount=" + std::to_string(amount)
+                        + ", allocating_rewards=" + std::to_string(p.allocating_rewards.amount)
+                        + ", producer_name=" + p.owner.to_string()
+                        + ", voter_name=" + voter_itr->owner.to_string());
                   p.allocating_rewards.amount -= amount;
                   p.allocated_rewards.amount += amount;
                   new_reward_amount += amount;
@@ -79,7 +83,7 @@ void amax_reward::updatevotes(const name& voter_name, const std::set<name>& prod
             });
 
             if (producers.count(prod_name)) {
-               new_producers[prod_name].last_reward_per_vote =  prod.reward_per_vote;
+               new_producers[prod_name].last_rewards_per_vote =  prod.rewards_per_vote;
             }
          }
       }
@@ -89,13 +93,15 @@ void amax_reward::updatevotes(const name& voter_name, const std::set<name>& prod
       if (new_producers.count(prod_name) == 0) {
          auto prod_itr = producer_tbl.find(prod_name.value);
          db::set(producer_tbl, prod_itr, voter_name, [&]( auto& p, bool is_new ) {
+
             if (is_new) {
                p.owner = prod_name;
             }
+
             p.votes += votes;
             p.update_at = now;
 
-            new_producers[prod_name].last_reward_per_vote = p.reward_per_vote;
+            new_producers[prod_name].last_rewards_per_vote = p.rewards_per_vote;
          });
       }
    }
@@ -106,7 +112,8 @@ void amax_reward::updatevotes(const name& voter_name, const std::set<name>& prod
       } else {
          v.unclaimed_rewards.amount += new_reward_amount;
       }
-      v.producers = std::move(new_producers);
+
+      v.producers = new_producers;
       v.votes = votes;
       v.update_at = now;
    });
@@ -132,7 +139,7 @@ void amax_reward::addrewards(const name& producer_name, const asset& quantity) {
 
       if (p.votes > 0) {
          p.allocating_rewards += quantity;
-         p.reward_per_vote += quantity.amount / p.votes;
+         p.rewards_per_vote += quantity.amount / p.votes;
       } else {
          p.unallocated_rewards += quantity;
       }
@@ -153,14 +160,17 @@ void amax_reward::claimrewards(const name& voter_name) {
    check(voter_itr != voter_tbl.end(), "voter info not found");
    check(voter_itr->votes > 0, "votes not positive");
 
+   std::map<name, vote_reward_info> new_producers = voter_itr->producers;
+
    producer::table producer_tbl(get_self(), get_self().value);
    for ( const auto& voted_prod : voter_itr->producers) {
       const auto& prod_name = voted_prod.first;
-      auto &last_reward_per_vote = voted_prod.second.last_reward_per_vote;
-      auto prod = producer_tbl.get(prod_name.value, "the voted producer not found");
+      const auto &last_rewards_per_vote = voted_prod.second.last_rewards_per_vote;
+      const auto& prod = producer_tbl.get(prod_name.value, "the voted producer not found");
 
-      if (last_reward_per_vote > prod.reward_per_vote) {
-         uint64_t amount = (last_reward_per_vote - prod.reward_per_vote) * voter_itr->votes;
+      if (prod.rewards_per_vote > last_rewards_per_vote) {
+         uint64_t amount = (prod.rewards_per_vote - last_rewards_per_vote) * voter_itr->votes;
+
          check(prod.allocating_rewards.amount >= amount, "producer allocating rewards insufficient");
          new_reward_amount += amount;
 
@@ -169,6 +179,7 @@ void amax_reward::claimrewards(const name& voter_name) {
             p.allocated_rewards.amount += amount;
             p.update_at = now;
          });
+         new_producers[prod_name].last_rewards_per_vote = prod.rewards_per_vote;
       }
    }
 
@@ -181,6 +192,7 @@ void amax_reward::claimrewards(const name& voter_name) {
    voter_tbl.modify(voter_itr, voter_name, [&]( auto& v) {
       v.unclaimed_rewards.amount = 0;
       v.claimed_rewards += unclaimed_rewards;
+      v.producers = new_producers;
       v.update_at = now;
    });
 }

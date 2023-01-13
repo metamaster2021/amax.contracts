@@ -7,6 +7,16 @@
 
 #include <string>
 
+#define PP(prop) "," #prop ":", prop
+#define PP0(prop) #prop ":", prop
+#define PRINT_PROPERTIES(...) eosio::print("{", __VA_ARGS__, "}")
+
+#define CHECK(exp, msg) { if (!(exp)) eosio::check(false, msg); }
+
+#ifndef ASSERT
+    #define ASSERT(exp) CHECK(exp, #exp)
+#endif
+
 namespace amax {
 
    using std::string;
@@ -122,7 +132,7 @@ namespace amax {
             asset             allocating_rewards   = CORE_ASSET(0);
             asset             allocated_rewards    = CORE_ASSET(0);
             double            votes                = 0;
-            double            reward_per_vote      = 0;
+            double            rewards_per_vote     = 0;
             block_timestamp   update_at;
 
             uint64_t primary_key()const { return owner.value; }
@@ -132,7 +142,7 @@ namespace amax {
 
 
          struct vote_reward_info {
-            double               last_reward_per_vote          = 0;
+            double               last_rewards_per_vote         = 0;
          };
 
          struct [[eosio::table]] voter {
