@@ -69,7 +69,11 @@ void tokensplit::delplan(const name& plan_sender_contract, const uint64_t& plan_
  * @param from
  * @param to
  * @param quantity
- * @param memo: plan:$plan_id:$boost
+ * @param memo: 
+ *  1) $plan_id
+ *  2) plan:$plan_id
+ *  3) plan:$plan_id:$boost
+ * 
  *   - plan_id: split plan ID
  *   - boost: boost for absolute split quantity 
  *
@@ -79,12 +83,18 @@ void tokensplit::ontransfer(const name& from, const name& to, const asset& quant
 
     CHECK( quant.amount > 0, "must transfer positive quantity: " + quant.to_string() )
 
-    auto token_bank = get_first_receiver();
-
     vector<string_view> memo_params = split(memo, ":");
-    CHECK( memo_params.size() == 3 && memo_params[0] == "plan", "memo format err" )
-    auto plan_id = to_uint64(memo_params[1], "split plan");
-    auto boost = to_uint64(memo_params[2], "split boost");
+    uint64_t plan_id    = 0;
+    uint64_t boost      = 1;
+    switch( memo_params.size() ) {
+        case 1: plan_id = to_uint64(memo_params[0], "split plan ID err");   break;
+        case 2:
+        case 3: plan_id = to_uint64(memo_params[1], "split plan ID err");   
+                boost   = to_uint64(memo_params[2], "split boost err");     break;
+        default:          check( false, "memo format incorrect" );
+    }
+
+    CHECK( plan_id > 0, "plan id is 0" );
     
     auto split_plan = split_plan_t( plan_id );
     CHECK( _db.get( from.value, split_plan ), "split plan not found for: " + to_string( plan_id ) + "@" + from.to_string() )
@@ -92,6 +102,7 @@ void tokensplit::ontransfer(const name& from, const name& to, const asset& quant
     auto split_size = split_plan.split_conf.size();
     CHECK( split_size >= 1, "split conf size must be at least 1" )
 
+    auto token_bank = get_first_receiver();
     auto current_quant = quant;
     for( size_t i = 1; i < split_size; i++ ) {
         auto to = split_plan.split_conf[i].token_receiver;
