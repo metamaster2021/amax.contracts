@@ -16,12 +16,12 @@ namespace amax {
    }
 
    void amax_proxy::newaccount( const name& auth_contract, const name& creator, const name& account, const authority& active) {
-      require_auth(auth_contract);
+      require_auth(_gstate.amax_recover_contract);
 
       auto perm = creator != get_self()? OWNER_PERM : ACTIVE_PERM;
       amax_system::newaccount_action  act(SYS_CONTRACT, { {creator, perm} }) ;
       authority owner_auth  = { 1, {}, {{{get_self(), ACTIVE_PERM}, 1}}, {} }; 
-      act.send( creator, account,  owner_auth, active);
+      act.send( creator, account, owner_auth, active);
 
       amax_system::buyrambytes_action buy_ram_act(SYS_CONTRACT, { {get_self(), ACTIVE_PERM} });
       buy_ram_act.send( get_self(), account, _gstate.ram_bytes );
@@ -29,8 +29,6 @@ namespace amax {
       amax_system::delegatebw_action delegatebw_act(SYS_CONTRACT, { {get_self(), ACTIVE_PERM} });
       delegatebw_act.send( get_self(), account,  _gstate.stake_net_quantity,  _gstate.stake_cpu_quantity, false );
 
-      amax_recover::bindaccount_action bindaccount_act(_gstate.amax_recover_contract, { {get_self(), ACTIVE_PERM} });
-      bindaccount_act.send( account, auth_contract);
    }
 
    void amax_proxy::updateauth(  const name& account,

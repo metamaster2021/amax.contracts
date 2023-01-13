@@ -31,12 +31,14 @@ static constexpr uint32_t MAX_TITLE_SIZE        = 256;
 #define NTBL(name) struct [[eosio::table(name), eosio::contract("amax.auth")]]
 
 namespace RealmeCheckType {
-    static constexpr eosio::name MOBILENO       { "mobileno"_n     };
-    static constexpr eosio::name SAFETYANSWER   { "safetyanswer"_n };
-    static constexpr eosio::name DID            { "did"_n          };
-    static constexpr eosio::name MANUAL         { "manual"_n       };
-    static constexpr eosio::name TELEGRAM       { "tg"_n           };
-    static constexpr eosio::name FACEBOOK       { "fb"_n           };
+    static constexpr eosio::name MOBILENO    { "mobileno"_n     };
+    static constexpr eosio::name SAFETYANSWER{ "safetyanswer"_n };
+    static constexpr eosio::name DID         { "did"_n          };
+    static constexpr eosio::name MANUAL      { "manual"_n       };
+    static constexpr eosio::name TELEGRAM    { "tg"_n           };
+    static constexpr eosio::name FACEBOOK    { "fb"_n           };
+    static constexpr eosio::name WHATAPP     { "wa"_n           };
+    static constexpr eosio::name MAIL        { "mail"_n         };
 }
 
 NTBL("global") global_t {

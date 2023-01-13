@@ -44,6 +44,8 @@ namespace RealmeCheckType {
     static constexpr eosio::name MANUAL      { "manual"_n       };
     static constexpr eosio::name TELEGRAM    { "tg"_n           };
     static constexpr eosio::name FACEBOOK    { "fb"_n           };
+    static constexpr eosio::name WHATSAPP    { "wa"_n           };
+    static constexpr eosio::name MAIL        { "mail"_n         };
 }
 namespace ContractStatus {
     static constexpr eosio::name RUNNING     { "running"_n };
@@ -71,7 +73,7 @@ typedef eosio::singleton< "global"_n, global_t > global_singleton;
 
 //scope: account
 TBL register_auth_t {
-    name                        auth_contract;
+    name                        auth_contract;  //authorized: arm.didauth, arm.mblauth, arm.qaauth, ...
     time_point_sec              created_at;
 
     register_auth_t() {}
