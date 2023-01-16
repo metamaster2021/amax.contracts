@@ -116,9 +116,6 @@ namespace amax {
                            const string &memo);
 
 
-      private:
-
-
          struct [[eosio::table("global")]] global_state {
             asset                reward_balance = CORE_ASSET(0);
             asset                total_rewards  = CORE_ASSET(0);

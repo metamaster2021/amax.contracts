@@ -46,6 +46,56 @@ namespace db {
 
 }// namespace db
 
+template<typename producer_table>
+inline void voter_claim_rewards(amax_reward::voter &voter_info, producer_table &producer_tbl,
+      const eosio::time_point &now, const std::set<name>* new_producers, const double* new_votes)
+{
+   auto& old_prods = voter_info.producers;
+   for ( auto voted_prod_itr = old_prods.begin(); voted_prod_itr != old_prods.end(); ) {
+      bool erasing = false;
+      const auto& prod_name = voted_prod_itr->first;
+      const auto &last_rewards_per_vote = voted_prod_itr->second.last_rewards_per_vote;
+      const auto& prod = producer_tbl.get(prod_name.value, "the voted producer not found");
+
+      producer_tbl.modify( prod, eosio::same_payer, [&]( auto& p ) {
+         if (prod.rewards_per_vote > last_rewards_per_vote && voter_info.votes > 0) {
+            int64_t amount = (prod.rewards_per_vote - last_rewards_per_vote) * voter_info.votes;
+            if (amount > 0) {
+               CHECK(prod.allocating_rewards.amount >= amount, "producer allocating rewards insufficient. "
+                     "calc_rewards=" + CORE_ASSET(amount).to_string()
+                     + ", allocating_rewards=" + prod.allocating_rewards.to_string()
+                     + ", producer=" + prod.owner.to_string()
+                     + ", voter=" + voter_info.owner.to_string());
+               p.allocating_rewards.amount -= amount;
+               p.allocated_rewards.amount += amount;
+               voter_info.unclaimed_rewards.amount += amount;
+            }
+         }
+         if (new_producers) { // for update votes
+            ASSERT(new_votes != nullptr);
+
+            if (new_producers->count(p.owner)) {
+               p.votes += *new_votes - voter_info.votes;
+            } else {
+               p.votes -=  voter_info.votes;
+               erasing = true;
+            }
+            if (prod_name == "prod.1111141"_n) {
+               print("new_votes=", p.votes, "\n");
+            }
+         }
+         p.update_at = now;
+      });
+
+      if (!erasing) {
+         voted_prod_itr->second.last_rewards_per_vote = prod.rewards_per_vote;
+         voted_prod_itr++;
+      } else {
+         voted_prod_itr = old_prods.erase(voted_prod_itr);
+      }
+   }
+}
+
 void amax_reward::updatevotes(const name& voter_name, const std::set<name>& producers, double votes) {
     require_auth( SYSTEM_CONTRACT );
     require_auth( voter_name );
@@ -53,71 +103,38 @@ void amax_reward::updatevotes(const name& voter_name, const std::set<name>& prod
 
    amax_reward::voter::table voter_tbl(get_self(), get_self().value);
    producer::table producer_tbl(get_self(), get_self().value);
-   std::map<name, vote_reward_info> new_producers;
    int64_t new_reward_amount = 0;
 
    auto voter_itr = voter_tbl.find(voter_name.value);
+   amax_reward::voter voter_info;
+   std::map<name, vote_reward_info> old_producers;
    if (voter_itr != voter_tbl.end()) {
-      // auto old_votes = voter_itr->votes;
-      if (voter_itr->votes > 0) {
-         for ( const auto& voted_prod : voter_itr->producers) {
-            const auto& prod_name = voted_prod.first;
-            const auto& last_rewards_per_vote = voted_prod.second.last_rewards_per_vote;
-            const auto& prod = producer_tbl.get(prod_name.value, "the voted producer not found");
-
-            producer_tbl.modify( prod, eosio::same_payer, [&]( auto& p ) {
-               // allocate rewards
-               if (p.rewards_per_vote > last_rewards_per_vote ) {
-                  int64_t amount = (p.rewards_per_vote - last_rewards_per_vote) * voter_itr->votes;
-                  CHECK(p.allocating_rewards.amount >= amount, "producer allocating rewards insufficient. "
-                        "amount=" + std::to_string(amount)
-                        + ", allocating_rewards=" + std::to_string(p.allocating_rewards.amount)
-                        + ", producer_name=" + p.owner.to_string()
-                        + ", voter_name=" + voter_itr->owner.to_string());
-                  p.allocating_rewards.amount -= amount;
-                  p.allocated_rewards.amount += amount;
-                  new_reward_amount += amount;
-                  p.update_at = now;
-               }
-               p.votes += votes - voter_itr->votes;
-            });
-
-            if (producers.count(prod_name)) {
-               new_producers[prod_name].last_rewards_per_vote =  prod.rewards_per_vote;
-            }
-         }
-      }
+      voter_info = *voter_itr;
+      voter_claim_rewards(voter_info, producer_tbl, now, &producers, &votes);
+      old_producers = voter_info.producers;
    }
 
    for (const auto &prod_name : producers) {
-      if (new_producers.count(prod_name) == 0) {
+      if (!voter_info.producers.count(prod_name)) {
          auto prod_itr = producer_tbl.find(prod_name.value);
          db::set(producer_tbl, prod_itr, voter_name, [&]( auto& p, bool is_new ) {
-
             if (is_new) {
                p.owner = prod_name;
             }
-
             p.votes += votes;
             p.update_at = now;
 
-            new_producers[prod_name].last_rewards_per_vote = p.rewards_per_vote;
+            voter_info.producers[prod_name].last_rewards_per_vote = p.rewards_per_vote;
          });
       }
    }
+   voter_info.owner        = voter_name;
+   voter_info.votes        = votes;
+   voter_info.update_at    = now;
 
-   db::set(voter_tbl, voter_itr, voter_name, [&]( auto& v, bool is_new ) {
-      if (is_new) {
-         v.owner = voter_name;
-      } else {
-         v.unclaimed_rewards.amount += new_reward_amount;
-      }
-
-      v.producers = new_producers;
-      v.votes = votes;
-      v.update_at = now;
+   db::set(voter_tbl, voter_itr, voter_name, voter_name, [&]( auto& v, bool is_new ) {
+      v = voter_info;
    });
-
 }
 
 
@@ -154,46 +171,25 @@ void amax_reward::claimrewards(const name& voter_name) {
    require_auth( voter_name );
    auto now = eosio::current_time_point();
    amax_reward::voter::table voter_tbl(get_self(), get_self().value);
+   producer::table producer_tbl(get_self(), get_self().value);
    int64_t new_reward_amount = 0;
 
    auto voter_itr = voter_tbl.find(voter_name.value);
    check(voter_itr != voter_tbl.end(), "voter info not found");
    check(voter_itr->votes > 0, "votes not positive");
 
-   std::map<name, vote_reward_info> new_producers = voter_itr->producers;
+   auto voter_info = *voter_itr;
+   voter_claim_rewards(voter_info, producer_tbl, now, nullptr, nullptr);
 
-   producer::table producer_tbl(get_self(), get_self().value);
-   for ( const auto& voted_prod : voter_itr->producers) {
-      const auto& prod_name = voted_prod.first;
-      const auto &last_rewards_per_vote = voted_prod.second.last_rewards_per_vote;
-      const auto& prod = producer_tbl.get(prod_name.value, "the voted producer not found");
+   check(voter_info.unclaimed_rewards.amount > 0, "no rewards to claim");
 
-      if (prod.rewards_per_vote > last_rewards_per_vote) {
-         uint64_t amount = (prod.rewards_per_vote - last_rewards_per_vote) * voter_itr->votes;
-
-         check(prod.allocating_rewards.amount >= amount, "producer allocating rewards insufficient");
-         new_reward_amount += amount;
-
-         producer_tbl.modify( prod, eosio::same_payer, [&]( auto& p ) {
-            p.allocating_rewards.amount -= amount;
-            p.allocated_rewards.amount += amount;
-            p.update_at = now;
-         });
-         new_producers[prod_name].last_rewards_per_vote = prod.rewards_per_vote;
-      }
-   }
-
-   auto unclaimed_rewards = voter_itr->unclaimed_rewards;
-   unclaimed_rewards.amount += new_reward_amount;
-   check(unclaimed_rewards.amount > 0, "no rewards to claim");
-
-   TRANSFER_OUT(CORE_TOKEN, voter_name, unclaimed_rewards, "voted rewards");
+   TRANSFER_OUT(CORE_TOKEN, voter_name, voter_info.unclaimed_rewards, "voted rewards");
+   voter_info.claimed_rewards += voter_info.unclaimed_rewards;
+   voter_info.unclaimed_rewards.amount = 0;
+   voter_info.update_at = now;
 
    voter_tbl.modify(voter_itr, voter_name, [&]( auto& v) {
-      v.unclaimed_rewards.amount = 0;
-      v.claimed_rewards += unclaimed_rewards;
-      v.producers = new_producers;
-      v.update_at = now;
+      v = voter_info;
    });
 }
 

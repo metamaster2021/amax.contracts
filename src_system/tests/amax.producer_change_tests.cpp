@@ -843,6 +843,7 @@ BOOST_FIXTURE_TEST_CASE(producer_elects_test, producer_change_tester) try {
    asset self_rewards = rewards_per_prod - shared_rewards;
    BOOST_REQUIRE_EQUAL( get_balance(main_prod), main_prod_balance + self_rewards );
    auto main_shared_reward_info = get_producer_shared_reward(main_prod);
+   // wdump((main_shared_reward_info));
    BOOST_REQUIRE_EQUAL( main_shared_reward_info.unallocated_rewards, CORE_ASSET(0) );
    BOOST_REQUIRE_EQUAL( main_shared_reward_info.allocating_rewards, shared_rewards );
    BOOST_REQUIRE_EQUAL( main_shared_reward_info.votes, main_prod_info.ext.value.elected_votes );
