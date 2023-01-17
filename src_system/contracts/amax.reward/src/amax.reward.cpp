@@ -80,9 +80,6 @@ inline void voter_claim_rewards(amax_reward::voter &voter_info, producer_table &
                p.votes -=  voter_info.votes;
                erasing = true;
             }
-            if (prod_name == "prod.1111141"_n) {
-               print("new_votes=", p.votes, "\n");
-            }
          }
          p.update_at = now;
       });
