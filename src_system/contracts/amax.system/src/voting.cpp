@@ -16,7 +16,7 @@
 #include <algorithm>
 #include <cmath>
 
-#define TRACE_PRODUCER_CHANGES 1
+// #define TRACE_PRODUCER_CHANGES 1
 
 namespace eosio {
 
