@@ -55,7 +55,7 @@ public:
     /**
      * @require run by issuer only
      */
-    [[eosio::action]] void endissue(const uint64_t& plan_id, const uint64_t& issue_id);
+    [[eosio::action]] void endissue(const uint64_t& plan_id, const name& issuer, const uint64_t& issue_id);
 
     ACTION planreceiver(const uint64_t& plan_id, const name& receiver) {
         auto id = (uint128_t)plan_id << 64 | receiver.value;

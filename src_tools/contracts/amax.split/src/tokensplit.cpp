@@ -88,8 +88,8 @@ void tokensplit::ontransfer(const name& from, const name& to, const asset& quant
     uint64_t boost      = 1;
     switch( memo_params.size() ) {
         case 1: plan_id = to_uint64(memo_params[0], "split plan ID err");   break;
-        case 2:
-        case 3: plan_id = to_uint64(memo_params[1], "split plan ID err");   
+        case 2: plan_id = to_uint64(memo_params[1], "split plan ID err");   break;
+        case 3: plan_id = to_uint64(memo_params[1], "split plan ID err");
                 boost   = to_uint64(memo_params[2], "split boost err");     break;
         default:          check( false, "memo format incorrect" );
     }
