@@ -238,13 +238,15 @@ namespace eosiosystem {
 
    // Defines elect global state parameters.
    struct [[eosio::table("electglobal"), eosio::contract("amax.system")]] elect_global_state {
-      uint8_t                    elected_version            = 0;
-      uint32_t                   max_main_producer_count    = 21;
-      uint32_t                   max_backup_producer_count  = 10000;
-      uint64_t                   last_producer_change_id    = 0;
+      uint8_t                    elected_version               = 0;
+      int128_t                   total_producer_elected_votes  = 0; /// the sum of all producer elected votes
+      uint32_t                   max_main_producer_count       = 21;
+      uint32_t                   max_backup_producer_count     = 10000;
+      uint64_t                   last_producer_change_id       = 0;
       producer_elected_queue     main_elected_queue;
       producer_elected_queue     backup_elected_queue;
-      EOSLIB_SERIALIZE( elect_global_state, (elected_version)(max_main_producer_count)(max_backup_producer_count)
+      EOSLIB_SERIALIZE( elect_global_state, (elected_version)(total_producer_elected_votes)
+                                            (max_main_producer_count)(max_backup_producer_count)
                                             (last_producer_change_id)(main_elected_queue)(backup_elected_queue))
 
       bool is_init() const  { return elected_version > 0; }

@@ -592,8 +592,9 @@ namespace eosiosystem {
 
                p.try_init_ext();
                p.ext->elected_votes += pd.second.elected_votes;
-               check( !(p.ext && p.ext->elected_votes < 0), "elected_votes is negtive");
-               // TODO: _elect_gstate.total_producer_elected_votes += pd.second.elected_votes;
+               check( !(p.ext && p.ext->elected_votes < 0), "elected_votes is negative");
+               _elect_gstate.total_producer_elected_votes += pd.second.elected_votes;
+               check(_elect_gstate.total_producer_elected_votes >= 0, "total_producer_elected_votes is negative");
             });
 
             if (_elect_gstate.is_init() && pitr->ext) {
@@ -685,7 +686,8 @@ namespace eosiosystem {
                   p.try_init_ext();
                   p.ext->elected_votes += elected_votes_delta;
                   check( !(p.ext && p.ext->elected_votes < 0), "elected_votes is negtive");
-                  // TODO: _elect_gstate.total_producer_elected_votes += elected_votes_delta;
+                  _elect_gstate.total_producer_elected_votes += elected_votes_delta;
+                  check(_elect_gstate.total_producer_elected_votes >= 0, "total_producer_elected_votes is negative");
                });
 
                if (_elect_gstate.is_init() && prod.ext) {
