@@ -46,9 +46,25 @@ namespace db {
 
 }// namespace db
 
+inline static int128_t calc_rewards_per_vote(const int128_t& old_rewards_per_vote, int64_t rewards, int64_t votes) {
+   auto  new_rewards_per_vote = old_rewards_per_vote + rewards * HIGH_PRECISION / votes;
+   CHECK(new_rewards_per_vote >= old_rewards_per_vote, "calculated rewards_per_vote overflow")
+   return new_rewards_per_vote;
+}
+
+inline static int64_t calc_voter_rewards(int64_t votes, const int128_t& rewards_per_vote) {
+   // with rounding-off method
+   int128_t rewards = votes * rewards_per_vote / (HIGH_PRECISION / 10);
+   rewards = (rewards + 5) / 10;
+   CHECK(votes >= 0, "calculated rewards can not be negative")
+   CHECK(rewards >= 0 && rewards <= std::numeric_limits<int64_t>::max(),
+         "calculated rewards overflow");
+   return rewards;
+}
+
 template<typename producer_table>
 inline void voter_claim_rewards(amax_reward::voter &voter_info, producer_table &producer_tbl,
-      const eosio::time_point &now, const std::set<name>* new_producers, const double* new_votes)
+      const eosio::time_point &now, const std::set<name>* new_producers, const int64_t* new_votes)
 {
    auto& old_prods = voter_info.producers;
    for ( auto voted_prod_itr = old_prods.begin(); voted_prod_itr != old_prods.end(); ) {
@@ -59,7 +75,7 @@ inline void voter_claim_rewards(amax_reward::voter &voter_info, producer_table &
 
       producer_tbl.modify( prod, eosio::same_payer, [&]( auto& p ) {
          if (prod.rewards_per_vote > last_rewards_per_vote && voter_info.votes > 0) {
-            int64_t amount = (prod.rewards_per_vote - last_rewards_per_vote) * voter_info.votes;
+            int64_t amount = calc_voter_rewards(voter_info.votes, prod.rewards_per_vote - last_rewards_per_vote);
             if (amount > 0) {
                CHECK(prod.allocating_rewards.amount >= amount, "producer allocating rewards insufficient. "
                      "calc_rewards=" + CORE_ASSET(amount).to_string()
@@ -93,7 +109,7 @@ inline void voter_claim_rewards(amax_reward::voter &voter_info, producer_table &
    }
 }
 
-void amax_reward::updatevotes(const name& voter_name, const std::set<name>& producers, double votes) {
+void amax_reward::updatevotes(const name& voter_name, const std::set<name>& producers, int64_t votes) {
     require_auth( SYSTEM_CONTRACT );
     require_auth( voter_name );
     auto now = eosio::current_time_point();
@@ -150,13 +166,16 @@ void amax_reward::addrewards(const name& producer_name, const asset& quantity) {
       if (is_new) {
          p.owner =  producer_name;
       }
+      int128_t old_total_amount = p.get_total_reward_amount();
 
       if (p.votes > 0) {
          p.allocating_rewards += quantity;
-         p.rewards_per_vote += quantity.amount / p.votes;
+         p.rewards_per_vote = calc_rewards_per_vote(p.rewards_per_vote, quantity.amount, p.votes);
       } else {
          p.unallocated_rewards += quantity;
       }
+      int128_t new_total_amount = p.get_total_reward_amount();
+      CHECK(new_total_amount >= old_total_amount, "total reward amount overflow")
 
       p.update_at = now;
    });
@@ -164,7 +183,7 @@ void amax_reward::addrewards(const name& producer_name, const asset& quantity) {
 }
 
 void amax_reward::claimrewards(const name& voter_name) {
-
+   print("amax_reward::claimrewards");
    require_auth( voter_name );
    auto now = eosio::current_time_point();
    amax_reward::voter::table voter_tbl(get_self(), get_self().value);

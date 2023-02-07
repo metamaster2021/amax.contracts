@@ -155,12 +155,12 @@ namespace eosiosystem {
 
    struct producer_elected_info {
       eosio::name             name;
-      double                  elected_votes = 0.0;
+      int64_t                 elected_votes = 0;
       eosio::block_signing_authority authority;
 
       void clear() {
          name.value = 0;
-         elected_votes = 0.0;
+         elected_votes = 0;
          authority = eosio::block_signing_authority{};
       }
 
@@ -212,7 +212,7 @@ namespace eosiosystem {
       block_timestamp   last_ram_increase;
       time_point        inflation_start_time;         // inflation start time
       asset             initial_inflation_per_block;  // initial inflation per block
-      uint64_t          reverved = 0;                 // reverved
+      uint64_t          reserved = 0;                 // reserved
       uint8_t           revision = 0; ///< used to track version updates in the future.
 
       // explicit serialization macro is not necessary, used here only to improve compilation time
@@ -222,7 +222,7 @@ namespace eosiosystem {
                                 (total_activated_stake)(thresh_activated_stake_time)
                                 (last_producer_schedule_size)(total_producer_vote_weight)(last_name_close)
                                 (new_ram_per_block)(last_ram_increase)
-                                (inflation_start_time)(initial_inflation_per_block)(reverved)
+                                (inflation_start_time)(initial_inflation_per_block)(reserved)
                                 (revision)
       )
    };
@@ -257,7 +257,7 @@ namespace eosiosystem {
    }
 
    struct producer_info_ext {
-      double         elected_votes     = 0;
+      int64_t        elected_votes     = 0;
       uint32_t       reward_shared_ratio = 0;
    };
 
@@ -277,17 +277,18 @@ namespace eosiosystem {
       uint64_t primary_key()const { return owner.value;                             }
       double   by_votes()const    { return is_active ? -total_votes : total_votes;  }
 
-      static long double   by_elected_prod(const name& owner, double elected_votes, bool is_active = true) {
-         if (elected_votes < 0.0) elected_votes = 0.0;
-         static constexpr uint64_t uint64_max = std::numeric_limits<uint64_t>::max();
-         long double reversed = elected_votes + ( (double)(uint64_max - owner.value) / uint64_max);
-
-         return is_active ? -reversed : std::numeric_limits<long double>::max() - reversed;
+      static uint128_t by_elected_prod(const name& owner, int64_t elected_votes, bool is_active = true) {
+         static constexpr int64_t int64_max = std::numeric_limits<int64_t>::max();
+         static constexpr int64_t uint64_max = std::numeric_limits<uint64_t>::max();
+         static_assert( uint64_max - (uint64_t)int64_max == (uint64_t)int64_max + 1 );
+         ASSERT(elected_votes >= 0 && elected_votes != int64_max);
+         uint64_t hi = is_active ? int64_max - elected_votes : uint64_max - elected_votes;
+         return uint128_t(hi) << 64 | owner.value;
       }
 
-      long double by_elected_prod() const {
+      uint128_t by_elected_prod() const {
          return ext ? by_elected_prod(owner, ext->elected_votes, is_active)
-                    : std::numeric_limits<long double>::max();
+                    : by_elected_prod(owner, 0, is_active);
       }
 
       bool     active()const      { return is_active;                               }
@@ -300,8 +301,8 @@ namespace eosiosystem {
          is_active = false;
       }
 
-      inline double get_elected_votes() const {
-         return ext ? (ext->elected_votes > 0 ? ext->elected_votes : 0) : 0;
+      inline int64_t get_elected_votes() const {
+         return ext ? ext->elected_votes : 0;
       }
 
       inline producer_elected_info get_elected_info() const {
@@ -312,13 +313,16 @@ namespace eosiosystem {
          };
       }
 
-      void update_elected_votes(bool emplacing = false) {
-         if (ext) {
-            ext->elected_votes   = total_votes;
-         } else if (emplacing) {
-            ext.emplace(producer_info_ext{ total_votes });
-         }
+      inline void get_elected_info(producer_elected_info& info) const {
+         info.name = owner;
+         info.elected_votes = get_elected_votes();
+         info.authority = producer_authority;
       }
+
+      inline void try_init_ext() {
+         if(!ext) ext.emplace();
+      }
+
       // explicit serialization macro is not necessary, used here only to improve compilation time
       EOSLIB_SERIALIZE( producer_info, (owner)(total_votes)(producer_key)(is_active)(url)(location)
                                        (last_claimed_time)(unclaimed_rewards)(producer_authority) (ext) )
@@ -338,16 +342,17 @@ namespace eosiosystem {
       //  Every time a vote is cast we must first "undo" the last vote weight, before casting the
       //  new vote weight.  Vote weight is calculated as:
       //  stated.amount * 2 ^ ( weeks_since_launch/weeks_per_year)
-      double              last_vote_weight = 0; /// the vote weight cast the last time the vote was updated
+      double              last_vote_weight = 0; /// the vote weight cast the last time the vote was updated,
 
       // Total vote weight delegated to this voter.
-      double              proxied_vote_weight= 0; /// the total vote weight delegated to this voter as a proxy
-      bool                is_proxy = 0; /// whether the voter is a proxy for others
+      double              proxied_vote_weight= 0; /// [deprecated] the total vote weight delegated to this voter as a proxy
+      bool                is_proxy = 0; /// [deprecated] whether the voter is a proxy for others
 
 
-      uint32_t            flags1 = 0;
-      uint32_t            reserved2 = 0;
-      eosio::asset        reserved3;
+      uint32_t            flags1                = 0; /// resource managed flags
+      int64_t             last_elected_votes    = 0; /// the elected votes cast the last time the vote was updated
+      int64_t             proxied_elected_votes = 0; /// the total elected votes delegated to this voter as a proxy
+      uint32_t            reserved = 0;              /// reserved
 
       uint64_t primary_key()const { return owner.value; }
 
@@ -358,7 +363,9 @@ namespace eosiosystem {
       };
 
       // explicit serialization macro is not necessary, used here only to improve compilation time
-      EOSLIB_SERIALIZE( voter_info, (owner)(proxy)(producers)(staked)(last_vote_weight)(proxied_vote_weight)(is_proxy)(flags1)(reserved2)(reserved3) )
+      EOSLIB_SERIALIZE( voter_info, (owner)(proxy)(producers)(staked)(last_vote_weight)
+                                    (proxied_vote_weight)(is_proxy)(flags1)(last_elected_votes)
+                                    (proxied_elected_votes)(reserved) )
    };
 
 
@@ -367,7 +374,7 @@ namespace eosiosystem {
 
    typedef eosio::multi_index< "producers"_n, producer_info,
                                indexed_by<"prototalvote"_n, const_mem_fun<producer_info, double, &producer_info::by_votes>  >,
-                               indexed_by<"electedprod"_n, const_mem_fun<producer_info, long double, &producer_info::by_elected_prod>, /*Nullable*/ true >
+                               indexed_by<"electedprod"_n, const_mem_fun<producer_info, uint128_t, &producer_info::by_elected_prod>, /*Nullable*/ true >
                              > producers_table;
 
    struct [[eosio::table, eosio::contract("amax.system")]] user_resources {
@@ -1525,7 +1532,7 @@ namespace eosiosystem {
 
 
    struct amax_reward_interface {
-      void updatevotes(const name& voter_name, const std::vector<name>& producers, double votes);
+      void updatevotes(const name& voter_name, const std::vector<name>& producers, int64_t votes);
       void addrewards(const name& producer_name, const asset& quantity);
 
       using updatevotes_action = eosio::action_wrapper<"updatevotes"_n, &amax_reward_interface::updatevotes>;

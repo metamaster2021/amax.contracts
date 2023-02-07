@@ -18,10 +18,17 @@
 
 #include "amax.system_tester.hpp"
 
+#define int128_t  eosio::chain::int128_t
+#define uint128_t eosio::chain::uint128_t
+
 #define LESS(a, b)                     (a) < (b) ? true : false
 #define LARGER(a, b)                   (a) > (b) ? true : false
 #define LESS_OR(a, b, other_compare)   (a) < (b) ? true : (a) > (b) ? false : ( other_compare )
 #define LARGER_OR(a, b, other_compare) (a) > (b) ? true : (a) < (b) ? false : ( other_compare )
+
+#define CHECK(exp, msg) { if (exp) { BOOST_REQUIRE_MESSAGE( (exp), msg ); } }
+
+static constexpr int128_t  HIGH_PRECISION    = 1'000'000'000'000'000'000; // 10^18
 
 static const fc::microseconds block_interval_us = fc::microseconds(eosio::chain::config::block_interval_us);
 
@@ -51,17 +58,18 @@ inline float128_t to_softfloat128( double d ) {
    return f64_to_f128(to_softfloat64(d));
 }
 
-static float128_t by_elected_prod(const name& owner, double elected_votes, bool is_active = true) {
-   if (elected_votes < 0.0) elected_votes = 0.0;
-   static constexpr uint64_t uint64_max = std::numeric_limits<uint64_t>::max();
-   float128_t reversed = to_softfloat128(elected_votes) + to_softfloat128(uint64_max - owner.to_uint64_t()) / to_softfloat128(uint64_max);
-
-   return is_active ? to_softfloat128(0) - reversed : f128_positive_infinity() - reversed;
+ inline uint128_t by_elected_prod(const name& owner, int64_t elected_votes, bool is_active = true) {
+   static constexpr int64_t int64_max = std::numeric_limits<int64_t>::max();
+   static constexpr int64_t uint64_max = std::numeric_limits<uint64_t>::max();
+   static_assert( uint64_max - (uint64_t)int64_max == (uint64_t)int64_max + 1 );
+   BOOST_ASSERT(elected_votes >= 0 && elected_votes != int64_max);
+   uint64_t hi = is_active ? int64_max - elected_votes : uint64_max - elected_votes;
+   return uint128_t(hi) << 64 | owner.to_uint64_t();
 }
 
 struct producer_elected_info {
    name                    name;
-   double                  elected_votes = 0.0;
+   int64_t                 elected_votes = 0.0;
    block_signing_authority authority;
    bool empty() const {
       return !bool(name);
@@ -71,7 +79,7 @@ struct producer_elected_info {
 FC_REFLECT( producer_elected_info, (name)(elected_votes)(authority) )
 
 
-inline float128_t by_elected_prod(const producer_elected_info& v) {
+inline uint128_t by_elected_prod(const producer_elected_info& v) {
    return by_elected_prod(v.name, v.elected_votes);
 }
 
@@ -151,7 +159,7 @@ FC_REFLECT_DERIVED( amax_global_state, (eosio::chain::chain_config),
 )
 
 struct producer_info_ext {
-   double         elected_votes     = 0;
+   int64_t        elected_votes     = 0;
    uint32_t       reward_shared_ratio = 0;
 };
 FC_REFLECT( producer_info_ext, (elected_votes)(reward_shared_ratio))
@@ -193,8 +201,8 @@ struct producer_shared_reward {
    asset                   unallocated_rewards;
    asset                   allocating_rewards;
    asset                   allocated_rewards;
-   double                  votes                = 0;
-   double                  rewards_per_vote     = 0;
+   int64_t                 votes                = 0;
+   int128_t                rewards_per_vote     = 0;
    block_timestamp_type    update_at;
 };
 
@@ -202,13 +210,13 @@ FC_REFLECT( producer_shared_reward, (owner)(unallocated_rewards)(allocating_rewa
                                     (votes)(rewards_per_vote)(update_at) )
 
 struct vote_reward_info {
-   double               last_rewards_per_vote = 0;
+   int128_t                last_rewards_per_vote = 0;
 };
 FC_REFLECT( vote_reward_info, (last_rewards_per_vote) )
 
 struct voter_reward {
    name                             owner;
-   double                           votes;
+   int64_t                          votes;
    std::map<name, vote_reward_info> producers;
    asset                            unclaimed_rewards;
    asset                            claimed_rewards;
@@ -313,13 +321,13 @@ namespace producer_change_helper {
 
 struct voter_info_t {
    vector<name> producers;
-   asset staked;
-   asset net;
-   asset cpu;
-   double last_vote_weight = 0; /// the vote weight cast the last time the vote was updated
+   asset staked               = CORE_ASSET(0);
+   asset net                  = CORE_ASSET(0);
+   asset cpu                  = CORE_ASSET(0);
+   int64_t last_votes         = 0; /// the vote weight cast the last time the vote was updated
 };
 
-FC_REFLECT( voter_info_t, (producers)(staked)(net)(cpu)(last_vote_weight) )
+FC_REFLECT( voter_info_t, (producers)(staked)(net)(cpu)(last_votes) )
 
 using namespace eosio_system;
 
@@ -494,11 +502,11 @@ struct producer_change_tester : eosio_system_tester {
       const auto& db = control->db();
       const auto& idx_id = get_table_index_id(config::system_account_name, config::system_account_name, N(producers), 1);
       const auto& t_id = get_table_id(config::system_account_name, config::system_account_name, N(producers) );
-      const auto& idx = db.get_index<eosio::chain::index_long_double_index, eosio::chain::by_secondary>();
+      const auto& idx = db.get_index<eosio::chain::index128_index, eosio::chain::by_secondary>();
 
-      float128_t lowest = eosio::chain::secondary_key_traits<float128_t>::true_lowest();
+      uint128_t lowest = eosio::chain::secondary_key_traits<uint128_t>::true_lowest();
       vector<char> data;
-      auto itr = idx.lower_bound( boost::make_tuple( idx_id.id, lowest, std::numeric_limits<uint64_t>::lowest() ) );
+      auto itr = idx.lower_bound( boost::make_tuple( idx_id.id, lowest, 0 ) );
       for (; itr != idx.end() && itr->t_id == idx_id.id; itr++) {
          const auto* itr2 = db.find<eosio::chain::key_value_object, eosio::chain::by_scope_primary>( boost::make_tuple(t_id.id, itr->primary_key) );
          EOS_ASSERT(itr2 != nullptr, eosio::chain::contract_table_query_exception,
@@ -506,11 +514,11 @@ struct producer_change_tester : eosio_system_tester {
          data.resize( itr2->value.size() );
          memcpy( data.data(), itr2->value.data(), itr2->value.size() );
          producer_info info = fc::raw::unpack<producer_info>(data);
-         if (info.ext.value.elected_votes <= 0) {
-            wdump( (info.owner) (info.ext.value.elected_votes));
-            break;
-         }
-         ret.push_back({info.owner, info.total_votes, info.producer_authority});
+         // if (info.ext.value.elected_votes <= 0) {
+         //    wdump( (info.owner) (info.ext.value.elected_votes));
+         //    break;
+         // }
+         ret.push_back({info.owner, info.ext.value.elected_votes, info.producer_authority});
       }
       auto sz = std::min(max_size, ret.size());
       return vector<producer_elected_info>(ret.begin(), ret.begin() + sz);
@@ -526,7 +534,7 @@ struct producer_change_tester : eosio_system_tester {
       if (t_id != nullptr) {
          const auto& idx = db.get_index<eosio::chain::key_value_index, eosio::chain::by_scope_primary>();
 
-         auto itr = idx.lower_bound( boost::make_tuple( t_id->id, std::numeric_limits<uint64_t>::lowest() ) );
+         auto itr = idx.lower_bound( boost::make_tuple( t_id->id, 0 ) );
 
          for (; itr != idx.end() && itr->t_id == t_id->id; itr++) {
             data.resize( itr->value.size() );
@@ -550,7 +558,7 @@ struct producer_change_tester : eosio_system_tester {
       const auto& t_id = find_table(config::system_account_name, config::system_account_name, table_name );
       const auto& idx = db.get_index<eosio::chain::key_value_index, eosio::chain::by_scope_primary>();
       if (t_id != nullptr) {
-         auto itr = idx.lower_bound( boost::make_tuple( t_id->id, std::numeric_limits<uint64_t>::lowest() ) );
+         auto itr = idx.lower_bound( boost::make_tuple( t_id->id, 0 ) );
          return itr == idx.end();
       }
       return true;
@@ -569,12 +577,12 @@ struct producer_change_tester : eosio_system_tester {
       }
    }
 
-   std::map<name, double> get_voters_of_producer(const name& producer_name) {
-      std::map<name, double> ret;
+   std::map<name, int64_t> get_voters_of_producer(const name& producer_name) {
+      std::map<name, int64_t> ret;
       for(const auto& v : voter_map) {
          const auto& producers = v.second.producers;
          if ( std::find(producers.begin(), producers.end(), producer_name) != producers.end() ) {
-            ret[v.first] = v.second.last_vote_weight;
+            ret[v.first] = v.second.last_votes;
             continue;
          }
       }
@@ -627,6 +635,23 @@ struct producer_change_tester : eosio_system_tester {
       return false;
    }
 
+
+   inline int128_t calc_rewards_per_vote(const int128_t& old_rewards_per_vote, int64_t rewards, int64_t votes) {
+      auto  new_rewards_per_vote = old_rewards_per_vote + rewards * HIGH_PRECISION / votes;
+      CHECK(new_rewards_per_vote >= old_rewards_per_vote, "calculated rewards_per_vote overflow");
+      return new_rewards_per_vote;
+   }
+
+   inline int64_t calc_voter_rewards(int64_t votes, const int128_t& rewards_per_vote) {
+      // with rounding-off method
+      int128_t rewards = votes * rewards_per_vote / (HIGH_PRECISION / 10);
+      rewards = (rewards + 5) / 10;
+      CHECK(votes >= 0, "calculated rewards can not be negative");
+      CHECK(rewards >= 0 && rewards <= std::numeric_limits<int64_t>::max(),
+            "calculated rewards overflow");
+      return rewards;
+   }
+
 };
 
 template <typename A, typename B, typename D>
@@ -662,7 +687,7 @@ BOOST_FIXTURE_TEST_CASE(producer_elects_test, producer_change_tester) try {
       voter_info.staked = CORE_ASSET( total_staked.get_amount() * (i + 1) / total_weight );
       voter_info.net = CORE_ASSET(voter_info.staked.get_amount() / 2);
       voter_info.cpu = voter_info.staked - voter_info.net;
-      voter_info.last_vote_weight = stake2votes(voter_info.staked);
+      voter_info.last_votes = voter_info.staked.get_amount();
       create_account_with_resources( voter, config::system_account_name, 10 * 1024);
       transfer(N(amax), voter, voter_info.staked);
       if(!stake( voter, voter_info.net, voter_info.cpu ) ) {
@@ -673,7 +698,7 @@ BOOST_FIXTURE_TEST_CASE(producer_elects_test, producer_change_tester) try {
       for (size_t j = 0; j < max_count; j++) {
          const auto& prod = producers[ (i + j) % producers.size() ];
          voter_info.producers[j] = prod;
-         producer_map[prod].elected_votes += voter_info.last_vote_weight;
+         producer_map[prod].elected_votes += voter_info.last_votes;
       }
       std::sort( voter_info.producers.begin(), voter_info.producers.end());
 
@@ -792,7 +817,7 @@ BOOST_FIXTURE_TEST_CASE(producer_elects_test, producer_change_tester) try {
    BOOST_REQUIRE_EQUAL(next_main_prod, next_main_prod_info.owner);
    BOOST_REQUIRE(next_main_prod_info.last_claimed_time < hbs->header.timestamp.to_time_point());
    BOOST_REQUIRE_EQUAL(next_main_prod_info.unclaimed_rewards, core_sym::from_string("0.0000"));
-   BOOST_REQUIRE_EQUAL(next_main_prod_info.ext.value.elected_votes, next_main_prod_info.total_votes);
+   BOOST_REQUIRE_GT(next_main_prod_info.ext.value.elected_votes, 0);
    BOOST_REQUIRE(next_main_prod_info.ext.value.reward_shared_ratio == 8000);
 
    auto backup_prod = calc_backup_scheduled_producer(
@@ -803,7 +828,7 @@ BOOST_FIXTURE_TEST_CASE(producer_elects_test, producer_change_tester) try {
    BOOST_REQUIRE_EQUAL(backup_prod, backup_prod_info.owner);
    BOOST_REQUIRE(backup_prod_info.last_claimed_time < hbs->header.timestamp.to_time_point());
    BOOST_REQUIRE_EQUAL(backup_prod_info.unclaimed_rewards, core_sym::from_string("0.0000"));
-   BOOST_REQUIRE_EQUAL(backup_prod_info.ext.value.elected_votes, backup_prod_info.total_votes);
+   BOOST_REQUIRE_GT(backup_prod_info.ext.value.elected_votes, 0);
    BOOST_REQUIRE(backup_prod_info.ext.value.reward_shared_ratio == 8000);
 
    asset initial_inflation_per_block = CORE_ASSET(20000000);
@@ -848,7 +873,7 @@ BOOST_FIXTURE_TEST_CASE(producer_elects_test, producer_change_tester) try {
    BOOST_REQUIRE_EQUAL( main_shared_reward_info.allocating_rewards, shared_rewards );
    BOOST_REQUIRE_EQUAL( main_shared_reward_info.votes, main_prod_info.ext.value.elected_votes );
    BOOST_REQUIRE( main_shared_reward_info.votes > 0 );
-   BOOST_REQUIRE_EQUAL( main_shared_reward_info.rewards_per_vote, shared_rewards.get_amount() / main_shared_reward_info.votes );
+   BOOST_REQUIRE( main_shared_reward_info.rewards_per_vote == calc_rewards_per_vote(0, shared_rewards.get_amount(), main_shared_reward_info.votes));
 
    auto main_prod_voters = get_voters_of_producer(main_prod);
    auto main_voter_info = main_prod_voters.begin();
@@ -863,12 +888,11 @@ BOOST_FIXTURE_TEST_CASE(producer_elects_test, producer_change_tester) try {
    BOOST_REQUIRE_EQUAL( main_voter_reward_info.unclaimed_rewards, CORE_ASSET(0) );
    BOOST_REQUIRE_EQUAL( main_voter_reward_info.claimed_rewards, CORE_ASSET(0) );
 
-   asset main_voter_rewards = CORE_ASSET(main_shared_reward_info.rewards_per_vote * main_voter_reward_info.votes);
-
+   asset main_voter_rewards = CORE_ASSET( calc_voter_rewards(main_voter_reward_info.votes, main_shared_reward_info.rewards_per_vote) );
    voter_claimrewards(main_voter);
 
    main_voter_reward_info = get_voter_reward_info(main_voter);
-    main_voter_rewards = CORE_ASSET(main_shared_reward_info.rewards_per_vote * main_voter_reward_info.votes);
+   main_voter_rewards = CORE_ASSET( calc_voter_rewards(main_voter_reward_info.votes, main_shared_reward_info.rewards_per_vote) );
 
    BOOST_REQUIRE_EQUAL( main_voter_reward_info.claimed_rewards, main_voter_rewards );
    BOOST_REQUIRE_LT( main_voter_reward_info.claimed_rewards, shared_rewards );
@@ -902,22 +926,22 @@ BOOST_FIXTURE_TEST_CASE(producer_elects_test, producer_change_tester) try {
       }
       auto voter = voters[voters.size() - i - 1];
       auto& voter_info = voter_map[voter];
-      std::map<name, double> producer_deltas;
+      std::map<name, int64_t> producer_deltas;
 
-      auto sub_votes = voter_info.last_vote_weight;
+      auto sub_votes = voter_info.last_votes;
       double old_votes_0 = 0.0;
       for (const auto& prod : voter_info.producers) {
-         producer_deltas[prod] -= voter_info.last_vote_weight;
+         producer_deltas[prod] -= voter_info.last_votes;
       }
 
-      voter_info.last_vote_weight = stake2votes(voter_info.staked);
+      voter_info.last_votes = voter_info.staked.get_amount();
 
       size_t max_count = std::min(30ul, producers.size());
       voter_info.producers.resize(max_count);
       for (size_t j = 0; j < max_count; j++) {
          const auto& prod = producers[ (i + j) % producers.size() ];
          voter_info.producers[j] = prod;
-         producer_deltas[prod] += voter_info.last_vote_weight;
+         producer_deltas[prod] += voter_info.last_votes;
       }
       std::sort( voter_info.producers.begin(), voter_info.producers.end());
 

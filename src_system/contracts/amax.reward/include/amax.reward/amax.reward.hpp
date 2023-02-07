@@ -26,8 +26,9 @@ namespace amax {
    using eosio::symbol;
    using eosio::block_timestamp;
 
-   static constexpr name      SYSTEM_CONTRACT = "amax"_n;
-   static constexpr name      CORE_TOKEN = "amax.token"_n;
+   static constexpr name      SYSTEM_CONTRACT   = "amax"_n;
+   static constexpr name      CORE_TOKEN        = "amax.token"_n;
+   static constexpr int128_t  HIGH_PRECISION    = 1'000'000'000'000'000'000; // 10^18
 
    struct amax_system {
       // Defines new global state parameters.
@@ -76,12 +77,11 @@ namespace amax {
           * update votes.
           *
           * @param voter_name - the account of voter,
-          * @param producers - producer list
-          * @param old_votes - old votes value,
-          * @param new_votes - new votes value.
+          * @param producers  - producer set
+          * @param votes      - votes value,
           */
          [[eosio::action]]
-         void updatevotes(const name& voter_name, const std::set<name>& producers, double votes);
+         void updatevotes(const name& voter_name, const std::set<name>& producers, int64_t votes);
 
          /**
           * add reward for producer, deduct from the reward balance
@@ -128,23 +128,28 @@ namespace amax {
             asset             unallocated_rewards  = CORE_ASSET(0);
             asset             allocating_rewards   = CORE_ASSET(0);
             asset             allocated_rewards    = CORE_ASSET(0);
-            double            votes                = 0;
-            double            rewards_per_vote     = 0;
+            int64_t           votes                = 0;
+            int128_t          rewards_per_vote     = 0;
             block_timestamp   update_at;
 
             uint64_t primary_key()const { return owner.value; }
+
+            int128_t get_total_reward_amount() const {
+               return (int128_t)unallocated_rewards.amount + allocating_rewards.amount + allocated_rewards.amount;
+            }
+
 
             typedef eosio::multi_index< "producers"_n, producer > table;
          };
 
 
          struct vote_reward_info {
-            double               last_rewards_per_vote         = 0;
+            int128_t           last_rewards_per_vote         = 0;
          };
 
          struct [[eosio::table]] voter {
             name                             owner;
-            double                           votes             = 0;
+            int64_t                          votes             = 0;
             std::map<name, vote_reward_info> producers;
             asset                            unclaimed_rewards = CORE_ASSET(0);
             asset                            claimed_rewards   = CORE_ASSET(0);
