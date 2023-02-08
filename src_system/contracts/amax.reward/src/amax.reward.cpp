@@ -54,8 +54,7 @@ inline static int128_t calc_rewards_per_vote(const int128_t& old_rewards_per_vot
 
 inline static int64_t calc_voter_rewards(int64_t votes, const int128_t& rewards_per_vote) {
    // with rounding-off method
-   int128_t rewards = votes * rewards_per_vote / (HIGH_PRECISION / 10);
-   rewards = (rewards + 5) / 10;
+   int128_t rewards = votes * rewards_per_vote / HIGH_PRECISION;
    CHECK(votes >= 0, "calculated rewards can not be negative")
    CHECK(rewards >= 0 && rewards <= std::numeric_limits<int64_t>::max(),
          "calculated rewards overflow");
@@ -68,7 +67,10 @@ inline void allocate_rewards(int64_t votes, const int128_t& last_rewards_per_vot
    if (reward_per_vote_delta > 0 && votes > 0) {
       int64_t amount = calc_voter_rewards(votes, reward_per_vote_delta);
       if (amount > 0) {
-         CHECK(p.allocating_rewards.amount >= amount, "producer allocating rewards insufficient");
+         CHECK(p.allocating_rewards.amount >= amount, "producer allocating rewards insufficient"
+            ", allocating_rewards=" + std::to_string(p.allocating_rewards.amount) +
+            ", new_rewards=" + std::to_string(amount) +
+            ", producer=" + p.owner.to_string());
          p.allocating_rewards.amount -= amount;
          p.allocated_rewards.amount += amount;
          new_reward_amount += amount;
