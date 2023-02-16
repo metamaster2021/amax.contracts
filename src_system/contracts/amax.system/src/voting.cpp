@@ -302,9 +302,14 @@ namespace eosiosystem {
       CHECK(ret >= 0, "set proposed producers to native system failed(" + std::to_string(ret) + ")");
    }
 
-   void system_contract::register_producer( const name& producer, const eosio::block_signing_authority& producer_authority, const std::string& url, uint16_t location, uint32_t reward_shared_ratio ) {
+   void system_contract::register_producer(  const name& producer,
+                                             const block_signing_authority& producer_authority,
+                                             const string& url,
+                                             uint16_t location,
+                                             optional<uint32_t> reward_shared_ratio ) {
 
-      check(reward_shared_ratio <= ratio_boost, "reward_shared_ratio is too large than " + to_string(ratio_boost));
+      if (reward_shared_ratio)
+         check(*reward_shared_ratio <= ratio_boost, "reward_shared_ratio is too large than " + to_string(ratio_boost));
 
       const auto& core_sym = core_symbol();
       auto prod = _producers.find( producer.value );
@@ -329,7 +334,8 @@ namespace eosiosystem {
             info.location           = location;
             info.producer_authority = producer_authority;
             info.try_init_ext();
-            info.ext->reward_shared_ratio = reward_shared_ratio;
+            if (reward_shared_ratio)
+               info.ext->reward_shared_ratio = *reward_shared_ratio;
             if ( info.last_claimed_time == time_point() )
                info.last_claimed_time = ct;
 
@@ -362,20 +368,27 @@ namespace eosiosystem {
             info.unclaimed_rewards     = asset(0, core_sym);
             info.producer_authority = producer_authority;
             info.try_init_ext();
-            info.ext->reward_shared_ratio = reward_shared_ratio;
+            if (reward_shared_ratio)
+               info.ext->reward_shared_ratio = *reward_shared_ratio;
          });
       }
 
    }
 
-   void system_contract::regproducer( const name& producer, const eosio::public_key& producer_key, const std::string& url, uint16_t location, uint32_t reward_shared_ratio ) {
+   void system_contract::regproducer(  const name& producer, const eosio::public_key& producer_key,
+                                       const string& url, uint16_t location,
+                                       optional<uint32_t> reward_shared_ratio ) {
       require_auth( producer );
       check( url.size() < 512, "url too long" );
 
       register_producer( producer, convert_to_block_signing_authority( producer_key ), url, location, reward_shared_ratio );
    }
 
-   void system_contract::regproducer2( const name& producer, const eosio::block_signing_authority& producer_authority, const std::string& url, uint16_t location, uint32_t reward_shared_ratio) {
+   void system_contract::regproducer2( const name& producer,
+                                       const block_signing_authority& producer_authority,
+                                       const string& url,
+                                       uint16_t location,
+                                       optional<uint32_t> reward_shared_ratio) {
       require_auth( producer );
       check( url.size() < 512, "url too long" );
 

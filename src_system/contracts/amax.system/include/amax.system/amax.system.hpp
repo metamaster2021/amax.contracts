@@ -46,6 +46,8 @@ template<class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
 namespace eosiosystem {
 
+   using std::string;
+   using std::optional;
    using eosio::asset;
    using eosio::block_timestamp;
    using eosio::check;
@@ -60,6 +62,7 @@ namespace eosiosystem {
    using eosio::time_point_sec;
    using eosio::unsigned_int;
    using eosio::proposed_producer_changes;
+   using eosio::block_signing_authority;
 
    inline constexpr int64_t powerup_frac = 1'000'000'000'000'000ll;  // 1.0 = 10^15
 
@@ -1180,7 +1183,8 @@ namespace eosiosystem {
           * @pre Authority of producer to register
           */
          [[eosio::action]]
-         void regproducer( const name& producer, const public_key& producer_key, const std::string& url, uint16_t location, uint32_t reward_shared_ratio );
+         void regproducer( const name& producer, const public_key& producer_key, const string& url,
+                           uint16_t location, optional<uint32_t> reward_shared_ratio );
 
          /**
           * Register producer action, indicates that a particular account wishes to become a producer,
@@ -1196,7 +1200,8 @@ namespace eosiosystem {
           * @pre Authority of producer to register
           */
          [[eosio::action]]
-         void regproducer2( const name& producer, const eosio::block_signing_authority& producer_authority, const std::string& url, uint16_t location, uint32_t reward_shared_ratio );
+         void regproducer2(   const name& producer, const block_signing_authority& producer_authority,
+                              const string& url, uint16_t location, optional<uint32_t> reward_shared_ratio );
 
          /**
           * Unregister producer action, deactivates the block producer with account name `producer`.
@@ -1483,7 +1488,8 @@ namespace eosiosystem {
          void update_voting_power( const name& voter, const asset& total_update );
 
          // defined in voting.cpp
-         void register_producer( const name& producer, const eosio::block_signing_authority& producer_authority, const std::string& url, uint16_t location, uint32_t reward_shared_ratio );
+         void register_producer( const name& producer, const eosio::block_signing_authority& producer_authority,
+                                 const std::string& url, uint16_t location, optional<uint32_t> reward_shared_ratio );
          void update_elected_producers( const block_timestamp& timestamp );
          void update_elected_producer_changes( const block_timestamp& timestamp );
          void update_votes( const name& voter, const name& proxy, const std::vector<name>& producers, bool voting );
@@ -1528,8 +1534,8 @@ namespace eosiosystem {
             powerup_order_table& orders, uint32_t max_items, int64_t& net_delta_available,
             int64_t& cpu_delta_available);
 
-         void process_elected_producer(const producer_elected_info& prod_old,
-                           const producer_elected_info& prod_new, proposed_producer_changes &changes);
+         void process_elected_producer(const producer_elected_info& prod_old, const producer_elected_info& prod_new,
+                                       proposed_producer_changes &changes);
    };
 
 
