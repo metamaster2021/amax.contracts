@@ -1109,6 +1109,7 @@ BOOST_FIXTURE_TEST_CASE( producer_wtmsig, eosio_system_tester ) try {
                                                ("producer_authority", alice_producer_authority.get_abi_variant()["authority"])
                                                ("url", "https://armoniax.com/")
                                                ("location", 0 )
+                                               ("reward_shared_ratio", 0)
                         )
    );
    BOOST_REQUIRE_EQUAL( success(), stake( N(alice1111111), core_sym::from_string("100000000.0000"), core_sym::from_string("100000000.0000") ) );
