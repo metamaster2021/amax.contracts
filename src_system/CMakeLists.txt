@@ -3,9 +3,9 @@ cmake_minimum_required(VERSION 3.5)
 project(amax_contracts)
 
 set(VERSION_MAJOR 0)
-set(VERSION_MINOR 1)
-set(VERSION_PATCH 1)
-# set(VERSION_SUFFIX alpha)
+set(VERSION_MINOR 6)
+set(VERSION_PATCH 0)
+set(VERSION_SUFFIX develop)
 
 if (VERSION_SUFFIX)
    set(VERSION_FULL "${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}-${VERSION_SUFFIX}")
@@ -19,7 +19,7 @@ find_package(amax.cdt)
 
 message(STATUS "Building amax.contracts v${VERSION_FULL}")
 
-set(AMAX_CDT_VERSION_MIN "1.7.0")
+set(AMAX_CDT_VERSION_MIN "1.7.6")
 set(AMAX_CDT_VERSION_SOFT_MAX "1.7.99")
 #set(AMAX_CDT_VERSION_HARD_MAX "")
 
