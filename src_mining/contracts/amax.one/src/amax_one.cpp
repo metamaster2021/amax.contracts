@@ -128,6 +128,19 @@ void amax_one::addswapconf(
     });
 
 }
+
+void amax_one::setremained( const uint64_t& swap_amount, const asset& amount) {
+    require_auth( _self );
+
+    swap_conf_t::tbl_t swap_conf_tbl(get_self(), get_self().value);
+    auto swap_conf_itr = swap_conf_tbl.find(swap_amount);
+    CHECK( swap_conf_itr != swap_conf_tbl.end(), "swap conf not existing: " + to_string(swap_amount) )
+    
+    swap_conf_tbl.modify( swap_conf_itr, get_self(), [&]( auto& swap_conf ) {
+        swap_conf.mine_token_remained = amount;
+    });
+
+}
     
 void amax_one::delswapconf( const name& account, const uint64_t amount)
 {
@@ -157,7 +170,7 @@ void amax_one::_claim_reward( const name&   to,
 
     CHECK( swap_tokens <= swap_conf_itr->mine_token_remained, "reward token not enough" )
     swap_conf_tbl.modify( swap_conf_itr, get_self(), [&]( auto& swap_conf ) {
-        swap_conf.mine_token_remained = swap_conf_itr->mine_token_total - swap_tokens;
+        swap_conf.mine_token_remained = swap_conf_itr->mine_token_remained - swap_tokens;
     });
 
     TRANSFER(_gstate.mine_token_contract, to, swap_tokens, memo )
@@ -174,6 +187,7 @@ void amax_one::_on_apl_swap_log(
     amax_one::aplswaplog_action act{ _self, { {_self, active_permission} } };
     act.send( miner, recd_apls, swap_tokens, ads_id, created_at );
 }
+
 
 string_view amax_one::_get_ads_id (const string& memo) {
     if(memo.rfind("adsid:", 0 ) == 0) {

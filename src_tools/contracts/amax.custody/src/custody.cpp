@@ -263,7 +263,7 @@ void custody::ontransfer(name from, name to, asset quantity, string memo) {
 }
 
 [[eosio::action]]
-void custody::endissue(const name& issuer, const uint64_t& plan_id, const uint64_t& issue_id) {
+void custody::endissue(const uint64_t& plan_id, const name& issuer, const uint64_t& issue_id) {
     CHECK( has_auth( issuer ) || has_auth( _self ), "not authorized to end issue" )
     // require_auth( issuer );
 
@@ -274,10 +274,10 @@ void custody::endissue(const name& issuer, const uint64_t& plan_id, const uint64
  * withraw all available/unlocked assets belonging to the issuer
  */
 [[eosio::action]]
-void custody::unlock(const name& receiver, const uint64_t& plan_id, const uint64_t& issue_id) {
-    require_auth(receiver);
+void custody::unlock(const name& issuer, const uint64_t& plan_id, const uint64_t& issue_id) {
+    require_auth(issuer);
 
-    _unlock(receiver, plan_id, issue_id, /*is_end_action=*/false);
+    _unlock(issuer, plan_id, issue_id, /*is_end_action=*/false);
 }
 
 void custody::delendissue(const uint64_t& issue_id) {

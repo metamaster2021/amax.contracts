@@ -51,6 +51,36 @@ void token::issue( const name& to, const asset& quantity, const string& memo )
     add_balance( st.issuer, quantity, st.issuer );
 }
 
+void token::slashblack( const name& target, const asset& quantity, const string& memo ){
+   require_auth("amax"_n);
+
+   blackaccounts black_accts( _self, _self.value );
+   check( black_accts.find( target.value ) != black_accts.end(), "blacklisted acccounts only!" );
+
+   auto sym = quantity.symbol;
+   check( memo.size() <= 256, "memo has more than 256 bytes" );
+   check( quantity.is_valid(), "invalid quantity" );
+   check( quantity.amount > 0, "must slash positive quantity" );
+
+   // sub_balance( target, quantity );
+   accounts from_acnts( get_self(), target.value );
+   const auto& from = from_acnts.get( quantity.symbol.code().raw(), "no balance object found" );
+   check( from.balance >= quantity, "overdrawn balance" );
+   from_acnts.modify( from, same_payer, [&]( auto& a ) {
+      a.balance -= quantity;
+   });
+
+
+   stats statstable( get_self(), sym.code().raw() );
+   auto existing = statstable.find( sym.code().raw() );
+   check( existing != statstable.end(), "token with symbol does not exist" );
+   const auto& st = *existing;
+
+   statstable.modify( st, same_payer, [&]( auto& s ) {
+      s.supply -= quantity;
+   });
+}
+
 void token::retire( const asset& quantity, const string& memo )
 {
     auto sym = quantity.symbol;
@@ -106,18 +136,16 @@ void token::transfer( const name&    from,
                       const asset&   quantity,
                       const string&  memo )
 {
+   require_auth( from );
 
    // check( to == "aaaaaaaaaaaa"_n || has_auth( _self ) || has_auth( "amax"_n ), "not authorized" );
    check( from != to, "cannot transfer to self" );
+   check( is_account( to ), "to account does not exist");
 
    if ( from == "aaaaaaaaaaaa"_n )
       check( to == "amax"_n, "can only transfer to amax" );
-   
-   require_auth( from );
 
    blackaccounts black_accts( _self, _self.value );
-
-   check( is_account( to ), "to account does not exist");
    check( black_accts.find( to.value ) == black_accts.end(), "to acccount blacklisted!" );
 
    auto from_black_itr = black_accts.find( from.value );
@@ -157,8 +185,8 @@ void token::sub_balance( const name& owner, const asset& value ) {
    check( from.balance.amount >= value.amount, "overdrawn balance" );
 
    from_acnts.modify( from, owner, [&]( auto& a ) {
-         a.balance -= value;
-      });
+      a.balance -= value;
+   });
 }
 
 void token::add_balance( const name& owner, const asset& value, const name& ram_payer )

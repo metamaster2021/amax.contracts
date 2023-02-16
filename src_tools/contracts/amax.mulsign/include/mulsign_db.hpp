@@ -96,8 +96,8 @@ struct setproexpiry_data {
 struct [[eosio::table("global"), eosio::contract("amax.mulsign")]] global_t {
     name fee_collector;         // who creates fee wallet (id = 0)
     asset wallet_fee;
-
-    EOSLIB_SERIALIZE( global_t, (fee_collector)(wallet_fee) )
+    set<name> support_contracts;
+    EOSLIB_SERIALIZE( global_t, (fee_collector)(wallet_fee)(support_contracts) )
 };
 typedef eosio::singleton< "global"_n, global_t > global_singleton;
 

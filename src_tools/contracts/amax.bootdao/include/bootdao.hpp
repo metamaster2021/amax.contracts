@@ -22,16 +22,5 @@ public:
 
 public:
     ACTION init();
-    ACTION recycle(const vector<name>& accounts);
-
-private:
-    void recycle_account(const name& account);
-    asset get_balance(const name& bank, const symbol& symb, const name& account);
-
-   struct accounts {
-      asset balance;
-      uint64_t primary_key() const {return balance.symbol.code().raw();}
-   };
-   typedef eosio::multi_index< name("accounts"), accounts > tbl_accounts;
 
 }; //contract bootdao
