@@ -178,10 +178,14 @@ void custody::ontransfer(name from, name to, asset quantity, string memo) {
 	CHECK( quantity.amount > 0, "quantity must be positive" )
 
     //memo params format:
-    //1. plan:${plan_id}, Eg: "plan:" or "plan:1"
+    //0. $plan_id, Eg: memo: "66"
+    //1. plan:${plan_id}, Eg: memo: "plan:" or "plan:1"
     //2. issue:${receiver}:${plan_id}:${first_unlock_days}, Eg: "issue:receiver1234:1:30"
     vector<string_view> memo_params = split(memo, ":");
     ASSERT(memo_params.size() > 0);
+    if( memo_params.size() == 1 ) {
+        
+    }
     if (memo_params[0] == "plan") {
         CHECK(memo_params.size() == 2, "ontransfer:plan params size of must be 2")
         auto param_plan_id = memo_params[1];
