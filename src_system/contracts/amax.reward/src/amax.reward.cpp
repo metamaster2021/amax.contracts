@@ -201,6 +201,7 @@ void amax_reward::claimrewards(const name& voter_name) {
          voted_prod.second.last_rewards_per_vote = prod.rewards_per_vote;
       }
 
+      check(v.unclaimed_rewards.amount > 0, "no rewards to claim");
       TRANSFER_OUT(CORE_TOKEN, voter_name, v.unclaimed_rewards, "voted rewards");
 
       v.claimed_rewards += v.unclaimed_rewards;
