@@ -109,6 +109,8 @@ class [[eosio::contract("amax.auth")]] amax_auth : public contract {
     */
    ACTION bindinfo( const name& admin, const name& account, const string& info);
 
+   ACTION updateinfo( const name& admin, const name& account, const string& info);
+   
    /**
     * @brief 
     * 

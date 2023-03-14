@@ -40,10 +40,12 @@ using namespace std;
       CHECKC( !_dbc.get(recoverauth), err::RECORD_EXISTING, "account already exist. ");
       auto now           = current_time_point();
 
-      bool required = _audit_item(auth_contract);
-      recoverauth.account 		                              = account;
+      auto auditconf = _audit_item(auth_contract);
+      CHECKC( auditconf.account_actived, err::NO_AUTH , "No permission to create account :" + auth_contract.to_string());
 
-      recoverauth.auth_requirements[auth_contract]          = required;
+      // bool required = _audit_item(auth_contract);
+      recoverauth.account 		                              = account;
+      recoverauth.auth_requirements[auth_contract]          = auditconf.check_required;
       recoverauth.recover_threshold                         = 1;
       recoverauth.created_at                                = now;
       recoverauth.updated_at                                = now;
@@ -74,7 +76,7 @@ using namespace std;
    void amax_recover::checkauth( const name& auth_contract, const name& account ) {
       require_auth ( auth_contract ); 
       uint8_t score         = 0;
-      bool required         = _audit_item(auth_contract);
+      bool required         = _audit_item(auth_contract).check_required;
 
       auto register_auth_itr     = register_auth_t(auth_contract);
       CHECKC( _dbc.get(account.value, register_auth_itr),  err::RECORD_NOT_FOUND, "register auth not exist. ");
@@ -265,6 +267,7 @@ using namespace std;
             if( conf.max_score > 0 )            row.max_score   = conf.max_score;
             row.check_required = conf.check_required;
             row.status        = conf.status;
+            row.account_actived = conf.account_actived;
          });   
       } else {
          auditscores.emplace(_self, [&]( auto& row ) {
@@ -277,6 +280,7 @@ using namespace std;
             row.max_score     = conf.max_score;
             row.check_required = conf.check_required;
             row.status        = conf.status;
+            row.account_actived = conf.account_actived;
          });
       }
    }
@@ -291,13 +295,14 @@ using namespace std;
       auditscores.erase(auditscore_ptr);
    }
 
-   bool amax_recover::_audit_item(const name& contract) {
+   audit_conf_t amax_recover::_audit_item(const name& contract) {
       audit_conf_t::idx_t auditscores(_self, _self.value);
 
       auto auditscore_ptr     = auditscores.find(contract.value);
       CHECKC( auditscore_ptr != auditscores.end(), err::RECORD_NOT_FOUND,  "audit_conf_t contract not exist:  " + contract.to_string());
       CHECKC( auditscore_ptr->status == ContractStatus::RUNNING, err::STATUS_ERROR,  "contract status is error: " + contract.to_string());
-      return auditscore_ptr->check_required;
+      return auditscores.get(contract.value);
+      // return auditscore_ptr;
    }
 
    void amax_recover::_update_auth( const name& account, const eosio::public_key& pubkey ) {

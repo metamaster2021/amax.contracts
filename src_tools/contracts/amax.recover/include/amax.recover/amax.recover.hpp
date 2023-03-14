@@ -1,7 +1,7 @@
 #pragma once
 
 #include <eosio/asset.hpp>
-// #include <eosio/action.hpp>
+#include <eosio/action.hpp>
 
 #include <string>
 
@@ -115,17 +115,12 @@ class [[eosio::contract("amax.recover")]] amax_recover : public contract {
 
    ACTION delauditconf( const name& contract_name );
 
-   ACTION test( const uint32_t& count){
-
-      auto t = _get_threshold( count , _gstate.recover_threshold_pct);
-      check( false, to_string(t));
-   }
    private:
       global_singleton    _global;
       global_t            _gstate;
 
    private:
-      bool _audit_item(const name& contract);
+      audit_conf_t _audit_item(const name& contract);
       void _update_auth( const name& account, const eosio::public_key& pubkey ) ;
       uint32_t _get_threshold(uint32_t count, uint32_t pct);
 
