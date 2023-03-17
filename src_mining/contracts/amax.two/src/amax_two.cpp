@@ -77,8 +77,8 @@ void amax_two::_cal_reward( asset&   reward,
 {
     asset sumbalance = aplink::token::get_sum( APL_CONTRACT, to, APL_SYMBOL.code() );  
     double sbt =  sumbalance.amount/PERCENT_BOOST;
-    double a = 1 + power(log(sbt- 800)/16, 2);
-    int64_t amount = a * (recd_apls.amount / PERCENT_BOOST / 400) * AMAX_PRECISION;
+    double a = 1 + pow(log(sbt- 800)/16, 2.0);
+    int64_t amount = a * (recd_apls.amount / PERCENT_BOOST / 400.0) * AMAX_PRECISION;
     reward.set_amount(amount);
 }
 
