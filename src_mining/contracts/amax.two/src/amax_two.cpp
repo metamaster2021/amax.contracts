@@ -30,7 +30,7 @@ void amax_two::init(const name& admin, const name& mine_token_contract, time_poi
 void amax_two::ontransfer(name from, name to, asset quantity, string memo) {
     if (from == get_self() || to != get_self()) return;
 
-	CHECK( quantity.amount > 0, "quantity must be positive" )
+	CHECK( quantity.amount >= 1000'0000, "quantity must be at least 1000" )
 
     if(amax::token::is_blacklisted("amax.token"_n, from))
         return;
@@ -44,6 +44,14 @@ void amax_two::ontransfer(name from, name to, asset quantity, string memo) {
 void amax_two::aplswaplog( const name& miner, const asset& recd_apls, const asset& swap_tokens, const time_point& created_at) {
     require_auth(get_self());
     require_recipient(miner);
+}
+
+void amax_two::setswapconf(const name& account, const asset& mine_token_total, const asset& mine_token_remained) 
+{
+    require_auth( account );
+    CHECK(account == _self || account == _gstate.admin , "no auth for operate");
+    _gstate.mine_token_total           += mine_token_total;
+    _gstate.mine_token_remained        += mine_token_remained;
 }
 
 void amax_two::_claim_reward( const name& to, 
