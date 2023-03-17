@@ -19,12 +19,14 @@ static constexpr eosio::name active_permission{"active"_n};
                                                              .send(                                             \
                                                                  get_self(), to, quantity, memo);
 
-void amax_two::init(const name& admin, const name& mine_token_contract, time_point_sec started_at, time_point_sec ended_at) {
+void amax_two::init(const name& admin, const name& mine_token_contract, time_point_sec started_at, time_point_sec ended_at, const asset& mine_token_total) {
     require_auth( _self );
     _gstate.admin                   = admin;
     _gstate.mine_token_contract     = mine_token_contract;
     _gstate.started_at              = started_at;
     _gstate.ended_at                = ended_at;
+    _gstate.mine_token_total        = mine_token_total;
+    _gstate.mine_token_remained     = mine_token_total;
 }
 
 void amax_two::ontransfer(name from, name to, asset quantity, string memo) {
@@ -46,7 +48,7 @@ void amax_two::aplswaplog( const name& miner, const asset& recd_apls, const asse
     require_recipient(miner);
 }
 
-void amax_two::setswapconf(const name& account, const asset& mine_token_total, const asset& mine_token_remained) 
+void amax_two::addminetoken(const name& account, const asset& mine_token_total, const asset& mine_token_remained) 
 {
     require_auth( account );
     CHECK(account == _self || account == _gstate.admin , "no auth for operate");

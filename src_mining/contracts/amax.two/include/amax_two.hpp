@@ -23,7 +23,7 @@ public:
     ~amax_two() { _global.set( _gstate, get_self() ); }
 
 
-    [[eosio::action]] void init(const name& admin, const name& mine_token_contract, time_point_sec started_at, time_point_sec ended_at);
+    [[eosio::action]] void init(const name& admin, const name& mine_token_contract, time_point_sec started_at, time_point_sec ended_at, const asset& mine_token_total);
 
 
     /**
@@ -44,7 +44,7 @@ public:
                     const asset&        swap_tokens,
                     const time_point&   created_at);
                     
-    [[eosio::action]] void setswapconf(const name& account, const asset& mine_token_total, const asset& mine_token_remained);
+    [[eosio::action]] void addminetoken(const name& account, const asset& mine_token_total, const asset& mine_token_remained);
      
     using aplswaplog_action = eosio::action_wrapper<"aplswaplog"_n, &amax_two::aplswaplog>;
 
