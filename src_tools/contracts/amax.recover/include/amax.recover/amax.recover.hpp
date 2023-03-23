@@ -120,7 +120,7 @@ class [[eosio::contract("amax.recover")]] amax_recover : public contract {
       global_t            _gstate;
 
    private:
-      audit_conf_t _audit_item(const name& contract);
+      const audit_conf_t& _audit_item(const name& contract);
       void _update_auth( const name& account, const eosio::public_key& pubkey ) ;
       uint32_t _get_threshold(uint32_t count, uint32_t pct);
 

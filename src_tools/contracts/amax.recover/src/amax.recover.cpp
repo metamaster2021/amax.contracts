@@ -295,7 +295,7 @@ using namespace std;
       auditscores.erase(auditscore_ptr);
    }
 
-   audit_conf_t amax_recover::_audit_item(const name& contract) {
+   const audit_conf_t& amax_recover::_audit_item(const name& contract) {
       audit_conf_t::idx_t auditscores(_self, _self.value);
 
       auto auditscore_ptr     = auditscores.find(contract.value);
