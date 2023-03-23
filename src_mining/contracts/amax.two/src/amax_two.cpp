@@ -21,6 +21,11 @@ static constexpr eosio::name active_permission{"active"_n};
 
 void amax_two::init(const name& admin, const name& mine_token_contract, time_point_sec started_at, time_point_sec ended_at, const asset& mine_token_total) {
     require_auth( _self );
+    CHECK( is_account(admin), "admin not exits" );
+	  CHECK( ended_at > started_at, "end time must be greater than start time" );
+    asset value = token::get_supply(mine_token_contract, mine_token_total.symbol.code());
+    CHECK( value.amount > 0, "symbol mismatch" );
+    
     _gstate.admin                   = admin;
     _gstate.mine_token_contract     = mine_token_contract;
     _gstate.started_at              = started_at;
@@ -32,7 +37,7 @@ void amax_two::init(const name& admin, const name& mine_token_contract, time_poi
 void amax_two::ontransfer(name from, name to, asset quantity, string memo) {
     if (from == get_self() || to != get_self()) return;
 
-	CHECK( quantity.amount >= 1000'0000, "quantity must be at least 1000" )
+	  CHECK( quantity.amount >= 1000'0000, "quantity must be at least 1000" )
 
     if(amax::token::is_blacklisted("amax.token"_n, from))
         return;
@@ -60,15 +65,13 @@ void amax_two::_claim_reward( const name& to,
                                 const asset& recd_apls,
                                 const string& memo )
 {
-
-    asset reward =asset(0, SYS_SYMBOL);
+    asset reward = asset(0, SYS_SYMBOL);
     _cal_reward(reward, to, recd_apls);
     CHECK( reward <= _gstate.mine_token_remained, "reward token not enough" )
     _gstate.mine_token_remained = _gstate.mine_token_remained - reward;
 
     TRANSFER(_gstate.mine_token_contract, to, reward, memo )
     _on_apl_swap_log(to, recd_apls, reward, current_time_point());
-
 }
 
 void amax_two::_cal_reward( asset&   reward, 
@@ -77,8 +80,8 @@ void amax_two::_cal_reward( asset&   reward,
 {
     asset sumbalance = aplink::token::get_sum( APL_CONTRACT, to, APL_SYMBOL.code() );  
     double sbt =  sumbalance.amount/PERCENT_BOOST;
-    double a = 1 + pow(log(sbt- 800)/16, 2.0);
-    int64_t amount = a * (recd_apls.amount / PERCENT_BOOST / 400.0) * AMAX_PRECISION;
+    double a = 1 + power(log(sbt- 800)/16, 2);
+    int64_t amount = a * (recd_apls.amount / PERCENT_BOOST / 400) * AMAX_PRECISION;
     reward.set_amount(amount);
 }
 
