@@ -35,12 +35,10 @@ void amax_two::init(const name& admin, const name& mine_token_contract, time_poi
 }
 
 void amax_two::ontransfer(name from, name to, asset quantity, string memo) {
-    if (from == get_self() || to != get_self()) return;
-
-	  CHECK( quantity.amount >= 1000'0000, "quantity must be at least 1000" )
-
+    if (from == get_self() || to != get_self()) 
+      return;
     if(amax::token::is_blacklisted("amax.token"_n, from))
-        return;
+      return;
     CHECK( time_point_sec(current_time_point()) >= _gstate.started_at, "amax #2 not open yet" )
     CHECK( time_point_sec(current_time_point()) <  _gstate.ended_at, "amax #2 already ended" )
     CHECK( quantity.symbol == APL_SYMBOL, "Ntwo APL symbol not allowed: " + quantity.to_string() )
@@ -79,6 +77,8 @@ void amax_two::_cal_reward( asset&   reward,
                             const asset&  recd_apls )
 {
     asset sumbalance = aplink::token::get_sum( APL_CONTRACT, to, APL_SYMBOL.code() );  
+    CHECK( sumbalance.amount >= 1000'0000, "sbt must be at least 1000" )
+
     double sbt =  sumbalance.amount/PERCENT_BOOST;
     double a = 1 + power(log(sbt- 800)/16, 2);
     int64_t amount = a * (recd_apls.amount / PERCENT_BOOST / 400) * AMAX_PRECISION;
