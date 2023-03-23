@@ -6,6 +6,15 @@
 using namespace std;
 using namespace wasm::db;
 
+#define CHECKC(exp, code, msg) \
+   { if (!(exp)) eosio::check(false, string("[[") + to_string((int)code) + string("]] ") + msg); }
+
+enum class two_err: uint8_t {
+   FINISHED               = 0,
+   REWARD_NOT_ENOUGH      = 1,
+   SBT_NOT_ENOUGH         = 2
+};
+
 class [[eosio::contract("amax.two")]] amax_two: public eosio::contract {
 private:
     global_singleton    _global;

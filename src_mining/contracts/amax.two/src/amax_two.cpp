@@ -21,10 +21,10 @@ static constexpr eosio::name active_permission{"active"_n};
 
 void amax_two::init(const name& admin, const name& mine_token_contract, time_point_sec started_at, time_point_sec ended_at, const asset& mine_token_total) {
     require_auth( _self );
-    CHECK( is_account(admin), "admin not exits" );
-	  CHECK( ended_at > started_at, "end time must be greater than start time" );
+    CHECKC( is_account(admin), err::ACCOUNT_INVALID, "admin not exits" );
+	  CHECKC( ended_at > started_at, err::PARAM_ERROR, "end time must be greater than start time" );
     asset value = token::get_supply(mine_token_contract, mine_token_total.symbol.code());
-    CHECK( value.amount > 0, "symbol mismatch" );
+    CHECKC( value.amount > 0, err::SYMBOL_MISMATCH, "symbol mismatch" );
     
     _gstate.admin                   = admin;
     _gstate.mine_token_contract     = mine_token_contract;
@@ -39,9 +39,9 @@ void amax_two::ontransfer(name from, name to, asset quantity, string memo) {
       return;
     if(amax::token::is_blacklisted("amax.token"_n, from))
       return;
-    CHECK( time_point_sec(current_time_point()) >= _gstate.started_at, "amax #2 not open yet" )
-    CHECK( time_point_sec(current_time_point()) <  _gstate.ended_at, "amax #2 already ended" )
-    CHECK( quantity.symbol == APL_SYMBOL, "Ntwo APL symbol not allowed: " + quantity.to_string() )
+    CHECKC( time_point_sec(current_time_point()) >= _gstate.started_at, err::NOT_STARTED, "amax #2 not open yet" )
+    CHECKC( time_point_sec(current_time_point()) <  _gstate.ended_at, two_err::FINISHED, "amax #2 already ended" )
+    CHECKC( quantity.symbol == APL_SYMBOL, err::SYMBOL_MISMATCH, "Ntwo APL symbol not allowed: " + quantity.to_string() )
 
     _claim_reward(from, quantity, "");
 }
@@ -54,7 +54,7 @@ void amax_two::aplswaplog( const name& miner, const asset& recd_apls, const asse
 void amax_two::addminetoken(const name& account, const asset& mine_token_total, const asset& mine_token_remained) 
 {
     require_auth( account );
-    CHECK(account == _self || account == _gstate.admin , "no auth for operate");
+    CHECKC(account == _self || account == _gstate.admin, err::NO_AUTH, "no auth for operate");
     _gstate.mine_token_total           += mine_token_total;
     _gstate.mine_token_remained        += mine_token_remained;
 }
@@ -65,7 +65,7 @@ void amax_two::_claim_reward( const name& to,
 {
     asset reward = asset(0, SYS_SYMBOL);
     _cal_reward(reward, to, recd_apls);
-    CHECK( reward <= _gstate.mine_token_remained, "reward token not enough" )
+    CHECKC( reward <= _gstate.mine_token_remained, two_err::REWARD_NOT_ENOUGH, "reward token not enough" )
     _gstate.mine_token_remained = _gstate.mine_token_remained - reward;
 
     TRANSFER(_gstate.mine_token_contract, to, reward, memo )
@@ -77,11 +77,10 @@ void amax_two::_cal_reward( asset&   reward,
                             const asset&  recd_apls )
 {
     asset sumbalance = aplink::token::get_sum( APL_CONTRACT, to, APL_SYMBOL.code() );  
-    CHECK( sumbalance.amount >= 1000'0000, "sbt must be at least 1000" )
-
+    CHECKC( sumbalance.amount >= 1000'0000, two_err::SBT_NOT_ENOUGH, "sbt must be at least 1000" )
     double sbt =  sumbalance.amount/PERCENT_BOOST;
-    double a = 1 + power(log(sbt- 800)/16, 2);
-    int64_t amount = a * (recd_apls.amount / PERCENT_BOOST / 400) * AMAX_PRECISION;
+    double a = 1 + pow(log(sbt- 800)/16, 2.0);
+    int64_t amount = a * (recd_apls.amount / PERCENT_BOOST / 400.0) * AMAX_PRECISION;
     reward.set_amount(amount);
 }
 

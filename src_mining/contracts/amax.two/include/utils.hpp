@@ -32,6 +32,35 @@ using namespace std;
 #define TRACE_L(...) TRACE(__VA_ARGS__, "\n")
 
 
+enum class err: uint32_t {
+   NONE                 = 0,
+
+   NO_AUTH              = 10001,
+   ACCOUNT_INVALID      = 10002,
+   OVERSIZED            = 10003,
+   NOT_POSITIVE         = 10004,
+
+   RECORD_FOUND         = 10008,
+   RECORD_NOT_FOUND     = 10009,
+
+   PARAM_ERROR          = 10101,
+   MEMO_FORMAT_ERROR    = 10102,
+
+   SYMBOL_MISMATCH      = 10201,
+   SYMBOL_UNSUPPORTED   = 10202,
+   FEE_INSUFFICIENT     = 10203,
+   RATE_EXCEEDED        = 10204,
+   QUANTITY_INVALID     = 10205,
+
+   NOT_STARTED          = 10300,
+   PAUSED               = 10301,
+   TIME_EXPIRED         = 10302,
+   TIME_NOT_EXPIRED     = 10303,
+   STATE_MISMATCH       = 10304,
+
+   SYSTEM_ERROR         = 20000
+};
+
 template<typename T>
 int128_t multiply(int128_t a, int128_t b) {
     int128_t ret = a * b;
