@@ -80,7 +80,7 @@ void amax_two::_cal_reward( asset&   reward,
     CHECKC( sumbalance.amount >= 1000'0000, two_err::SBT_NOT_ENOUGH, "sbt must be at least 1000" )
     double sbt =  sumbalance.amount/PERCENT_BOOST;
     double a = 1 + pow(log(sbt- 800)/16, 2.0);
-    int64_t amount = a * (recd_apls.amount / PERCENT_BOOST / 400.0) * AMAX_PRECISION;
+    int64_t amount = a * (double(recd_apls.amount) / PERCENT_BOOST / 400.0) * AMAX_PRECISION;
     reward.set_amount(amount);
 }
 
