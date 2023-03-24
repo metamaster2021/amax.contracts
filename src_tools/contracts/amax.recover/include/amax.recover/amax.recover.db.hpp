@@ -5,7 +5,7 @@
 #include <eosio/singleton.hpp>
 #include <eosio/system.hpp>
 #include <eosio/time.hpp>
-
+#include <eosio/binary_extension.hpp> 
 #include <utils.hpp>
 
 #include <optional>
@@ -147,6 +147,7 @@ struct audit_conf_s {
     uint8_t         max_score;
     bool            check_required = false;
     name            status;
+    bool            account_actived = false;
 };
 
 //Scope: self
@@ -160,6 +161,7 @@ TBL audit_conf_t {
     uint8_t         max_score;
     bool            check_required = false;
     name            status;
+    bool            account_actived = false;
 
     audit_conf_t() {}
     audit_conf_t(const name& contract): contract(contract) {}
@@ -171,7 +173,8 @@ TBL audit_conf_t {
         indexed_by<"audittype"_n, const_mem_fun<audit_conf_t, uint64_t, &audit_conf_t::by_audit_type>>
      > idx_t;
 
-    EOSLIB_SERIALIZE( audit_conf_t, (contract)(audit_type)(charge)(title)(desc)(url)(max_score)(check_required)(status) )
+    EOSLIB_SERIALIZE( audit_conf_t, (contract)(audit_type)(charge)(title)
+                    (desc)(url)(max_score)(check_required)(status)(account_actived) )
 };
 
 } //namespace amax
