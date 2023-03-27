@@ -20,6 +20,7 @@ static constexpr symbol SYS_SYMBOL              = SYMBOL("AMAX", 8);
 
 static constexpr name SYS_BANK                  { "amax.token"_n };
 static constexpr name APL_CONTRACT              { "aplink.token"_n };
+static constexpr name PHASES                    { "second"_n };
 
 static constexpr uint64_t AMAX_PRECISION        = 1'0000'0000;
 
@@ -41,6 +42,7 @@ namespace wasm { namespace db {
 #define CUSTODY_TBL_NAME(name) [[eosio::table(name), eosio::contract("amax.two")]]
 
 struct CUSTODY_TBL_NAME("global") global_t {
+  
     name                mine_token_contract;
     name                admin;
     time_point_sec      started_at;

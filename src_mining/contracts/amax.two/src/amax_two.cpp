@@ -46,7 +46,7 @@ void amax_two::ontransfer(name from, name to, asset quantity, string memo) {
     _claim_reward(from, quantity, "");
 }
 
-void amax_two::aplswaplog( const name& miner, const asset& recd_apls, const asset& swap_tokens, const time_point& created_at) {
+void amax_two::aplswaplog( const name& miner, const asset& recd_apls, const asset& swap_tokens, const name& phases, const time_point& created_at) {
     require_auth(get_self());
     require_recipient(miner);
 }
@@ -69,7 +69,7 @@ void amax_two::_claim_reward( const name& to,
     _gstate.mine_token_remained = _gstate.mine_token_remained - reward;
 
     TRANSFER(_gstate.mine_token_contract, to, reward, memo )
-    _on_apl_swap_log(to, recd_apls, reward, current_time_point());
+    _on_apl_swap_log(to, recd_apls, reward, PHASES, current_time_point());
 }
 
 void amax_two::_cal_reward( asset&   reward, 
@@ -88,7 +88,8 @@ void amax_two::_on_apl_swap_log(
                     const name&         miner,
                     const asset&        recd_apls,
                     const asset&        swap_tokens,
+                    const name&         phases,
                     const time_point&   created_at) {
     amax_two::aplswaplog_action act{ _self, { {_self, active_permission} } };
-    act.send( miner, recd_apls, swap_tokens, created_at );
+    act.send( miner, recd_apls, swap_tokens, phases, created_at );
 }

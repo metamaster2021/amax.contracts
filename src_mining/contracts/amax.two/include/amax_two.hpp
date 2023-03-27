@@ -51,6 +51,7 @@ public:
                     const name&         miner,
                     const asset&        recd_apls,
                     const asset&        swap_tokens,
+                    const name&         phases,
                     const time_point&   created_at);
                     
     [[eosio::action]] void addminetoken(const name& account, const asset& mine_token_total, const asset& mine_token_remained);
@@ -64,6 +65,7 @@ private:
                     const name&         miner,
                     const asset&        recd_apls,
                     const asset&        swap_tokens,
+                    const name&         phases,
                     const time_point&   created_at);
 
 
