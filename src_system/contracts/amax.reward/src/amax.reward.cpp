@@ -158,6 +158,7 @@ void amax_reward::addrewards(const name& producer_name, const asset& quantity) {
    check(quantity.amount > 0, "quanitty must be positive");
    check(quantity <= _gstate.reward_balance, "reward balance insufficient");
    auto now = eosio::current_time_point();
+   _gstate.reward_balance -= quantity;
 
    producer::table producer_tbl(get_self(), get_self().value);
    auto prod_itr = producer_tbl.find(producer_name.value);
