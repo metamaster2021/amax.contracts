@@ -61,8 +61,9 @@ inline static int64_t calc_voter_rewards(int64_t votes, const int128_t& rewards_
    return rewards;
 }
 
-inline void allocate_rewards(int64_t votes, const int128_t& last_rewards_per_vote, amax_reward::producer& p, int64_t& new_reward_amount) {
+inline int64_t allocate_rewards(int64_t votes, const int128_t& last_rewards_per_vote, amax_reward::producer& p) {
    CHECK(p.rewards_per_vote >= last_rewards_per_vote, "last_rewards_per_vote invalid");
+   int64_t new_reward_amount;
    int128_t reward_per_vote_delta = p.rewards_per_vote - last_rewards_per_vote;
    if (reward_per_vote_delta > 0 && votes > 0) {
       int64_t amount = calc_voter_rewards(votes, reward_per_vote_delta);
@@ -76,6 +77,7 @@ inline void allocate_rewards(int64_t votes, const int128_t& last_rewards_per_vot
          new_reward_amount += amount;
       }
    }
+   return new_reward_amount;
 }
 
 void amax_reward::updatevotes(const name& voter_name, const std::set<name>& producers, int64_t votes) {
@@ -124,7 +126,7 @@ void amax_reward::updatevotes(const name& voter_name, const std::set<name>& prod
 
          if (pd.last_rewards_per_vote) {
             CHECK(!is_new, "the old producer not found");
-            allocate_rewards(voter_itr->votes, *pd.last_rewards_per_vote, p, new_reward_amount);
+            new_reward_amount += allocate_rewards(voter_itr->votes, *pd.last_rewards_per_vote, p);
          }
 
          p.votes += pd.votes;
@@ -145,6 +147,7 @@ void amax_reward::updatevotes(const name& voter_name, const std::set<name>& prod
 
       v.votes        = votes;
       v.producers    = new_producers;
+      v.unclaimed_rewards.amount += new_reward_amount;
       v.update_at    = now;
    });
 }
@@ -197,7 +200,7 @@ void amax_reward::claimrewards(const name& voter_name) {
       for (auto& voted_prod : v.producers) {
          const auto& prod = producer_tbl.get(voted_prod.first.value, "the voted producer not found");
          producer_tbl.modify( prod, eosio::same_payer, [&]( auto& p ) {
-            allocate_rewards(voter_itr->votes, voted_prod.second.last_rewards_per_vote, p, v.unclaimed_rewards.amount);
+            v.unclaimed_rewards.amount += allocate_rewards(voter_itr->votes, voted_prod.second.last_rewards_per_vote, p);
          });
          voted_prod.second.last_rewards_per_vote = prod.rewards_per_vote;
       }
