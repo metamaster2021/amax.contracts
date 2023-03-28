@@ -47,8 +47,6 @@ namespace eosiosystem {
    using std::to_string;
    using std::string;
 
-   static constexpr uint32_t min_backup_producer_count = 3;
-
    inline bool operator == ( const eosio::key_weight& lhs, const eosio::key_weight& rhs ) {
       return tie( lhs.key, lhs.weight ) == tie( rhs.key, rhs.weight );
    }
@@ -128,7 +126,10 @@ namespace eosiosystem {
       }
 
       void merge(const producer_change_map& src, producer_change_map& dest) {
-         ASSERT(!src.clear_existed && !dest.clear_existed);
+         if (src.clear_existed) {
+            dest = src;
+            return;
+         }
          for (const auto& c : src.changes) {
             std::visit(
                overloaded {
@@ -147,7 +148,6 @@ namespace eosiosystem {
       }
 
       void merge(const proposed_producer_changes& src, proposed_producer_changes& dest) {
-         ASSERT(!src.main_changes.clear_existed && !src.backup_changes.clear_existed)
          merge(src.main_changes, dest.main_changes);
          merge(src.backup_changes, dest.backup_changes);
       }
@@ -230,33 +230,40 @@ namespace eosiosystem {
          "max_backup_producer_count must >= " + to_string(min_backup_producer_count));
       check(!_elect_gstate.is_init(), "elected producer has been initialized");
 
-      auto block_time = current_block_time();
-
-      _gstate.last_producer_schedule_update = block_time;
-      eosio::proposed_producer_changes changes;
-      changes.main_changes.clear_existed = true;
-      changes.backup_changes.clear_existed = true;
-
-      auto idx = _producers.get_index<"prototalvote"_n>();
-      auto elect_idx = _producers.get_index<"electedprod"_n>();
-      elect_global_state& egs = _elect_gstate;
       _elect_gstate.elected_version = 1;
       _elect_gstate.max_backup_producer_count = max_backup_producer_count;
-      auto& meq = _elect_gstate.main_elected_queue;
-      auto& beq = _elect_gstate.backup_elected_queue;
+
+      auto elect_idx = _producers.get_index<"electedprod"_n>();
+      eosio::proposed_producer_changes changes;
+
+      CHECK(reinit_elected_producers(elect_idx, changes),
+            "there must be at least " + to_string(_elect_gstate.min_producer_count() + 1) + " valid producers");
+
+      auto ret = set_proposed_producers_ex( changes );
+      CHECK(ret >= 0, "set proposed producers to native system failed(" + std::to_string(ret) + ")");
+
+      _gstate.last_producer_schedule_update = current_block_time();
+   }
+
+   template<typename elect_index_type>
+   bool system_contract::reinit_elected_producers( const elect_index_type& elect_idx,
+                                                   proposed_producer_changes& changes )
+   {
       auto &main_changes = changes.main_changes;
       auto &backup_changes = changes.backup_changes;
+      producer_elected_queue meq, beq;
 
-      check(_elected_changes.begin() == _elected_changes.end(), "elected change table is not empty" );
+      main_changes.clear_existed    = true;
+      main_changes.producer_count   = _elect_gstate.max_main_producer_count;
+      meq.last_producer_count       = _elect_gstate.max_main_producer_count;
+
+      backup_changes.clear_existed  = true;
+      backup_changes.producer_count = min_backup_producer_count;
+      beq.last_producer_count       = min_backup_producer_count;
 
       // TODO: need using location to order producers?
-      for( auto it = idx.cbegin(); it != idx.cend() && 0 < it->get_elected_votes() && it->active(); ++it ) {
-         idx.modify( it, get_self(), [&]( auto& p ) {
-            if (elect_idx.iterator_to(p) == elect_idx.end()) {
-               elect_idx.emplace_index(p, get_self());
-            }
-         });
-         if (main_changes.changes.size() < _elect_gstate.max_main_producer_count) {
+      for( auto it = elect_idx.cbegin(); it != elect_idx.cend() && is_prod_votes_valid(it->get_elected_votes()) && it->active(); ++it ) {
+         if (main_changes.changes.size() < meq.last_producer_count) {
             main_changes.changes.emplace(
                it->owner, eosio::producer_authority_add {
                   .authority = it->producer_authority
@@ -268,7 +275,7 @@ namespace eosiosystem {
             it->get_elected_info(meq.tail);
 
             ASSERT(meq.tail_prev.empty() || meq.tail_prev > meq.tail);
-         } else if (backup_changes.changes.size() < min_backup_producer_count) {
+         } else if (backup_changes.changes.size() < beq.last_producer_count) {
             backup_changes.changes.emplace(
                it->owner, eosio::producer_authority_add {
                   .authority = it->producer_authority
@@ -279,27 +286,20 @@ namespace eosiosystem {
             }
             it->get_elected_info(beq.tail);
 
-            if (meq.tail_next.empty()) {
-               meq.tail_next = beq.tail;
-               ASSERT(meq.tail > meq.tail_next && meq.tail_next > beq.tail_prev);
-            }
             ASSERT(beq.tail_prev.empty() || beq.tail_prev > beq.tail);
-         } else if (backup_changes.changes.size() == 3) {
+         } else { // backup_changes.changes.size() == min_backup_producer_count
             it->get_elected_info(beq.tail_next);
             break;
          }
       }
-      main_changes.producer_count = main_changes.changes.size();
-      meq.last_producer_count =  main_changes.changes.size();
-      backup_changes.producer_count = backup_changes.changes.size();
-      beq.last_producer_count =  backup_changes.changes.size();
-      uint32_t min_producer_count = _elect_gstate.max_main_producer_count + min_backup_producer_count + 1;
 
-      CHECK(main_changes.producer_count + backup_changes.producer_count + 1 >= min_producer_count,
-            "there must be at least " + to_string(min_producer_count) + " valid producers");
+      if (beq.tail_next.empty()) {
+         return false;
+      }
 
-      auto ret = set_proposed_producers_ex( changes );
-      CHECK(ret >= 0, "set proposed producers to native system failed(" + std::to_string(ret) + ")");
+      _elect_gstate.main_elected_queue = meq;
+      _elect_gstate.backup_elected_queue = beq;
+      return true;
    }
 
    void system_contract::register_producer(  const name& producer,
@@ -348,13 +348,7 @@ namespace eosiosystem {
             proposed_producer_changes changes;
             process_elected_producer(elected_info_old, prod->get_elected_info(), changes);
 
-            if ( !changes.backup_changes.changes.empty() || !changes.main_changes.changes.empty() ) {
-               auto producer_change_id = ++_elect_gstate.last_producer_change_id;
-               _elected_changes.emplace( producer, [&]( auto& c ) {
-                     c.id        = producer_change_id;
-                     c.changes   = changes;
-               });
-            }
+            save_producer_changes(changes, producer);
          }
       } else {
          _producers.emplace( producer, [&]( producer_info& info ){
@@ -470,6 +464,7 @@ namespace eosiosystem {
          for (size_t i = 0; i < rows && itr != _elected_changes.end(); ++i) {
             itr = _elected_changes.erase(itr);
          }
+         _gstate.last_producer_schedule_update = current_block_time();
       }
    }
 
@@ -621,13 +616,7 @@ namespace eosiosystem {
          }
       }
 
-      if ( !changes.backup_changes.changes.empty() || !changes.main_changes.changes.empty() ) {
-         auto producer_change_id = ++_elect_gstate.last_producer_change_id;
-         _elected_changes.emplace( voter_name, [&]( auto& c ) {
-               c.id        = producer_change_id;
-               c.changes   = changes;
-         });
-      }
+      save_producer_changes(changes, voter_name);
 
       _voters.modify( voter, same_payer, [&]( auto& av ) {
          av.last_vote_weight = new_vote_weight;
@@ -709,13 +698,7 @@ namespace eosiosystem {
                }
             }
 
-            if ( !changes.backup_changes.changes.empty() || !changes.main_changes.changes.empty() ) {
-               auto producer_change_id = ++_elect_gstate.last_producer_change_id;
-               _elected_changes.emplace( payer, [&]( auto& c ) {
-                     c.id        = producer_change_id;
-                     c.changes   = changes;
-               });
-            }
+            save_producer_changes(changes, payer);
          }
       }
       _voters.modify( voter, same_payer, [&]( auto& v ) {
@@ -813,24 +796,24 @@ namespace eosiosystem {
                // beq+: add cur prod to backup queue
                producer_change_helper::add(backup_changes, prod_new);
             } else if (prod_new > beq.tail_next) { // prod_new < beq.tail
-               if (prod_new.elected_votes > 0 || beq.last_producer_count == 3) {
+               if (is_prod_votes_valid(prod_new) || beq.last_producer_count == min_backup_producer_count) {
                   // beq+: add cur prod to backup queue
                   producer_change_helper::add(backup_changes, prod_new);
                   beq.tail_prev = beq.tail;
                   beq.tail = prod_new;
-               } else { // prod_new.elected_votes <= 0 && beq.last_producer_count
+               } else { // !is_prod_votes_valid(prod_new) && beq.last_producer_count > min_backup_producer_count
                   beq.tail_next = prod_new;
                   beq.last_producer_count--;
                }
             } else { // prod_new < beq.tail_next
-               if(beq.tail_next.elected_votes > 0 || beq.last_producer_count == 3) {
+               if(is_prod_votes_valid(beq.tail_next) || beq.last_producer_count == min_backup_producer_count) {
                   // beq+: add beq.tail_next to backup queue
                   producer_change_helper::add(backup_changes, beq.tail_next);
                   beq.tail_prev = beq.tail;
                   beq.tail = beq.tail_next;
                   beq.tail_next.clear();
                   refresh_backup_tail_next = true;
-               } else { // prod_new < beq.tail_next
+               } else { // !is_prod_votes_valid(beq.tail_next) && beq.last_producer_count > min_backup_producer_count
                   beq.last_producer_count--;
                }
             }
@@ -840,7 +823,7 @@ namespace eosiosystem {
 
          if (modify_only && prod_new.authority != prod_old.authority) {
             // meq*: modify cur prod in meq
-            producer_change_helper::add(main_changes, prod_new);
+            producer_change_helper::modify(main_changes, prod_new);
          }
       } else if (prod_new > meq.tail) { // prod_old < meq.tail
 
@@ -927,7 +910,7 @@ namespace eosiosystem {
             }
 
          } else if ( prod_new > beq.tail_next ) { // && prod_new < beq.tail
-            if (prod_new.elected_votes > 0 || beq.last_producer_count == 3) {
+            if (is_prod_votes_valid(prod_new) || beq.last_producer_count == min_backup_producer_count) {
                if (prod_old != beq.tail) {
                   beq.tail_prev = beq.tail;
                   if (prod_old == meq.tail_next) {
@@ -935,7 +918,7 @@ namespace eosiosystem {
                   }
                }
                beq.tail = prod_new;
-            } else { // prod_new.elected_votes <= 0 && beq.last_producer_count > 3
+            } else { // !is_prod_votes_valid(prod_new) && beq.last_producer_count > min_backup_producer_count
                if (prod_old == beq.tail) {
                   beq.tail = beq.tail_prev;
                   refresh_backup_tail_prev = true;
@@ -953,7 +936,7 @@ namespace eosiosystem {
             }
          } else { // prod_new < beq.tail_next
             modify_only = false;
-            if (beq.tail_next.elected_votes > 0 || beq.last_producer_count == 3) {
+            if (is_prod_votes_valid(beq.tail_next) || beq.last_producer_count == min_backup_producer_count) {
                if (prod_old != beq.tail) {
                   beq.tail_prev = beq.tail;
                   beq.tail = beq.tail_next;
@@ -968,7 +951,7 @@ namespace eosiosystem {
                producer_change_helper::del(backup_changes, prod_new);
                // beq+: add beq.tail_next to backup queue
                producer_change_helper::add(backup_changes, beq.tail_next);
-            } else { // beq.tail_next.elected_votes <= 0 && beq.last_producer_count > 3
+            } else { // !is_prod_votes_valid(beq.tail_next) && beq.last_producer_count > min_backup_producer_count
                if (prod_old == beq.tail) {
                   beq.tail = beq.tail_prev;
                   refresh_backup_tail_prev = true;
@@ -996,7 +979,7 @@ namespace eosiosystem {
 
             if ( beq.last_producer_count < _elect_gstate.max_backup_producer_count &&
                  prod_old != beq.tail_next &&
-                 beq.tail.elected_votes > 0 )
+                 is_prod_votes_valid(beq.tail) )
             {
                beq.last_producer_count++;
                if (prod_new < beq.tail_prev) {
@@ -1024,22 +1007,22 @@ namespace eosiosystem {
             }
 
          } else if (prod_new >= beq.tail_next) { // prod_new < beq.tail
-            if ( beq.last_producer_count < _elect_gstate.max_backup_producer_count &&
-               prod_old != beq.tail_next &&
-               prod_new.elected_votes > 0 )
+            if (  beq.last_producer_count < _elect_gstate.max_backup_producer_count &&
+                  prod_old != beq.tail_next &&
+                  is_prod_votes_valid(prod_new) )
             {
                // beq+: add cur prod to backup queue
                producer_change_helper::add(backup_changes, prod_new);
                beq.last_producer_count++;
                beq.tail_prev = beq.tail;
                beq.tail = prod_new;
-            } else { // beq.last_producer_count == ext.max_backup_producer_count || prod_old == beq.tail_next || prod_new.elected_votes <= 0
+            } else { // beq.last_producer_count == ext.max_backup_producer_count || prod_old == beq.tail_next || is_prod_votes_valid(prod_new)
                beq.tail_next = prod_new;
             }
          } else { // prod_new < beq.tail_next
             if ( beq.last_producer_count < _elect_gstate.max_backup_producer_count &&
                prod_old != beq.tail_next &&
-               beq.tail_next.elected_votes > 0 )
+               is_prod_votes_valid(beq.tail_next) )
             {
                // beq+: add beq.tail_next to backup queue
                producer_change_helper::add(backup_changes, beq.tail_next);
@@ -1074,4 +1057,41 @@ namespace eosiosystem {
 
    }
 
+   void system_contract::save_producer_changes(proposed_producer_changes &changes, const name& payer ) {
+      if (!_elect_gstate.is_init()) {
+         return;
+      }
+
+      if (_elect_gstate.producer_change_interrupted) {
+         if (  _elect_gstate.backup_elected_queue.last_producer_count >= min_backup_producer_count &&
+               is_prod_votes_valid(_elect_gstate.backup_elected_queue.tail)) {
+            auto elect_idx = _producers.get_index<"electedprod"_n>();
+            eosio::proposed_producer_changes init_changes;
+            if (reinit_elected_producers(elect_idx, init_changes)) {
+               _elected_changes.emplace( payer, [&]( auto& c ) {
+                     _elect_gstate.last_producer_change_id++;
+                     c.id        = _elect_gstate.last_producer_change_id;
+                     c.changes   = init_changes;
+               });
+               _elect_gstate.producer_change_interrupted = false;
+            }
+         }
+         return;
+      }
+
+      if (  _elect_gstate.backup_elected_queue.last_producer_count <= min_backup_producer_count &&
+            !is_prod_votes_valid(_elect_gstate.backup_elected_queue.tail)) {
+         _elect_gstate.producer_change_interrupted = true;
+         return;
+      }
+
+      if ( !changes.backup_changes.changes.empty() || !changes.main_changes.changes.empty() ) {
+         _elected_changes.emplace( payer, [&]( auto& c ) {
+               _elect_gstate.last_producer_change_id++;
+               c.id        = _elect_gstate.last_producer_change_id;
+               c.changes   = changes;
+         });
+      }
+
+   }
 } /// namespace eosiosystem

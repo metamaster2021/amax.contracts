@@ -112,6 +112,8 @@ namespace eosiosystem {
 
    static constexpr uint32_t ratio_boost           = 10000;
 
+   static constexpr uint32_t min_backup_producer_count = 3;
+
   /**
    * The `amax.system` smart contract is provided by `Armoniax` as a sample system contract, and it defines the structures and actions needed for blockchain's core functionality.
    *
@@ -245,14 +247,23 @@ namespace eosiosystem {
       int128_t                   total_producer_elected_votes  = 0; /// the sum of all producer elected votes
       uint32_t                   max_main_producer_count       = 21;
       uint32_t                   max_backup_producer_count     = 10000;
+      int64_t                    min_producer_votes            = 1'000'0000'0000;
+
       uint64_t                   last_producer_change_id       = 0;
+      bool                       producer_change_interrupted   = false;
       producer_elected_queue     main_elected_queue;
       producer_elected_queue     backup_elected_queue;
       EOSLIB_SERIALIZE( elect_global_state, (elected_version)(total_producer_elected_votes)
                                             (max_main_producer_count)(max_backup_producer_count)
-                                            (last_producer_change_id)(main_elected_queue)(backup_elected_queue))
+                                            (min_producer_votes)(last_producer_change_id)
+                                            (producer_change_interrupted)
+                                            (main_elected_queue)(backup_elected_queue))
 
       bool is_init() const  { return elected_version > 0; }
+      uint32_t min_producer_count() const {
+         return max_main_producer_count + min_backup_producer_count;
+      }
+
    };
 
    typedef eosio::singleton< "electglobal"_n, elect_global_state >   elect_global_state_singleton;
@@ -1534,8 +1545,21 @@ namespace eosiosystem {
             powerup_order_table& orders, uint32_t max_items, int64_t& net_delta_available,
             int64_t& cpu_delta_available);
 
-         void process_elected_producer(const producer_elected_info& prod_old, const producer_elected_info& prod_new,
-                                       proposed_producer_changes &changes);
+         template<typename elect_index_type>
+         bool reinit_elected_producers( const elect_index_type& elect_idx,
+                                        proposed_producer_changes& changes );
+         void process_elected_producer( const producer_elected_info& prod_old, const producer_elected_info& prod_new,
+                                        proposed_producer_changes &changes );
+
+         void save_producer_changes(proposed_producer_changes &changes, const name& payer );
+
+         inline bool is_prod_votes_valid(int64_t elected_votes) {
+            return elected_votes > 0 && elected_votes >= _elect_gstate.min_producer_votes;
+         }
+
+         inline bool is_prod_votes_valid(const producer_elected_info &elected_info) {
+            return is_prod_votes_valid(elected_info.elected_votes);
+         }
    };
 
 
