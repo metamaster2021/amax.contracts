@@ -276,6 +276,7 @@ namespace eosiosystem {
 
             ASSERT(meq.tail_prev.empty() || meq.tail_prev > meq.tail);
          } else if (backup_changes.changes.size() < beq.last_producer_count) {
+
             backup_changes.changes.emplace(
                it->owner, eosio::producer_authority_add {
                   .authority = it->producer_authority
@@ -286,6 +287,9 @@ namespace eosiosystem {
             }
             it->get_elected_info(beq.tail);
 
+            if (backup_changes.changes.size() == 1) {
+               meq.tail_next = beq.tail;
+            }
             ASSERT(beq.tail_prev.empty() || beq.tail_prev > beq.tail);
          } else { // backup_changes.changes.size() == min_backup_producer_count
             it->get_elected_info(beq.tail_next);

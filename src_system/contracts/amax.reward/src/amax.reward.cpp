@@ -63,7 +63,7 @@ inline static int64_t calc_voter_rewards(int64_t votes, const int128_t& rewards_
 
 inline int64_t allocate_rewards(int64_t votes, const int128_t& last_rewards_per_vote, amax_reward::producer& p) {
    CHECK(p.rewards_per_vote >= last_rewards_per_vote, "last_rewards_per_vote invalid");
-   int64_t new_reward_amount;
+   int64_t new_reward_amount = 0;
    int128_t reward_per_vote_delta = p.rewards_per_vote - last_rewards_per_vote;
    if (reward_per_vote_delta > 0 && votes > 0) {
       int64_t amount = calc_voter_rewards(votes, reward_per_vote_delta);

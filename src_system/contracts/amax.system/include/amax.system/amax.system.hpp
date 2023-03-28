@@ -253,6 +253,7 @@ namespace eosiosystem {
       bool                       producer_change_interrupted   = false;
       producer_elected_queue     main_elected_queue;
       producer_elected_queue     backup_elected_queue;
+
       EOSLIB_SERIALIZE( elect_global_state, (elected_version)(total_producer_elected_votes)
                                             (max_main_producer_count)(max_backup_producer_count)
                                             (min_producer_votes)(last_producer_change_id)

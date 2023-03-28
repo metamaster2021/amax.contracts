@@ -117,15 +117,20 @@ struct elect_global_state {
    int128_t                   total_producer_elected_votes  = 0; /// the sum of all producer elected votes
    uint32_t                   max_main_producer_count       = 21;
    uint32_t                   max_backup_producer_count     = 10000;
+   int64_t                    min_producer_votes            = 1'000'0000'0000;
+
    uint64_t                   last_producer_change_id       = 0;
+   bool                       producer_change_interrupted   = false;
    producer_elected_queue     main_elected_queue;
    producer_elected_queue     backup_elected_queue;
 
    bool is_init() const  { return elected_version > 0; }
 };
+
 FC_REFLECT( elect_global_state, (elected_version)(total_producer_elected_votes)
-                                (max_main_producer_count)(max_backup_producer_count)
-                                (last_producer_change_id)(main_elected_queue)(backup_elected_queue) )
+                                (max_main_producer_count)(max_backup_producer_count)(min_producer_votes)
+                                (last_producer_change_id)(producer_change_interrupted)
+                                (main_elected_queue)(backup_elected_queue) )
 
 struct amax_global_state: public eosio::chain::chain_config {
    uint64_t free_ram()const { return max_ram_size - total_ram_bytes_reserved; }
@@ -833,7 +838,7 @@ BOOST_FIXTURE_TEST_CASE(producer_elects_test, producer_change_tester) try {
    BOOST_REQUIRE_GT(backup_prod_info.ext.value.elected_votes, 0);
    BOOST_REQUIRE(backup_prod_info.ext.value.reward_shared_ratio == 8000);
 
-   asset initial_inflation_per_block = CORE_ASSET(20000000);
+   asset initial_inflation_per_block = CORE_ASSET(2'000'0000);
 
    setinflation(control->head_block_time(), initial_inflation_per_block);
    produce_block();
@@ -890,11 +895,10 @@ BOOST_FIXTURE_TEST_CASE(producer_elects_test, producer_change_tester) try {
    BOOST_REQUIRE_EQUAL( main_voter_reward_info.unclaimed_rewards, CORE_ASSET(0) );
    BOOST_REQUIRE_EQUAL( main_voter_reward_info.claimed_rewards, CORE_ASSET(0) );
 
-   asset main_voter_rewards = CORE_ASSET( calc_voter_rewards(main_voter_reward_info.votes, main_shared_reward_info.rewards_per_vote) );
    voter_claimrewards(main_voter);
 
    main_voter_reward_info = get_voter_reward_info(main_voter);
-   main_voter_rewards = CORE_ASSET( calc_voter_rewards(main_voter_reward_info.votes, main_shared_reward_info.rewards_per_vote) );
+   asset main_voter_rewards = CORE_ASSET( calc_voter_rewards(main_voter_reward_info.votes, main_shared_reward_info.rewards_per_vote) );
 
    BOOST_REQUIRE_EQUAL( main_voter_reward_info.claimed_rewards, main_voter_rewards );
    BOOST_REQUIRE_LT( main_voter_reward_info.claimed_rewards, shared_rewards );
