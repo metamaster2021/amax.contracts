@@ -185,9 +185,10 @@ FC_REFLECT( producer_info, (owner)(total_votes)(producer_key)(is_active)(url)(lo
 struct elected_change {
    uint64_t                      id;             // pk, auto increasement
    proposed_producer_changes     changes;
+   block_timestamp_type          created_at;
 };
 
-FC_REFLECT( elected_change, (id)(changes) )
+FC_REFLECT( elected_change, (id)(changes)(created_at) )
 
 vector<account_name> gen_producer_names(uint32_t count, uint64_t from) {
    vector<account_name> result;

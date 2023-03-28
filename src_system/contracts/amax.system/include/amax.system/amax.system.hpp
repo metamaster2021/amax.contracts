@@ -714,10 +714,11 @@ namespace eosiosystem {
    struct [[eosio::table,eosio::contract("amax.system")]] elected_change {
       uint64_t                      id;             // pk, auto increasement
       proposed_producer_changes     changes;
+      block_timestamp               created_at;
 
       uint64_t primary_key()const { return id; }
 
-      EOSLIB_SERIALIZE( elected_change, (id)(changes) )
+      EOSLIB_SERIALIZE( elected_change, (id)(changes)(created_at) )
    };
 
    typedef eosio::multi_index< "electchange"_n, elected_change> elected_change_table;

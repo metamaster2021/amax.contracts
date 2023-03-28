@@ -1070,8 +1070,9 @@ namespace eosiosystem {
             if (reinit_elected_producers(elect_idx, init_changes)) {
                _elected_changes.emplace( payer, [&]( auto& c ) {
                      _elect_gstate.last_producer_change_id++;
-                     c.id        = _elect_gstate.last_producer_change_id;
-                     c.changes   = init_changes;
+                     c.id           = _elect_gstate.last_producer_change_id;
+                     c.changes      = init_changes;
+                     c.created_at   = eosio::current_time_point();
                });
                _elect_gstate.producer_change_interrupted = false;
             }
@@ -1088,8 +1089,9 @@ namespace eosiosystem {
       if ( !changes.backup_changes.changes.empty() || !changes.main_changes.changes.empty() ) {
          _elected_changes.emplace( payer, [&]( auto& c ) {
                _elect_gstate.last_producer_change_id++;
-               c.id        = _elect_gstate.last_producer_change_id;
-               c.changes   = changes;
+               c.id           = _elect_gstate.last_producer_change_id;
+               c.changes      = changes;
+               c.created_at   = eosio::current_time_point();
          });
       }
 
