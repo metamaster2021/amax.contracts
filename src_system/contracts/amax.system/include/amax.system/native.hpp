@@ -87,15 +87,20 @@ namespace eosiosystem {
     */
    typedef std::vector<std::pair<uint16_t, std::vector<char>>> extensions_type;
 
-   struct backup_block_extension{
-      bool           is_backup = false;
-      checksum256    previous_backup;
-      name           previous_backup_producer;                          // previous backup block producer
-      uint32_t       contribution               = percent_100;  // boost 10000
+   struct previous_backup_info {
+      checksum256    id;                                // block id
+      name           producer;                          // block producer
+      uint32_t       contribution               = 0;    // producer contribution, boost 10000
+      EOSLIB_SERIALIZE( previous_backup_info, (id)(producer)(contribution) )
+   };
+
+   struct backup_block_extension {
+      bool                                   is_backup = false;
+      std::optional<previous_backup_info>    previous_backup;
 
       static constexpr uint16_t extension_id() { return 3; }
 
-      EOSLIB_SERIALIZE( backup_block_extension, (previous_backup)(is_backup)(previous_backup_producer)(contribution) )
+      EOSLIB_SERIALIZE( backup_block_extension, (previous_backup) )
    };
 
    /**

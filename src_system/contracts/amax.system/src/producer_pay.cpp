@@ -60,11 +60,12 @@ namespace eosiosystem {
                   ext_ds >> bbe;
                }
             }
-            if (!bbe.is_backup && bool(bbe.previous_backup_producer)) {
-               auto backup_prod = _producers.find( bbe.previous_backup_producer.value );
+            if (!bbe.is_backup && bbe.previous_backup) {
+               auto backup_prod = _producers.find( bbe.previous_backup->producer.value );
                if ( backup_prod != _producers.end() ) {
                   _producers.modify( backup_prod, same_payer, [&](auto& p ) {
-                        p.unclaimed_rewards.amount += inflation_per_prod;
+                     // TODO: How to determine the inflation reward based on the contribution
+                     p.unclaimed_rewards.amount += inflation_per_prod;
                   });
                }
             }
