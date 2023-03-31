@@ -846,9 +846,9 @@ BOOST_FIXTURE_TEST_CASE(producer_elects_test, producer_change_tester) try {
    hbs = control->head_block_state();
 
    BOOST_REQUIRE_EQUAL( hbs->header.backup_ext().is_backup, false );
-   BOOST_REQUIRE( !hbs->header.backup_ext().previous_backup.empty() );
-   BOOST_REQUIRE( bool(hbs->header.backup_ext().previous_backup_producer) );
-   BOOST_REQUIRE_EQUAL( hbs->header.backup_ext().contribution, config::percent_100 );
+   BOOST_REQUIRE( hbs->header.previous_backup() );
+   BOOST_REQUIRE( !hbs->header.previous_backup()->id.empty() && bool(hbs->header.previous_backup()->producer) );
+   BOOST_REQUIRE_EQUAL( hbs->header.previous_backup()->contribution, config::percent_100 );
 
    BOOST_REQUIRE_EQUAL(hbs->header.producer, next_main_prod);
    auto main_prod_info = get_producer_info(hbs->header.producer);
@@ -856,14 +856,13 @@ BOOST_FIXTURE_TEST_CASE(producer_elects_test, producer_change_tester) try {
    asset rewards_per_prod = CORE_ASSET(initial_inflation_per_block.get_amount() / 2);
    BOOST_REQUIRE_EQUAL(main_prod_info.unclaimed_rewards, rewards_per_prod);
 
-
-   auto previous_backup_block = control->fork_db().get_block(hbs->header.backup_ext().previous_backup);
+   auto previous_backup_block = control->fork_db().get_block(hbs->header.previous_backup()->id);
    BOOST_REQUIRE( previous_backup_block );
 
    BOOST_REQUIRE_EQUAL( previous_backup_block, old_backup_head_block );
-   BOOST_REQUIRE_EQUAL( previous_backup_block->header.producer, hbs->header.backup_ext().previous_backup_producer );
+   BOOST_REQUIRE_EQUAL( previous_backup_block->header.producer, hbs->header.previous_backup()->producer );
 
-   BOOST_REQUIRE_EQUAL( hbs->header.backup_ext().previous_backup_producer, backup_prod );
+   BOOST_REQUIRE_EQUAL( hbs->header.previous_backup()->producer, backup_prod );
    backup_prod_info = get_producer_info(backup_prod);
 
    BOOST_REQUIRE_EQUAL(backup_prod_info.unclaimed_rewards, rewards_per_prod);

@@ -100,7 +100,7 @@ namespace eosiosystem {
 
       static constexpr uint16_t extension_id() { return 3; }
 
-      EOSLIB_SERIALIZE( backup_block_extension, (previous_backup) )
+      EOSLIB_SERIALIZE( backup_block_extension, (is_backup)(previous_backup) )
    };
 
    /**
