@@ -25,7 +25,7 @@ public:
     ACTION addplan(const name& owner, const string& title, const name& asset_contract, const symbol& asset_symbol, const uint64_t& unlock_interval_days, const int64_t& unlock_times);
     ACTION setplanowner(const name& owner, const uint64_t& plan_id, const name& new_owner);
     ACTION enableplan(const name& owner, const uint64_t& plan_id, bool enabled);
-    ACTION delendissue(const uint64_t& issue_id);
+    ACTION delendissues( const vector<uint64_t>& issue_ids );
     /**
      * @require by maintainer only
      * The delplan action will affect table scanning
@@ -72,5 +72,5 @@ public:
             issue.plan_id = plan_id;
         });
     }
-    
+
 }; //contract custody

@@ -361,10 +361,13 @@ void custody::unlock(const name& issuer, const uint64_t& plan_id, const uint64_t
     });
 }
 
-void custody::delendissue(const uint64_t& issue_id) {
+void custody::delendissues(const vector<uint64_t>& issue_ids) {
     issue_t::tbl_t issue_tbl(get_self(), get_self().value);
-    auto issue_itr = issue_tbl.find(issue_id);
-    CHECK( issue_itr != issue_tbl.end(), "issue not found: " + to_string(issue_id) )
-    CHECK( issue_itr->status == issue_status_t::ISSUE_ENDED, "issue not ended" )
-    issue_tbl.erase( issue_itr );
+
+    for( auto& issue_id : issue_ids ) {
+        auto issue_itr = issue_tbl.find(issue_id);
+        CHECK( issue_itr != issue_tbl.end(), "issue not found: " + to_string(issue_id) )
+        CHECK( issue_itr->status == issue_status_t::ISSUE_ENDED, "issue not ended" )
+        issue_tbl.erase( issue_itr );
+    }
 }
