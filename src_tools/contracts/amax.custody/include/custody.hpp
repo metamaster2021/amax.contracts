@@ -63,17 +63,14 @@ public:
     }
 
     ACTION fixissueplan(const uint64_t& issue_id, const uint64_t& plan_id) {
-    require_auth(get_self());
+        require_auth(get_self());
 
-    issue_t::tbl_t issue_tbl(get_self(), get_self().value);
-    auto itr = issue_tbl.find(issue_id);
-    check( itr != issue_tbl.end(), "issue not found: " + to_string(issue_id) );
-    issue_tbl.modify(itr, get_self(), [&]( auto& issue ) {
-        issue.plan_id = plan_id;
-    });
-}
-
-private:
-    void _unlock(const name& actor, const uint64_t& plan_id,
-                         const uint64_t& issue_id, bool is_end_action);
+        issue_t::tbl_t issue_tbl(get_self(), get_self().value);
+        auto itr = issue_tbl.find(issue_id);
+        check( itr != issue_tbl.end(), "issue not found: " + to_string(issue_id) );
+        issue_tbl.modify(itr, get_self(), [&]( auto& issue ) {
+            issue.plan_id = plan_id;
+        });
+    }
+    
 }; //contract custody
