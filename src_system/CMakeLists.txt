@@ -7,13 +7,31 @@ set(VERSION_MINOR 6)
 set(VERSION_PATCH 0)
 set(VERSION_SUFFIX develop)
 
+set(VERSION_FULL "${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}")
+
 if (VERSION_SUFFIX)
-   set(VERSION_FULL "${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}-${VERSION_SUFFIX}")
-else()
-   set(VERSION_FULL "${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}")
+   set(VERSION_FULL "${VERSION_FULL}-${VERSION_SUFFIX}")
 endif()
 
+add_custom_target(
+   update_version ALL
+   COMMAND ${CMAKE_COMMAND} -DVERSION_FULL=${VERSION_FULL}
+                              -DSRC_DIR=${CMAKE_SOURCE_DIR}/version
+                              -DDEST_DIR=${CMAKE_BINARY_DIR}/version
+                              -P ${CMAKE_SOURCE_DIR}/version/VersionUtils.cmake
+   COMMENT "Updating version metadata..." VERBATIM )
+set(CONTRACT_VERSION_FILE ${CMAKE_BINARY_DIR}/version/ContractVersion.cmake)
+
+include( GNUInstallDirs )
 include(ExternalProject)
+
+
+set(VERSION_FULL "${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}")
+
+if (VERSION_SUFFIX)
+   set(VERSION_FULL "${VERSION_FULL}-${VERSION_SUFFIX}")
+endif()
+
 
 find_package(amax.cdt)
 
@@ -49,12 +67,23 @@ ExternalProject_Add(
    amax_contracts_project
    SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/contracts
    BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/contracts
-   CMAKE_ARGS -DCMAKE_TOOLCHAIN_FILE=${AMAX_CDT_ROOT}/lib/cmake/amax.cdt/AmaxWasmToolchain.cmake
+   INSTALL_DIR ${CMAKE_CURRENT_BINARY_DIR}/install
+   CMAKE_ARGS
+      -DCMAKE_TOOLCHAIN_FILE=${AMAX_CDT_ROOT}/lib/cmake/amax.cdt/AmaxWasmToolchain.cmake
+      -DCMAKE_INSTALL_PREFIX:PATH=<INSTALL_DIR>
+      -DCONTRACT_VERSION_FILE=${CONTRACT_VERSION_FILE}
+   DEPENDS update_version
    UPDATE_COMMAND ""
    PATCH_COMMAND ""
    TEST_COMMAND ""
-   INSTALL_COMMAND ""
    BUILD_ALWAYS 1
+)
+
+# Actually install subproject.
+install(
+    DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/install/
+    DESTINATION "${CMAKE_INSTALL_PREFIX}"
+    USE_SOURCE_PERMISSIONS # Remain permissions (rwx) for installed files
 )
 
 if (APPLE)
