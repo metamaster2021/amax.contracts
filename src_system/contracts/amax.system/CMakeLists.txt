@@ -39,6 +39,8 @@ set_target_properties(powup.results
    PROPERTIES
    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/.powerup")
 
+
+configure_file( ${CMAKE_CURRENT_SOURCE_DIR}/ricardian/${contract_name}.clauses.md.in ${CMAKE_CURRENT_BINARY_DIR}/ricardian/${contract_name}.clauses.md @ONLY )
 configure_file( ${CMAKE_CURRENT_SOURCE_DIR}/ricardian/${contract_name}.contracts.md.in ${CMAKE_CURRENT_BINARY_DIR}/ricardian/${contract_name}.contracts.md @ONLY )
 
 target_compile_options( ${contract_name} PUBLIC -R${CMAKE_CURRENT_SOURCE_DIR}/ricardian -R${CMAKE_CURRENT_BINARY_DIR}/ricardian )
