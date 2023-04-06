@@ -29,7 +29,7 @@ void custody::init() {
     //     if (itr->plan_id != 1 || itr->issuer != "armoniaadmin"_n) {
     //         itr = issues.erase( itr );
     //         step++;
-    //     } else 
+    //     } else
     //         itr++;
     // }
 
@@ -42,14 +42,14 @@ void custody::init() {
         if (itr->id != 1) {
             itr = plans.erase( itr );
             step++;
-        } else 
+        } else
             itr++;
     }
 
     check( step > 0, "none deleted" );
 }
 
-[[eosio::action]] 
+[[eosio::action]]
 void custody::fixissue(const uint64_t& issue_id, const asset& issued, const asset& locked, const asset& unlocked) {
     require_auth(get_self());
 
@@ -61,6 +61,19 @@ void custody::fixissue(const uint64_t& issue_id, const asset& issued, const asse
         issue.locked = locked;
         issue.unlocked = unlocked;
     });
+}
+
+[[eosio::action]]
+void custody::fixissuedays() {
+    require_auth(get_self());
+    issue_t::tbl_t issue_tbl(get_self(), get_self().value);
+    for (auto itr = issue_tbl.begin(); itr != issue_tbl.end(); itr++) {
+        if (itr->first_unlock_days == 0) {
+            issue_tbl.modify(itr, same_payer, [&]( auto& issue ) {
+                issue.first_unlock_days = issue.unlock_interval_days;
+            });
+        }
+    }
 }
 
 void custody::setreceiver(const uint64_t& issue_id, const name& receiver) {
@@ -184,7 +197,7 @@ void custody::ontransfer(name from, name to, asset quantity, string memo) {
     vector<string_view> memo_params = split(memo, ":");
     ASSERT(memo_params.size() > 0);
     if( memo_params.size() == 1 ) {
-        
+
     }
     if (memo_params[0] == "plan") {
         CHECK(memo_params.size() == 2, "ontransfer:plan params size of must be 2")
@@ -313,7 +326,7 @@ void custody::unlock(const name& issuer, const uint64_t& plan_id, const uint64_t
     CHECK( issue_itr != issue_tbl.end(), "issue not found: " + to_string(issue_id) )
     CHECK( issue_itr->plan_id == plan_id, "plan id mismatch" )
     ASSERT( now >= issue_itr->issued_at );
-    
+
     plan_t::tbl_t plan_tbl(get_self(), get_self().value);
     auto plan_itr = plan_tbl.find(plan_id);
     CHECK( plan_itr != plan_tbl.end(), "plan not found: " + to_string(plan_id) )
@@ -327,7 +340,7 @@ void custody::unlock(const name& issuer, const uint64_t& plan_id, const uint64_t
 
     CHECK( issue_itr->status == ISSUE_NORMAL, "issue abnormal, status: " + to_string(issue_itr->status) )
     CHECK( unlocked_days >= 0, "premature to unlock by n days, n = " + to_string( -1 * unlocked_days ) )
-    
+
     auto unlocked_times = 1 + std::min( unlocked_days / plan_itr->unlock_interval_days, plan_itr->unlock_times );
     if( unlocked_times >= plan_itr->unlock_times ) {
         total_unlocked = issue_itr->issued.amount;
@@ -355,7 +368,7 @@ void custody::unlock(const name& issuer, const uint64_t& plan_id, const uint64_t
     issue_tbl.modify( issue_itr, same_payer, [&]( auto& issue ) {
         issue.unlocked.amount   = total_unlocked;
         issue.locked.amount     = remaining_locked;
-        if( issue.unlocked == issue.issued ) 
+        if( issue.unlocked == issue.issued )
             issue.status        = ISSUE_ENDED;
         issue.updated_at        = now;
     });

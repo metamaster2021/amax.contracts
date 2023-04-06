@@ -20,6 +20,7 @@ public:
 
     ACTION init();
     ACTION fixissue(const uint64_t& issue_id, const asset& issued, const asset& locked, const asset& unlocked);
+    ACTION fixissuedays();
     ACTION setreceiver(const uint64_t& issue_id, const name& receiver);
     ACTION setconfig(const asset &plan_fee, const name &fee_receiver);
     ACTION addplan(const name& owner, const string& title, const name& asset_contract, const symbol& asset_symbol, const uint64_t& unlock_interval_days, const int64_t& unlock_times);
