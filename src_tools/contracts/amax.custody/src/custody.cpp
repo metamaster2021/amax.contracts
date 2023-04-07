@@ -56,6 +56,16 @@ void custody::fixissue(const uint64_t& issue_id, const asset& issued, const asse
     issue_t::tbl_t issue_tbl(get_self(), get_self().value);
     auto itr = issue_tbl.find(issue_id);
     check( itr != issue_tbl.end(), "issue not found: " + to_string(issue_id) );
+    check( issued.symbol == itr->issued.symbol, "issued symbol mismatch");
+    check( locked.symbol == itr->locked.symbol, "locked symbol mismatch");
+    check( unlocked.symbol == itr->unlocked.symbol, "unlocked symbol mismatch");
+
+    check( issued.amount >= 0, "issued amount can not be negtive");
+    check( locked.amount >= 0, "locked amount can not be negtive");
+    check( unlocked.amount >= 0, "unlocked amount can not be negtive");
+    check( issued.amount == locked.amount + unlocked.amount,
+            "issued.amount must be equal to (locked.amount + unlocked.amount)");
+
     issue_tbl.modify(itr, get_self(), [&]( auto& issue ) {
         issue.issued = issued;
         issue.locked = locked;
@@ -78,6 +88,7 @@ void custody::fixissuedays() {
 
 void custody::setreceiver(const uint64_t& issue_id, const name& receiver) {
     require_auth(get_self());
+    check(is_account(receiver), "receiver account not existed");
 
     issue_t::tbl_t issue_tbl(get_self(), get_self().value);
     auto itr = issue_tbl.find(issue_id);
