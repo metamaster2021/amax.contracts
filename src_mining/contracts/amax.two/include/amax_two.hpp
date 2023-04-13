@@ -37,8 +37,6 @@ public:
 
     /**
      * ontransfer, trigger by recipient of transfer()
-     * @param memo - memo format:
-     * 1. ads_id:${ads_id}, pay plan fee, Eg: "ads_id:" or "ads_id:1"
      *
      *    transfer() params:
      *    @param from - issuer
