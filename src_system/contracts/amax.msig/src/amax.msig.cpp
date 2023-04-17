@@ -105,7 +105,7 @@ void multisig::approve( name proposer, name proposal_name, permission_level leve
    transaction_header trx_header = get_trx_header(prop.packed_transaction.data(), prop.packed_transaction.size());
 
    if( prop.earliest_exec_time.has_value() ) {
-      if( !prop.earliest_exec_time->has_value() ) {
+      if( !(*prop.earliest_exec_time).has_value() ) {
          auto table_op = [](auto&&, auto&&){};
          if( trx_is_authorized(get_approvals_and_adjust_table(get_self(), proposer, proposal_name, table_op), prop.packed_transaction) ) {
             proptable.modify( prop, proposer, [&]( auto& p ) {
@@ -135,7 +135,7 @@ void multisig::unapprove( name proposer, name proposal_name, permission_level le
    auto& prop = proptable.get( proposal_name.value, "proposal not found" );
 
    if( prop.earliest_exec_time.has_value() ) {
-      if( prop.earliest_exec_time->has_value() ) {
+      if( (*prop.earliest_exec_time).has_value() ) {
          auto table_op = [](auto&&, auto&&){};
          if( !trx_is_authorized(get_approvals_and_adjust_table(get_self(), proposer, proposal_name, table_op), prop.packed_transaction) ) {
             proptable.modify( prop, proposer, [&]( auto& p ) {
@@ -186,7 +186,7 @@ void multisig::exec( name proposer, name proposal_name, name executer ) {
    bool ok = trx_is_authorized(get_approvals_and_adjust_table(get_self(), proposer, proposal_name, table_op), prop.packed_transaction);
    check( ok, "transaction authorization failed" );
 
-   if ( prop.earliest_exec_time.has_value() && prop.earliest_exec_time->has_value() ) {
+   if ( prop.earliest_exec_time.has_value() && (*prop.earliest_exec_time).has_value() ) {
       check( **prop.earliest_exec_time <= current_time_point(), "too early to execute" );
    } else {
       check( trx_header.delay_sec.value == 0, "old proposals are not allowed to have non-zero `delay_sec`; cancel and retry" );
