@@ -97,7 +97,7 @@ void multisig::approve( name proposer, name proposal_name, permission_level leve
    auto itr = std::find_if( apps_it->requested_approvals.begin(), apps_it->requested_approvals.end(), [&](const approval& a) { return a.level == level; } );
    check( itr != apps_it->requested_approvals.end(), "approval is not on the list of requested approvals" );
 
-   apptable.modify( apps_it, proposer, [&]( auto& a ) {
+   apptable.modify( apps_it, same_payer, [&]( auto& a ) {
          a.provided_approvals.push_back( approval{ level, current_time_point() } );
          a.requested_approvals.erase( itr );
       });
@@ -105,11 +105,11 @@ void multisig::approve( name proposer, name proposal_name, permission_level leve
    transaction_header trx_header = get_trx_header(prop.packed_transaction.data(), prop.packed_transaction.size());
 
    if( prop.earliest_exec_time.has_value() ) {
-      if( !(*prop.earliest_exec_time).has_value() ) {
+      if( trx_header.delay_sec.value != 0 && prop.earliest_exec_time->elapsed.count() == 0 ) {
          auto table_op = [](auto&&, auto&&){};
          if( trx_is_authorized(get_approvals_and_adjust_table(get_self(), proposer, proposal_name, table_op), prop.packed_transaction) ) {
-            proptable.modify( prop, proposer, [&]( auto& p ) {
-               p.earliest_exec_time.emplace(time_point{ current_time_point() + eosio::seconds(trx_header.delay_sec.value)});
+            proptable.modify( prop, same_payer, [&]( auto& p ) {
+               p.earliest_exec_time.emplace(current_time_point() + eosio::seconds(trx_header.delay_sec.value));
             });
          }
       }
@@ -126,7 +126,7 @@ void multisig::unapprove( name proposer, name proposal_name, permission_level le
    check( apps_it != apptable.end(), "proposal not found" );
    auto itr = std::find_if( apps_it->provided_approvals.begin(), apps_it->provided_approvals.end(), [&](const approval& a) { return a.level == level; } );
    check( itr != apps_it->provided_approvals.end(), "no approval previously granted" );
-   apptable.modify( apps_it, proposer, [&]( auto& a ) {
+   apptable.modify( apps_it, same_payer, [&]( auto& a ) {
          a.requested_approvals.push_back( approval{ level, current_time_point() } );
          a.provided_approvals.erase( itr );
       });
@@ -135,10 +135,10 @@ void multisig::unapprove( name proposer, name proposal_name, permission_level le
    auto& prop = proptable.get( proposal_name.value, "proposal not found" );
 
    if( prop.earliest_exec_time.has_value() ) {
-      if( (*prop.earliest_exec_time).has_value() ) {
+      if( prop.earliest_exec_time->elapsed.count() != 0 ) {
          auto table_op = [](auto&&, auto&&){};
          if( !trx_is_authorized(get_approvals_and_adjust_table(get_self(), proposer, proposal_name, table_op), prop.packed_transaction) ) {
-            proptable.modify( prop, proposer, [&]( auto& p ) {
+            proptable.modify( prop, same_payer, [&]( auto& p ) {
                p.earliest_exec_time.emplace();
             });
          }
@@ -186,8 +186,8 @@ void multisig::exec( name proposer, name proposal_name, name executer ) {
    bool ok = trx_is_authorized(get_approvals_and_adjust_table(get_self(), proposer, proposal_name, table_op), prop.packed_transaction);
    check( ok, "transaction authorization failed" );
 
-   if ( prop.earliest_exec_time.has_value() && (*prop.earliest_exec_time).has_value() ) {
-      check( **prop.earliest_exec_time <= current_time_point(), "too early to execute" );
+   if ( prop.earliest_exec_time.has_value() && prop.earliest_exec_time->elapsed.count() != 0 ) {
+      check( *prop.earliest_exec_time <= current_time_point(), "too early to execute" );
    } else {
       check( trx_header.delay_sec.value == 0, "old proposals are not allowed to have non-zero `delay_sec`; cancel and retry" );
    }
