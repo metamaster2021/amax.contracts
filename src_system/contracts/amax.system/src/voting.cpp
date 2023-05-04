@@ -479,6 +479,7 @@ namespace eosiosystem {
    }
 
    void system_contract::voteproducer( const name& voter_name, const name& proxy, const std::vector<name>& producers ) {
+      check(!bool(proxy), "proxy is unsupported");
       require_auth( voter_name );
       vote_stake_updater( voter_name );
       update_votes( voter_name, proxy, producers, true );
@@ -631,6 +632,7 @@ namespace eosiosystem {
    }
 
    void system_contract::regproxy( const name& proxy, bool isproxy ) {
+      check(false, "regproxy is unsupported");
       require_auth( proxy );
 
       auto pitr = _voters.find( proxy.value );
