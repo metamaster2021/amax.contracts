@@ -32,7 +32,7 @@ public:
     ~amax_two() { _global.set( _gstate, get_self() ); }
 
 
-    [[eosio::action]] void init(const name& admin, const name& mine_token_contract, time_point_sec started_at, time_point_sec ended_at, const asset& mine_token_total);
+    [[eosio::action]] void init(const name& admin, const name& mine_token_contract, time_point_sec started_at, time_point_sec ended_at);
 
 
     /**
@@ -43,7 +43,7 @@ public:
      *    @param to   - must be contract self
      *    @param quantity - issued quantity
      */
-    [[eosio::on_notify("aplink.token::transfer")]] void ontransfer(name from, name to, asset quantity, string memo);
+    [[eosio::on_notify("*::transfer")]] void ontransfer(name from, name to, asset quantity, string memo);
 
     [[eosio::action]] void aplswaplog(
                     const name&         miner,
@@ -52,7 +52,7 @@ public:
                     const name&         phases,
                     const time_point&   created_at);
                     
-    [[eosio::action]] void addminetoken(const name& account, const asset& mine_token_total, const asset& mine_token_remained);
+    // [[eosio::action]] void addminetoken(const name& account, const asset& mine_token_total, const asset& mine_token_remained);
      
     using aplswaplog_action = eosio::action_wrapper<"aplswaplog"_n, &amax_two::aplswaplog>;
 
