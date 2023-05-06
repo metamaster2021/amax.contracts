@@ -51,9 +51,7 @@ public:
                     const asset&        swap_tokens,
                     const name&         phases,
                     const time_point&   created_at);
-                    
-    // [[eosio::action]] void addminetoken(const name& account, const asset& mine_token_total, const asset& mine_token_remained);
-     
+                         
     using aplswaplog_action = eosio::action_wrapper<"aplswaplog"_n, &amax_two::aplswaplog>;
 
 private: 
