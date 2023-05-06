@@ -42,15 +42,16 @@ namespace wasm { namespace db {
 #define CUSTODY_TBL_NAME(name) [[eosio::table(name), eosio::contract("amax.two")]]
 
 struct CUSTODY_TBL_NAME("global") global_t {
-  
     name                mine_token_contract;
     name                admin;
     time_point_sec      started_at;
     time_point_sec      ended_at;
-    asset               mine_token_total;
-    asset               mine_token_remained;
+    asset               mine_token_total = asset(0,SYS_SYMBOL);
+    asset               mine_token_remained = asset(0,SYS_SYMBOL);
+    
     EOSLIB_SERIALIZE( global_t, (mine_token_contract)(admin)(started_at)(ended_at)(mine_token_total)(mine_token_remained) )
 };
+
 typedef eosio::singleton< "global"_n, global_t > global_singleton;
 
 } }
