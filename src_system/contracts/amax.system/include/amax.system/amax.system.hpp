@@ -1201,7 +1201,7 @@ namespace eosiosystem {
 
          /**
           * Vote refund action, this action is called after the subvote-period to claim all pending
-          * unvote tokens belonging to owner.
+          * staked AMAX of substracted votes belonging to owner.
           *
           * @param owner - the owner of the tokens claimed.
           */
@@ -1310,6 +1310,7 @@ namespace eosiosystem {
           * @pre Voter must authorize this action
           * @pre Voter must have previously staked some EOS for voting
           * @pre Voter->votes must be positive
+          * @pre Voter can only vote once a day, restricted actions: (addvote, subvote, vote)
           *
           * @post Every producer previously voted for will have vote reduced by previous vote amount
           * @post Every producer newly voted for will have vote increased by new vote amount
@@ -1317,11 +1318,42 @@ namespace eosiosystem {
          [[eosio::action]]
          void vote( const name& voter, const std::vector<name>& producers );
 
+         /**
+          * Add vote action. This action add voter's `votes` for voting,
+          * Storage change is billed to `voter`.
+          *
+          * @param voter - the voter account,
+          * @param votes - the votes to add. symbol must be `VOTE`, amount must be positive
+          *
+          * @pre Voter must authorize this action
+          * @pre Voter must have enough AMAX to stake to add votes
+          * @pre Voter can only add votes once a day, restricted actions: (addvote, subvote, vote)
+          *
+          * @post All producers `voter` account has voted for will have their votes updated immediately.
+          */
          [[eosio::action]]
          void addvote( const name& voter, const asset& votes );
 
+         /**
+          * Sub vote action. This action substract voter's `votes` for voting,
+          * Storage change is billed to `voter`.
+          *
+          * @param voter - the voter account,
+          * @param votes - the votes to substract. symbol must be `VOTE` and amount must be positive
+          *
+          * @pre Voter must authorize this action
+          * @pre Voter must have enough votes to substract
+          * @pre Voter can only have one substracted votes at a time (including processing of delayed refunds)
+          * @pre Voter can only sub votes once a day, restricted actions: (addvote, subvote, vote)
+          *
+          * @post The staked AMAX of substracted votes are transferred to `voter` liquid balance via a
+          *    deferred `voterefund` transaction with a delay of 3 days.
+          * @post All producers `voter` account has voted for will have their votes updated immediately.
+          * @post Bandwidth and storage for the deferred transaction are billed to `voter`.
+          */
          [[eosio::action]]
          void subvote( const name& voter, const asset& votes );
+
          /**
           * Register proxy action, sets `proxy` account as proxy.
           * An account marked as a proxy can vote with the weight of other accounts which
