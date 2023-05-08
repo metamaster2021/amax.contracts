@@ -116,6 +116,7 @@ namespace eosiosystem {
 
    static constexpr symbol   vote_symbol                 = symbol("VOTE", 4);
    static constexpr uint32_t max_vote_producer_count     = 30;
+   static constexpr uint32_t vote_interval_sec           = 1 * seconds_per_day;
 
    static const asset        vote_asset_0                = asset(0, vote_symbol);
 
@@ -1310,7 +1311,7 @@ namespace eosiosystem {
           * @pre Voter must authorize this action
           * @pre Voter must have previously staked some EOS for voting
           * @pre Voter->votes must be positive
-          * @pre Voter can only vote once a day, restricted actions: (addvote, subvote, vote)
+          * @pre Voter can only update votes once a day, restricted actions: (addvote, subvote, vote)
           *
           * @post Every producer previously voted for will have vote reduced by previous vote amount
           * @post Every producer newly voted for will have vote increased by new vote amount
@@ -1327,7 +1328,7 @@ namespace eosiosystem {
           *
           * @pre Voter must authorize this action
           * @pre Voter must have enough AMAX to stake to add votes
-          * @pre Voter can only add votes once a day, restricted actions: (addvote, subvote, vote)
+          * @pre Voter can only update votes once a day, restricted actions: (addvote, subvote, vote)
           *
           * @post All producers `voter` account has voted for will have their votes updated immediately.
           */
@@ -1344,7 +1345,7 @@ namespace eosiosystem {
           * @pre Voter must authorize this action
           * @pre Voter must have enough votes to substract
           * @pre Voter can only have one substracted votes at a time (including processing of delayed refunds)
-          * @pre Voter can only sub votes once a day, restricted actions: (addvote, subvote, vote)
+          * @pre Voter can only update votes once a day, restricted actions: (addvote, subvote, vote)
           *
           * @post The staked AMAX of substracted votes are transferred to `voter` liquid balance via a
           *    deferred `voterefund` transaction with a delay of 3 days.

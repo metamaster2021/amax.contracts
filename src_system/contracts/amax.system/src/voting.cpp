@@ -642,37 +642,39 @@ namespace eosiosystem {
 
    void system_contract::addvote( const name& voter, const asset& votes ) {
       require_auth(voter);
-      //validate input
+
       CHECK(votes.amount > 0, "votes must be positive")
-      // TODO: vote_staked = calc_core_asset() from votes = votes * 10^4
-      // TODO: transfer(voter, amax_vote, vote_staked, "addvote")
-      // TODO: _electgstate.total_vote_staked += vote_staked
 
-      auto vote_staked = vote_to_core_asset(votes);
-      token::transfer_action transfer_act{ token_account, { {voter, active_permission} } };
-      transfer_act.send( voter, vote_account, vote_staked, "addvote" );
-
+      auto now = current_time_point();
       // TODO: amax.reward: addvote
       // amax_reward_interface::updatevotes_action act{ reward_account,
       //       { {get_self(), active_permission} , {voter_name, active_permission} } };
       // act.send( voter_name, producers, new_votes.amount);
       auto voter_itr = _voters.find( voter.value );
       if( voter_itr != _voters.end() ) {
+         CHECK( time_point(voter_itr->vote_updated_time) + seconds(vote_interval_sec) >= now, "Voter can only update votes once a day" )
+
          if (voter_itr->producers.size() > 0) {
             proposed_producer_changes changes;
             update_producer_elected_votes(voter_itr->producers, votes, false, changes);
             save_producer_changes(changes, voter);
          }
 
-         _voters.modify( voter_itr, same_payer, [&]( auto& av ) {
-            av.votes             += votes;
+         _voters.modify( voter_itr, same_payer, [&]( auto& v ) {
+            v.votes             += votes;
+            v.vote_updated_time  = now;
          });
       } else {
-         _voters.emplace( voter, [&]( auto& p ) {
-            p.owner  = voter;
-            p.votes = votes;
+         _voters.emplace( voter, [&]( auto& v ) {
+            v.owner              = voter;
+            v.votes              = votes;
+            v.vote_updated_time  = now;
          });
       }
+
+      auto vote_staked = vote_to_core_asset(votes);
+      token::transfer_action transfer_act{ token_account, { {voter, active_permission} } };
+      transfer_act.send( voter, vote_account, vote_staked, "addvote" );
 
    }
 
@@ -685,6 +687,9 @@ namespace eosiosystem {
 
       CHECK( voter_itr->votes >= votes, "votes insufficent" )
 
+      auto now = current_time_point();
+
+      CHECK( time_point(voter_itr->vote_updated_time) + seconds(vote_interval_sec) >= now, "Voter can only update votes once a day" )
       // TODO: amax.reward: subvote
       // amax_reward_interface::updatevotes_action act{ reward_account,
       //       { {get_self(), active_permission} , {voter_name, active_permission} } };
@@ -697,24 +702,25 @@ namespace eosiosystem {
       update_producer_elected_votes(voter_itr->producers, -votes, false, changes);
       save_producer_changes(changes, voter);
 
-      _voters.modify( voter_itr, same_payer, [&]( auto& av ) {
-         av.votes             -= votes;
+      _voters.modify( voter_itr, same_payer, [&]( auto& v ) {
+         v.votes             -= votes;
+         v.vote_updated_time  = now;
       });
 
       vote_refund_tbl.emplace( voter, [&]( auto& r ) {
          r.owner = voter;
          r.votes = votes;
-         r.request_time = current_time_point();
+         r.request_time = now;
       });
 
-      eosio::transaction out;
-      out.actions.emplace_back( permission_level{voter, active_permission},
+      eosio::transaction refund_trx;
+      refund_trx.actions.emplace_back( permission_level{voter, active_permission},
                                  get_self(), "voterefund"_n,
                                  voter
       );
-      out.delay_sec = refund_delay_sec;
+      refund_trx.delay_sec = refund_delay_sec;
       eosio::cancel_deferred( voter.value ); // TODO: Remove this line when replacing deferred trxs is fixed
-      out.send( voter.value, voter, true );
+      refund_trx.send( voter.value, voter, true );
 
    }
 
@@ -730,6 +736,9 @@ namespace eosiosystem {
 
       ASSERT( voter_itr->votes.amount >= 0 )
       CHECK( voter_itr->producers != producers, "producers no change" )
+
+      auto now = current_time_point();
+      CHECK( time_point(voter_itr->vote_updated_time) + seconds(vote_interval_sec) >= now, "Voter can only update votes once a day" )
 
       const auto& old_prods = voter_itr->producers;
       auto old_prod_itr = old_prods.begin();
@@ -770,8 +779,9 @@ namespace eosiosystem {
 
       save_producer_changes(changes, voter);
 
-      _voters.modify( voter_itr, same_payer, [&]( auto& av ) {
-         av.producers         = producers;
+      _voters.modify( voter_itr, same_payer, [&]( auto& v ) {
+         v.producers          = producers;
+         v.vote_updated_time  = now;
       });
    }
 
