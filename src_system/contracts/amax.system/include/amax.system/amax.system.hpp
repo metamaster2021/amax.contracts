@@ -441,10 +441,22 @@ namespace eosiosystem {
       EOSLIB_SERIALIZE( refund_request, (owner)(request_time)(net_amount)(cpu_amount) )
    };
 
+   struct [[eosio::table, eosio::contract("amax.system")]] vote_refund {
+      name            owner;
+      time_point_sec  request_time;
+      eosio::asset    votes;
+
+      uint64_t  primary_key()const { return owner.value; }
+
+      // explicit serialization macro is not necessary, used here only to improve compilation time
+      EOSLIB_SERIALIZE( vote_refund, (owner)(request_time)(votes) )
+   };
+
 
    typedef eosio::multi_index< "userres"_n, user_resources >      user_resources_table;
    typedef eosio::multi_index< "delband"_n, delegated_bandwidth > del_bandwidth_table;
    typedef eosio::multi_index< "refunds"_n, refund_request >      refunds_table;
+   typedef eosio::multi_index< "voterefund"_n, vote_refund >      vote_refund_table;
 
    // `rex_pool` structure underlying the rex pool table. A rex pool table entry is defined by:
    // - `version` defaulted to zero,
@@ -768,6 +780,7 @@ namespace eosiosystem {
          static constexpr eosio::name ram_account{"amax.ram"_n};
          static constexpr eosio::name ramfee_account{"amax.ramfee"_n};
          static constexpr eosio::name stake_account{"amax.stake"_n};
+         static constexpr eosio::name vote_account{"amax.vote"_n};
          static constexpr eosio::name names_account{"amax.names"_n};
          static constexpr eosio::name rex_account{"amax.rex"_n};
          static constexpr eosio::name reserv_account{"amax.reserv"_n};
@@ -1186,6 +1199,15 @@ namespace eosiosystem {
          [[eosio::action]]
          void refund( const name& owner );
 
+         /**
+          * Vote refund action, this action is called after the subvote-period to claim all pending
+          * unvote tokens belonging to owner.
+          *
+          * @param owner - the owner of the tokens claimed.
+          */
+         [[eosio::action]]
+         void voterefund( const name& owner );
+
          // functions defined in voting.cpp
 
          /**
@@ -1589,6 +1611,8 @@ namespace eosiosystem {
                                         proposed_producer_changes &changes );
 
          void save_producer_changes(proposed_producer_changes &changes, const name& payer );
+
+         inline asset vote_to_core_asset(const asset& votes);
 
          inline bool is_prod_votes_valid(int64_t votes_amount) {
             return votes_amount > 0 && votes_amount >= _elect_gstate.min_producer_votes;

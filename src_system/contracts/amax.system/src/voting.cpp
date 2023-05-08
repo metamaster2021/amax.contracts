@@ -38,6 +38,7 @@ namespace eosiosystem {
    using eosio::current_block_time;
    using eosio::indexed_by;
    using eosio::microseconds;
+   using eosio::seconds;
    using eosio::singleton;
    using eosio::producer_authority_add;
    using eosio::producer_authority_modify;
@@ -46,6 +47,7 @@ namespace eosiosystem {
    using eosio::print;
    using std::to_string;
    using std::string;
+   using eosio::token;
 
    inline bool operator == ( const eosio::key_weight& lhs, const eosio::key_weight& rhs ) {
       return tie( lhs.key, lhs.weight ) == tie( rhs.key, rhs.weight );
@@ -646,6 +648,10 @@ namespace eosiosystem {
       // TODO: transfer(voter, amax_vote, vote_staked, "addvote")
       // TODO: _electgstate.total_vote_staked += vote_staked
 
+      auto vote_staked = vote_to_core_asset(votes);
+      token::transfer_action transfer_act{ token_account, { {voter, active_permission} } };
+      transfer_act.send( voter, vote_account, vote_staked, "addvote" );
+
       // TODO: amax.reward: addvote
       // amax_reward_interface::updatevotes_action act{ reward_account,
       //       { {get_self(), active_permission} , {voter_name, active_permission} } };
@@ -672,11 +678,7 @@ namespace eosiosystem {
 
    void system_contract::subvote( const name& voter, const asset& votes ) {
       require_auth(voter);
-      //validate input
       CHECK(votes.amount > 0, "votes must be positive")
-      // TODO: vote_staked = calc_core_asset() from votes = votes * 10^4
-      // TODO: delay: transfer(amax_vote, voter , vote_staked, "addvote")
-      // TODO: _electgstate.total_vote_staked -= vote_staked
 
       auto voter_itr = _voters.find( voter.value );
       CHECK( voter_itr != _voters.end(), "voter not found" )
@@ -688,6 +690,9 @@ namespace eosiosystem {
       //       { {get_self(), active_permission} , {voter_name, active_permission} } };
       // act.send( voter_name, producers, new_votes.amount);
 
+      vote_refund_table vote_refund_tbl( get_self(), voter.value );
+      CHECK( vote_refund_tbl.find( voter.value ) == vote_refund_tbl.end(), "This account already has a vote refund" );
+
       proposed_producer_changes changes;
       update_producer_elected_votes(voter_itr->producers, -votes, false, changes);
       save_producer_changes(changes, voter);
@@ -695,6 +700,21 @@ namespace eosiosystem {
       _voters.modify( voter_itr, same_payer, [&]( auto& av ) {
          av.votes             -= votes;
       });
+
+      vote_refund_tbl.emplace( voter, [&]( auto& r ) {
+         r.owner = voter;
+         r.votes = votes;
+         r.request_time = current_time_point();
+      });
+
+      eosio::transaction out;
+      out.actions.emplace_back( permission_level{voter, active_permission},
+                                 get_self(), "voterefund"_n,
+                                 voter
+      );
+      out.delay_sec = refund_delay_sec;
+      eosio::cancel_deferred( voter.value ); // TODO: Remove this line when replacing deferred trxs is fixed
+      out.send( voter.value, voter, true );
 
    }
 
@@ -753,6 +773,21 @@ namespace eosiosystem {
       _voters.modify( voter_itr, same_payer, [&]( auto& av ) {
          av.producers         = producers;
       });
+   }
+
+   void system_contract::voterefund( const name& owner ) {
+      require_auth( owner );
+
+      vote_refund_table vote_refund_tbl( get_self(), owner.value );
+      auto itr = vote_refund_tbl.find( owner.value );
+      check( itr != vote_refund_tbl.end(), "no vote refund found" );
+      check( itr->request_time + seconds(refund_delay_sec) <= current_time_point(),
+             "refund is not available yet" );
+
+      auto vote_staked = vote_to_core_asset(itr->votes);
+      token::transfer_action transfer_act{ token_account, { {vote_account, active_permission} } };
+      transfer_act.send( vote_account, itr->owner, vote_staked, "voterefund" );
+      vote_refund_tbl.erase( itr );
    }
 
    void system_contract::regproxy( const name& proxy, bool isproxy ) {
@@ -1203,5 +1238,11 @@ namespace eosiosystem {
          });
       }
 
+   }
+
+   inline asset system_contract::vote_to_core_asset(const asset& votes) {
+      int128_t amount = votes.amount * 10000;
+      CHECK( amount >= 0 && amount <= std::numeric_limits<int64_t>::max(), "votes out of range")
+      return asset((int64_t)amount, core_symbol());
    }
 } /// namespace eosiosystem
