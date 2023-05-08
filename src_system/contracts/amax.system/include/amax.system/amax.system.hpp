@@ -114,6 +114,11 @@ namespace eosiosystem {
 
    static constexpr uint32_t min_backup_producer_count = 3;
 
+   static constexpr symbol   vote_symbol                 = symbol("VOTE", 4);
+   static constexpr uint32_t max_vote_producer_count     = 30;
+
+   static const asset        vote_asset_0                = asset(0, vote_symbol);
+
   /**
    * The `amax.system` smart contract is provided by `Armoniax` as a sample system contract, and it defines the structures and actions needed for blockchain's core functionality.
    *
@@ -160,12 +165,14 @@ namespace eosiosystem {
 
    struct producer_elected_info {
       eosio::name             name;
-      int64_t                 elected_votes = 0;
+      bool                    is_active         = false;
+      asset                   elected_votes     = asset(0, vote_symbol);
       eosio::block_signing_authority authority;
 
       void clear() {
          name.value = 0;
-         elected_votes = 0;
+         is_active = false;
+         elected_votes.amount = 0;
          authority = eosio::block_signing_authority{};
       }
 
@@ -174,11 +181,11 @@ namespace eosiosystem {
       }
 
       inline friend bool operator<(const producer_elected_info& a, const producer_elected_info& b)  {
-         return LESS_OR(a.elected_votes, b.elected_votes, LARGER(a.name, b.name));
+         return LESS_OR(a.is_active, b.is_active, LESS_OR(a.elected_votes, b.elected_votes, LARGER(a.name, b.name)));
       }
 
       inline friend bool operator>(const producer_elected_info& a, const producer_elected_info& b)  {
-         return LARGER_OR(a.elected_votes, b.elected_votes, LESS(a.name, b.name));
+         return LARGER_OR(a.is_active, b.is_active, LARGER_OR(a.elected_votes, b.elected_votes, LESS(a.name, b.name)));
       }
 
       inline friend bool operator<=(const producer_elected_info& a, const producer_elected_info& b)  {
@@ -188,7 +195,7 @@ namespace eosiosystem {
          return !(a < b);
       }
       inline friend bool operator==(const producer_elected_info& a, const producer_elected_info& b)  {
-         return a.elected_votes == b.elected_votes && a.name == b.name;
+         return a.is_active == b.is_active && a.elected_votes == b.elected_votes && a.name == b.name;
       }
       inline friend bool operator!=(const producer_elected_info& a, const producer_elected_info& b)  {
          return !(a == b);
@@ -274,8 +281,8 @@ namespace eosiosystem {
    }
 
    struct producer_info_ext {
-      int64_t        elected_votes     = 0;
-      uint32_t       reward_shared_ratio = 0;
+      asset          elected_votes        = vote_asset_0;
+      uint32_t       reward_shared_ratio  = 0;
    };
 
    // Defines `producer_info` structure to be stored in `producer_info` table, added after version 1.0
@@ -294,18 +301,19 @@ namespace eosiosystem {
       uint64_t primary_key()const { return owner.value;                             }
       double   by_votes()const    { return is_active ? -total_votes : total_votes;  }
 
-      static uint128_t by_elected_prod(const name& owner, int64_t elected_votes, bool is_active = true) {
+      inline static uint128_t by_elected_prod(const name& owner, bool is_active, const asset& votes) {
          static constexpr int64_t int64_max = std::numeric_limits<int64_t>::max();
-         static constexpr int64_t uint64_max = std::numeric_limits<uint64_t>::max();
+         static constexpr uint64_t uint64_max = std::numeric_limits<uint64_t>::max();
          static_assert( uint64_max - (uint64_t)int64_max == (uint64_t)int64_max + 1 );
-         ASSERT(elected_votes >= 0 && elected_votes != int64_max);
-         uint64_t hi = is_active ? int64_max - elected_votes : uint64_max - elected_votes;
+         uint64_t amount = votes.amount;
+         ASSERT(amount >= 0 && amount < int64_max);
+         uint64_t hi = is_active ? (uint64_t)int64_max - amount : uint64_max - amount;
          return uint128_t(hi) << 64 | owner.value;
       }
 
-      uint128_t by_elected_prod() const {
-         return ext ? by_elected_prod(owner, ext->elected_votes, is_active)
-                    : by_elected_prod(owner, 0, is_active);
+      inline uint128_t by_elected_prod() const {
+         return ext ? by_elected_prod(owner, is_active, ext->elected_votes)
+                    : by_elected_prod(owner, is_active, vote_asset_0);
       }
 
       bool     active()const      { return is_active;                               }
@@ -318,8 +326,8 @@ namespace eosiosystem {
          is_active = false;
       }
 
-      inline int64_t get_elected_votes() const {
-         return ext ? ext->elected_votes : 0;
+      inline const asset& get_elected_votes() const {
+         return ext ? ext->elected_votes : vote_asset_0;
       }
 
       inline producer_elected_info get_elected_info() const {
@@ -354,22 +362,21 @@ namespace eosiosystem {
       name                owner;     /// the voter
       name                proxy;     /// the proxy set by the voter, if any
       std::vector<name>   producers; /// the producers approved by this voter if no proxy set
-      int64_t             staked = 0;
+      int64_t             staked = 0; /// [deprecated]
 
       //  Every time a vote is cast we must first "undo" the last vote weight, before casting the
       //  new vote weight.  Vote weight is calculated as:
       //  stated.amount * 2 ^ ( weeks_since_launch/weeks_per_year)
-      double              last_vote_weight = 0; /// the vote weight cast the last time the vote was updated,
+      double              last_vote_weight = 0; /// [deprecated] the vote weight cast the last time the vote was updated
 
       // Total vote weight delegated to this voter.
       double              proxied_vote_weight= 0; /// [deprecated] the total vote weight delegated to this voter as a proxy
       bool                is_proxy = 0; /// [deprecated] whether the voter is a proxy for others
 
 
-      uint32_t            flags1                = 0; /// resource managed flags
-      int64_t             last_elected_votes    = 0; /// the elected votes cast the last time the vote was updated
-      int64_t             proxied_elected_votes = 0; /// the total elected votes delegated to this voter as a proxy
-      uint32_t            reserved = 0;              /// reserved
+      uint32_t            flags1                = 0;                       /// resource managed flags
+      asset               votes                 = asset(0, vote_symbol);   /// elected votes
+      block_timestamp     vote_updated_time;                               /// vote updated time
 
       uint64_t primary_key()const { return owner.value; }
 
@@ -381,8 +388,7 @@ namespace eosiosystem {
 
       // explicit serialization macro is not necessary, used here only to improve compilation time
       EOSLIB_SERIALIZE( voter_info, (owner)(proxy)(producers)(staked)(last_vote_weight)
-                                    (proxied_vote_weight)(is_proxy)(flags1)(last_elected_votes)
-                                    (proxied_elected_votes)(reserved) )
+                                    (proxied_vote_weight)(is_proxy)(flags1)(votes)(vote_updated_time) )
    };
 
 
@@ -1268,6 +1274,32 @@ namespace eosiosystem {
          [[eosio::action]]
          void voteproducer( const name& voter, const name& proxy, const std::vector<name>& producers );
 
+
+         /**
+          * Vote producer action, new version, votes for a set of producers. This action updates the list of `producers` voted for,
+          * for `voter` account. Voter can vote for a list of at most 30 producers.
+          * Storage change is billed to `voter`.
+          *
+          * @param voter - the account to change the voted producers for,
+          * @param producers - the list of producers to vote for, a maximum of 30 producers is allowed.
+          *
+          * @pre Producers must be sorted from lowest to highest and must be registered and active
+          * @pre Every listed producer must have been previously registered
+          * @pre Voter must authorize this action
+          * @pre Voter must have previously staked some EOS for voting
+          * @pre Voter->votes must be positive
+          *
+          * @post Every producer previously voted for will have vote reduced by previous vote amount
+          * @post Every producer newly voted for will have vote increased by new vote amount
+          */
+         [[eosio::action]]
+         void vote( const name& voter, const std::vector<name>& producers );
+
+         [[eosio::action]]
+         void addvote( const name& voter, const asset& votes );
+
+         [[eosio::action]]
+         void subvote( const name& voter, const asset& votes );
          /**
           * Register proxy action, sets `proxy` account as proxy.
           * An account marked as a proxy can vote with the weight of other accounts which
@@ -1505,7 +1537,10 @@ namespace eosiosystem {
                                  const std::string& url, uint16_t location, optional<uint32_t> reward_shared_ratio );
          void update_elected_producers( const block_timestamp& timestamp );
          void update_elected_producer_changes( const block_timestamp& timestamp );
-         void update_votes( const name& voter, const name& proxy, const std::vector<name>& producers, bool voting );
+         void update_vote_weight_old( const name& voter, const name& proxy, const std::vector<name>& producers, bool voting );
+         void update_votes( const name& voter, const std::vector<name>& producers, const asset& votes_delta, bool voting );
+         void update_producer_elected_votes( const std::vector<name>& producers, const asset& votes_delta,
+                                             bool is_adding, proposed_producer_changes &changes);
          void propagate_weight_change( const voter_info& voter, const name& payer );
 
          template <auto system_contract::*...Ptrs>
@@ -1555,12 +1590,12 @@ namespace eosiosystem {
 
          void save_producer_changes(proposed_producer_changes &changes, const name& payer );
 
-         inline bool is_prod_votes_valid(int64_t elected_votes) {
-            return elected_votes > 0 && elected_votes >= _elect_gstate.min_producer_votes;
+         inline bool is_prod_votes_valid(int64_t votes_amount) {
+            return votes_amount > 0 && votes_amount >= _elect_gstate.min_producer_votes;
          }
 
          inline bool is_prod_votes_valid(const producer_elected_info &elected_info) {
-            return is_prod_votes_valid(elected_info.elected_votes);
+            return is_prod_votes_valid(elected_info.elected_votes.amount);
          }
    };
 

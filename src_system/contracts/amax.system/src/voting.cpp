@@ -157,7 +157,7 @@ namespace eosiosystem {
 
       template<typename index_t>
       auto get_pos_itr(index_t &idx, const producer_elected_info &prod, const char* title) {
-         auto itr = idx.lower_bound(producer_info::by_elected_prod(prod.name, prod.elected_votes, true));
+         auto itr = idx.lower_bound(producer_info::by_elected_prod(prod.name, prod.is_active, prod.elected_votes));
          CHECK(itr != idx.end() && itr->owner == prod.name, "producer elected position not found");
          ASSERT(itr->get_elected_votes() == prod.elected_votes);
          return itr;
@@ -177,7 +177,7 @@ namespace eosiosystem {
             #endif//TRACE_PRODUCER_CHANGES
          } else {
             if (checking) {
-               CHECK(false, string(title) + " not found! tail: " + tail.name.to_string() + ":" + to_string(tail.elected_votes))
+               CHECK(false, string(title) + " not found! tail: " + tail.name.to_string() + ":" + tail.elected_votes.to_string())
             }
             #ifdef TRACE_PRODUCER_CHANGES
             eosio::print(title, " cleared\n");
@@ -198,7 +198,7 @@ namespace eosiosystem {
             #endif//TRACE_PRODUCER_CHANGES
          } else {
             if (check_found) {
-               CHECK(false, string(title) + " not found! tail: " + tail.name.to_string() + ":" + to_string(tail.elected_votes))
+               CHECK(false, string(title) + " not found! tail: " + tail.name.to_string() + ":" + tail.elected_votes.to_string())
             }
             #ifdef TRACE_PRODUCER_CHANGES
             eosio::print(title, " cleared\n");
@@ -243,6 +243,7 @@ namespace eosiosystem {
       CHECK(ret >= 0, "set proposed producers to native system failed(" + std::to_string(ret) + ")");
 
       _gstate.last_producer_schedule_update = current_block_time();
+      _gstate.total_producer_vote_weight = 0; // clear the old vote info
    }
 
    template<typename elect_index_type>
@@ -262,7 +263,11 @@ namespace eosiosystem {
       beq.last_producer_count       = min_backup_producer_count;
 
       // TODO: need using location to order producers?
-      for( auto it = elect_idx.cbegin(); it != elect_idx.cend() && is_prod_votes_valid(it->get_elected_votes()) && it->active(); ++it ) {
+      for( auto it = elect_idx.cbegin(); it != elect_idx.cend(); ++it ) {
+         auto elected_info = it->get_elected_info();
+         if (!it->active() || is_prod_votes_valid(elected_info)) {
+            break;
+         }
          if (main_changes.changes.size() < meq.last_producer_count) {
             main_changes.changes.emplace(
                it->owner, eosio::producer_authority_add {
@@ -272,7 +277,7 @@ namespace eosiosystem {
             if (!meq.tail.empty()) {
                meq.tail_prev = meq.tail;
             }
-            it->get_elected_info(meq.tail);
+            meq.tail = elected_info;
 
             ASSERT(meq.tail_prev.empty() || meq.tail_prev > meq.tail);
          } else if (backup_changes.changes.size() < beq.last_producer_count) {
@@ -285,14 +290,14 @@ namespace eosiosystem {
             if (!beq.tail.empty()) {
                beq.tail_prev = beq.tail;
             }
-            it->get_elected_info(beq.tail);
+            beq.tail = elected_info;
 
             if (backup_changes.changes.size() == 1) {
                meq.tail_next = beq.tail;
             }
             ASSERT(beq.tail_prev.empty() || beq.tail_prev > beq.tail);
          } else { // backup_changes.changes.size() == min_backup_producer_count
-            it->get_elected_info(beq.tail_next);
+            beq.tail_next = elected_info;
             break;
          }
       }
@@ -482,14 +487,14 @@ namespace eosiosystem {
       check(!bool(proxy), "proxy is unsupported");
       require_auth( voter_name );
       vote_stake_updater( voter_name );
-      update_votes( voter_name, proxy, producers, true );
+      update_vote_weight_old( voter_name, proxy, producers, true );
       auto rex_itr = _rexbalance.find( voter_name.value );
       if( rex_itr != _rexbalance.end() && rex_itr->rex_balance.amount > 0 ) {
          check_voting_requirement( voter_name, "voter holding REX tokens must vote for at least 21 producers or for a proxy" );
       }
    }
 
-   void system_contract::update_votes( const name& voter_name, const name& proxy, const std::vector<name>& producers, bool voting ) {
+   void system_contract::update_vote_weight_old( const name& voter_name, const name& proxy, const std::vector<name>& producers, bool voting ) {
       //validate input
       if ( proxy ) {
          check( producers.size() == 0, "cannot vote for producers and proxy at same time" );
@@ -518,10 +523,8 @@ namespace eosiosystem {
       }
 
       auto new_vote_weight = stake2vote( voter->staked );
-      auto new_elected_votes = voter->staked;
       if( voter->is_proxy ) {
          new_vote_weight += voter->proxied_vote_weight;
-         new_elected_votes += voter->proxied_elected_votes;
       }
 
       struct producer_delta_t {
@@ -531,22 +534,20 @@ namespace eosiosystem {
       };
 
       std::map<name, producer_delta_t> producer_deltas;
-      if ( voter->last_vote_weight > 0 || voter->last_elected_votes > 0 ) {
+      if ( voter->last_vote_weight > 0 ) {
          if( voter->proxy ) {
             if (!proxy || proxy != voter->proxy ) {
                auto old_proxy = _voters.find( voter->proxy.value );
                check( old_proxy != _voters.end(), "old proxy not found" ); //data corruption
                _voters.modify( old_proxy, same_payer, [&]( auto& vp ) {
-                     if (voter->last_vote_weight > 0)   vp.proxied_vote_weight -= voter->last_vote_weight;
-                     if (voter->last_elected_votes > 0) vp.proxied_elected_votes -= voter->proxied_elected_votes;
+                     vp.proxied_vote_weight -= voter->last_vote_weight;
                   });
                propagate_weight_change( *old_proxy, voter_name );
             }
          } else {
             for( const auto& p : voter->producers ) {
                auto& d = producer_deltas[p];
-               if (voter->last_vote_weight > 0)   d.vote_weight   -= voter->last_vote_weight;
-               if (voter->last_elected_votes > 0) d.elected_votes -= voter->last_elected_votes;
+               d.vote_weight   -= voter->last_vote_weight;
                d.is_new = false;
             }
          }
@@ -557,63 +558,41 @@ namespace eosiosystem {
          check( new_proxy != _voters.end(), "invalid proxy specified" ); //if ( !voting ) { data corruption } else { wrong vote }
          check( !voting || new_proxy->is_proxy, "proxy not found" );
          double old_proxy_weight = 0;
-         int64_t old_elected_votes = 0;
          if (voter->proxy && proxy == voter->proxy) {
             old_proxy_weight     = voter->last_vote_weight;
-            old_elected_votes    = voter->last_elected_votes;
          }
 
-         if ( new_vote_weight >= 0 || new_elected_votes > 0 || old_proxy_weight > 0 || old_elected_votes > 0) {
+         if ( new_vote_weight >= 0 || old_proxy_weight > 0 ) {
             _voters.modify( new_proxy, same_payer, [&]( auto& vp ) {
                   vp.proxied_vote_weight     += new_vote_weight - old_proxy_weight;
-                  vp.proxied_elected_votes   += new_elected_votes - old_elected_votes;
                });
             propagate_weight_change( *new_proxy, voter_name );
          }
       } else {
-         if( new_vote_weight >= 0 || new_elected_votes > 0) {
+         if( new_vote_weight >= 0 ) {
             for( const auto& p : producers ) {
                auto& d = producer_deltas[p];
                d.vote_weight += new_vote_weight;
-               d.elected_votes += new_elected_votes;
                d.is_new = true;
             }
          }
-
-         amax_reward_interface::updatevotes_action act{ reward_account,
-               { {get_self(), active_permission} , {voter_name, active_permission} } };
-         act.send( voter_name, producers, new_elected_votes);
-
       }
 
       auto elect_idx = _producers.get_index<"electedprod"_n>();
-      proposed_producer_changes changes;
-      const auto ct = current_time_point();
       for( const auto& pd : producer_deltas ) {
          auto pitr = _producers.find( pd.first.value );
          if( pitr != _producers.end() ) {
             if( voting && !pitr->active() && pd.second.is_new /* from new set */ ) {
                check( false, ( "producer " + pitr->owner.to_string() + " is not currently registered" ).data() );
             }
-            auto elected_info_old = pitr->get_elected_info();
             _producers.modify( pitr, same_payer, [&]( auto& p ) {
                p.total_votes += pd.second.vote_weight;
                if ( p.total_votes < 0 ) { // floating point arithmetics can give small negative numbers
                   p.total_votes = 0;
                }
                _gstate.total_producer_vote_weight += pd.second.vote_weight;
-
-               p.try_init_ext();
-               p.ext->elected_votes += pd.second.elected_votes;
-               check( !(p.ext && p.ext->elected_votes < 0), "elected_votes is negative");
-               _elect_gstate.total_producer_elected_votes += pd.second.elected_votes;
-               check(_elect_gstate.total_producer_elected_votes >= 0, "total_producer_elected_votes is negative");
             });
 
-            if (_elect_gstate.is_init() && pitr->ext) {
-               ASSERT(elect_idx.iterator_to(*pitr) != elect_idx.end());
-               process_elected_producer(elected_info_old, pitr->get_elected_info(), changes);
-            }
          } else {
             if( pd.second.is_new ) {
                check( false, ( "producer " + pd.first.to_string() + " is not registered" ).data() );
@@ -621,13 +600,158 @@ namespace eosiosystem {
          }
       }
 
-      save_producer_changes(changes, voter_name);
-
       _voters.modify( voter, same_payer, [&]( auto& av ) {
          av.last_vote_weight = new_vote_weight;
-         av.last_elected_votes = new_elected_votes;
          av.producers = producers;
          av.proxy     = proxy;
+      });
+   }
+
+   void system_contract::update_producer_elected_votes(  const std::vector<name>& producers,
+                                                         const asset& votes_delta,
+                                                         bool is_adding,
+                                                         proposed_producer_changes& changes ) {
+
+      auto elect_idx = _producers.get_index<"electedprod"_n>();
+      // const auto ct = current_time_point();
+      for( const auto& p : producers ) {
+         auto pitr = _producers.find( p.value );
+         CHECK( pitr != _producers.end(), "producer " + p.to_string() + " is not registered" );
+
+         if (is_adding) {
+            CHECK( pitr->active() , "producer " + pitr->owner.to_string() + " is not active" );
+         }
+
+         CHECK(pitr->ext, "producer " + pitr->owner.to_string() + " is not updated")
+         ASSERT(elect_idx.iterator_to(*pitr) != elect_idx.end());
+
+         auto elected_info_old = pitr->get_elected_info();
+         _producers.modify( pitr, same_payer, [&]( auto& p ) {
+            p.total_votes = 0; // clear old vote info
+            p.ext->elected_votes += votes_delta;
+            CHECK( p.ext->elected_votes.amount >= 0, "producer elect_votes can not be negative" )
+            _elect_gstate.total_producer_elected_votes += votes_delta.amount;
+            check(_elect_gstate.total_producer_elected_votes >= 0, "total_producer_elected_votes can not be negative");
+         });
+
+         process_elected_producer(elected_info_old, pitr->get_elected_info(), changes);
+      }
+   }
+
+   void system_contract::addvote( const name& voter, const asset& votes ) {
+      require_auth(voter);
+      //validate input
+      CHECK(votes.amount > 0, "votes must be positive")
+      // TODO: vote_staked = calc_core_asset() from votes = votes * 10^4
+      // TODO: transfer(voter, amax_vote, vote_staked, "addvote")
+      // TODO: _electgstate.total_vote_staked += vote_staked
+
+      // TODO: amax.reward: addvote
+      // amax_reward_interface::updatevotes_action act{ reward_account,
+      //       { {get_self(), active_permission} , {voter_name, active_permission} } };
+      // act.send( voter_name, producers, new_votes.amount);
+      auto voter_itr = _voters.find( voter.value );
+      if( voter_itr != _voters.end() ) {
+         if (voter_itr->producers.size() > 0) {
+            proposed_producer_changes changes;
+            update_producer_elected_votes(voter_itr->producers, votes, false, changes);
+            save_producer_changes(changes, voter);
+         }
+
+         _voters.modify( voter_itr, same_payer, [&]( auto& av ) {
+            av.votes             += votes;
+         });
+      } else {
+         _voters.emplace( voter, [&]( auto& p ) {
+            p.owner  = voter;
+            p.votes = votes;
+         });
+      }
+
+   }
+
+   void system_contract::subvote( const name& voter, const asset& votes ) {
+      require_auth(voter);
+      //validate input
+      CHECK(votes.amount > 0, "votes must be positive")
+      // TODO: vote_staked = calc_core_asset() from votes = votes * 10^4
+      // TODO: delay: transfer(amax_vote, voter , vote_staked, "addvote")
+      // TODO: _electgstate.total_vote_staked -= vote_staked
+
+      auto voter_itr = _voters.find( voter.value );
+      CHECK( voter_itr != _voters.end(), "voter not found" )
+
+      CHECK( voter_itr->votes >= votes, "votes insufficent" )
+
+      // TODO: amax.reward: subvote
+      // amax_reward_interface::updatevotes_action act{ reward_account,
+      //       { {get_self(), active_permission} , {voter_name, active_permission} } };
+      // act.send( voter_name, producers, new_votes.amount);
+
+      proposed_producer_changes changes;
+      update_producer_elected_votes(voter_itr->producers, -votes, false, changes);
+      save_producer_changes(changes, voter);
+
+      _voters.modify( voter_itr, same_payer, [&]( auto& av ) {
+         av.votes             -= votes;
+      });
+
+   }
+
+   void system_contract::vote( const name& voter, const std::vector<name>& producers ) {
+
+      check( producers.size() <= max_vote_producer_count, "attempt to vote for too many producers" );
+      for( size_t i = 1; i < producers.size(); ++i ) {
+         check( producers[i - 1] < producers[i], "producer votes must be unique and sorted" );
+      }
+
+      auto voter_itr = _voters.find( voter.value );
+      check( voter_itr != _voters.end(), "voter not found" ); /// addvote creates voter object
+
+      ASSERT( voter_itr->votes.amount >= 0 )
+      CHECK( voter_itr->producers != producers, "producers no change" )
+
+      const auto& old_prods = voter_itr->producers;
+      auto old_prod_itr = old_prods.begin();
+      auto new_prod_itr = producers.begin();
+      std::vector<name> removed_prods; removed_prods.reserve(old_prods.size());
+      std::vector<name> added_prods;   added_prods.reserve(producers.size());
+      while(true) {
+         if (old_prod_itr != old_prods.end() && new_prod_itr != producers.end()) {
+            if (old_prod_itr < new_prod_itr) {
+               removed_prods.push_back(*old_prod_itr);
+               old_prod_itr++;
+            } else if (new_prod_itr < old_prod_itr) {
+               added_prods.push_back(*new_prod_itr);
+               new_prod_itr++;
+            } else { // new_prod_itr == old_prod_itr
+               old_prod_itr++;
+               new_prod_itr++;
+            }
+         } else if ( old_prod_itr != old_prods.end() ) { //  && new_prod_itr == producers.end()
+               removed_prods.push_back(*old_prod_itr);
+               old_prod_itr++;
+         } else if (new_prod_itr != producers.end()) { // && old_prod_itr == old_prods.end()
+               added_prods.push_back(*new_prod_itr);
+               new_prod_itr++;
+         } else { // old_prod_itr == old_prods.end() && new_prod_itr == producers.end()
+            break;
+         }
+      }
+
+      // TODO:
+      // amax_reward_interface::updatevotes_action act{ reward_account,
+      //       { {get_self(), active_permission} , {voter_name, active_permission} } };
+      // act.send( voter_name, producers, new_votes.amount);
+
+      proposed_producer_changes changes;
+      update_producer_elected_votes(removed_prods, -voter_itr->votes, false, changes);
+      update_producer_elected_votes(added_prods, voter_itr->votes, true, changes);
+
+      save_producer_changes(changes, voter);
+
+      _voters.modify( voter_itr, same_payer, [&]( auto& av ) {
+         av.producers         = producers;
       });
    }
 
@@ -654,10 +778,8 @@ namespace eosiosystem {
    void system_contract::propagate_weight_change( const voter_info& voter, const name& payer ) {
       check( !voter.proxy || !voter.is_proxy, "account registered as a proxy is not allowed to use a proxy" );
       double new_weight          = stake2vote( voter.staked );
-      int64_t new_elected_votes  = voter.staked;
       if ( voter.is_proxy ) {
          new_weight              += voter.proxied_vote_weight;
-         new_elected_votes       += voter.proxied_elected_votes;
       }
 
       auto elect_idx = _producers.get_index<"electedprod"_n>();
@@ -668,48 +790,26 @@ namespace eosiosystem {
             auto& proxy = _voters.get( voter.proxy.value, "proxy not found" ); //data corruption
             _voters.modify( proxy, same_payer, [&]( auto& pv ) {
                   pv.proxied_vote_weight     += new_weight - voter.last_vote_weight;
-                  pv.proxied_elected_votes   += new_elected_votes - voter.last_elected_votes;
                }
             );
             propagate_weight_change( proxy, payer );
          } else {
-            amax_reward_interface::updatevotes_action act{ reward_account,
-                  { {get_self(), active_permission}, {voter.owner, active_permission} } };
-            act.send( voter.owner, voter.producers, new_weight);
-
-            proposed_producer_changes changes;
             auto delta                       = new_weight - voter.last_vote_weight;
-            auto elected_votes_delta         = new_elected_votes - voter.last_elected_votes;
             const auto ct                    = current_time_point();
             for ( auto acnt : voter.producers ) {
                auto& prod = _producers.get( acnt.value, "producer not found" ); //data corruption
-               auto elected_info_old = prod.get_elected_info();
                _producers.modify( prod, same_payer, [&]( auto& p ) {
                   p.total_votes += delta;
                   if ( p.total_votes < 0 ) { // floating point arithmetics can give small negative numbers
                      p.total_votes = 0;
                   }
                   _gstate.total_producer_vote_weight += delta;
-
-                  p.try_init_ext();
-                  p.ext->elected_votes += elected_votes_delta;
-                  check( !(p.ext && p.ext->elected_votes < 0), "elected_votes is negtive");
-                  _elect_gstate.total_producer_elected_votes += elected_votes_delta;
-                  check(_elect_gstate.total_producer_elected_votes >= 0, "total_producer_elected_votes is negative");
                });
-
-               if (_elect_gstate.is_init() && prod.ext) {
-                  ASSERT(elect_idx.iterator_to(prod) != elect_idx.end());
-                  process_elected_producer(elected_info_old, prod.get_elected_info(), changes);
-               }
             }
-
-            save_producer_changes(changes, payer);
          }
       }
       _voters.modify( voter, same_payer, [&]( auto& v ) {
             v.last_vote_weight = new_weight;
-            v.last_elected_votes = new_elected_votes;
          }
       );
    }
@@ -717,7 +817,9 @@ namespace eosiosystem {
    void system_contract::process_elected_producer(const producer_elected_info& prod_old,
                            const producer_elected_info& prod_new, proposed_producer_changes &changes) {
 
-      ASSERT(_elect_gstate.is_init())
+      if (!_elect_gstate.is_init()) {
+         return;
+      }
 
       auto &meq = _elect_gstate.main_elected_queue;
       auto &beq = _elect_gstate.backup_elected_queue;

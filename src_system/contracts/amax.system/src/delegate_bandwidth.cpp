@@ -361,7 +361,7 @@ namespace eosiosystem {
       check( 0 <= voter_itr->staked, "stake for voting cannot be negative" );
 
       if( voter_itr->producers.size() || voter_itr->proxy ) {
-         update_votes( voter, voter_itr->proxy, voter_itr->producers, false );
+         update_vote_weight_old( voter, voter_itr->proxy, voter_itr->producers, false );
       }
    }
 
