@@ -34,6 +34,8 @@ public:
 
     [[eosio::action]] void init(const name& admin, const name& mine_token_contract, time_point_sec started_at, time_point_sec ended_at);
 
+    [[eosio::action]] void setminetoken(const asset& mine_token_total, const asset& mine_token_remained);
+
 
     /**
      * ontransfer, trigger by recipient of transfer()
