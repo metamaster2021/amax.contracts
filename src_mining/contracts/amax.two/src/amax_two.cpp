@@ -28,7 +28,14 @@ void amax_two::init(const name& admin, const name& mine_token_contract, time_poi
     _gstate.mine_token_contract     = mine_token_contract;
     _gstate.started_at              = started_at;
     _gstate.ended_at                = ended_at;
+}
 
+void amax_two::setminetoken(const asset& mine_token_total, const asset& mine_token_remained) {
+    require_auth( _self );
+    CHECKC( mine_token_total.symbol == SYS_SYMBOL && mine_token_remained.symbol == SYS_SYMBOL, err::PARAM_ERROR, "mine symbol must be system symbol" );
+
+    _gstate.mine_token_total     = mine_token_total;
+    _gstate.mine_token_remained  = mine_token_remained;
 }
 
 void amax_two::ontransfer(name from, name to, asset quantity, string memo) {
@@ -50,7 +57,6 @@ void amax_two::ontransfer(name from, name to, asset quantity, string memo) {
         _gstate.mine_token_total           += quantity;
         _gstate.mine_token_remained        += quantity;
     } 
-    
 }
 
 void amax_two::aplswaplog( const name& miner, const asset& recd_apls, const asset& swap_tokens, const name& phases, const time_point& created_at) {
