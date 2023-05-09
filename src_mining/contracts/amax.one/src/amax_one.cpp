@@ -36,7 +36,7 @@ void amax_one::ontransfer(name from, name to, asset quantity, string memo) {
 
 
 	  CHECK( quantity.amount > 0, "quantity must be positive" )
-    asset sumbalance = aplink::token::get_sum( APL_CONTRACT, to, APL_SYMBOL.code() );  
+    asset sumbalance = aplink::token::get_sum( APL_CONTRACT, from, APL_SYMBOL.code() );  
     CHECK( sumbalance.amount < 1000'0000, "apl sum greater than or equal to 1000, please go to the pro pool to mine" )
     
     if(amax::token::is_blacklisted("amax.token"_n, from))
