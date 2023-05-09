@@ -2,9 +2,9 @@
 #include <amax.token.hpp>
 #include "amax_one.hpp"
 #include "utils.hpp"
-
 #include <chrono>
 #include <amax.token/amax.token.hpp>
+#include <aplink.token/aplink.token.hpp>
 
 
 using std::chrono::system_clock;
@@ -35,8 +35,10 @@ void amax_one::ontransfer(name from, name to, asset quantity, string memo) {
     if (from == get_self() || to != get_self()) return;
 
 
-	CHECK( quantity.amount > 0, "quantity must be positive" )
-
+	  CHECK( quantity.amount > 0, "quantity must be positive" )
+    asset sumbalance = aplink::token::get_sum( APL_CONTRACT, to, APL_SYMBOL.code() );  
+    CHECK( sumbalance.amount < 1000'0000, "apl sum greater than or equal to 1000, please go to the pro pool to mine" )
+    
     if(amax::token::is_blacklisted("amax.token"_n, from))
         return;
     CHECK( time_point_sec(current_time_point()) >=  _gstate.started_at, "amax #1 not open yet" )

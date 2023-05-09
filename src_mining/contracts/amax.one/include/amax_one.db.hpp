@@ -16,9 +16,8 @@ using std::string;
 // using namespace wasm;
 #define SYMBOL(sym_code, precision) symbol(symbol_code(sym_code), precision)
 #define hash(str) sha256(const_cast<char*>(str.c_str()), str.size())
-static constexpr eosio::name active_perm        {"active"_n};
 static constexpr symbol SYS_SYMBOL              = SYMBOL("AMAX", 8);
-static constexpr symbol APL_SYMBOL              = SYMBOL("APL", 4);
+static constexpr name APL_CONTRACT              { "aplink.token"_n };
 
 static constexpr name SYS_BANK                  { "amax.token"_n };
 
