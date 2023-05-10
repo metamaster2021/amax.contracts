@@ -52,32 +52,12 @@ inline static int128_t calc_rewards_per_vote(const int128_t& old_rewards_per_vot
    return new_rewards_per_vote;
 }
 
-inline static int64_t calc_voter_rewards(int64_t votes, const int128_t& rewards_per_vote) {
+inline static asset calc_voter_rewards(const asset& votes, const int128_t& rewards_per_vote) {
    // with rounding-off method
-   int128_t rewards = votes * rewards_per_vote / HIGH_PRECISION;
-   CHECK(votes >= 0, "calculated rewards can not be negative")
+   int128_t rewards = votes.amount * rewards_per_vote / HIGH_PRECISION;
    CHECK(rewards >= 0 && rewards <= std::numeric_limits<int64_t>::max(),
          "calculated rewards overflow");
-   return rewards;
-}
-
-inline int64_t allocate_rewards(int64_t votes, const int128_t& last_rewards_per_vote, amax_reward::producer& p) {
-   CHECK(p.rewards_per_vote >= last_rewards_per_vote, "last_rewards_per_vote invalid");
-   int64_t new_reward_amount = 0;
-   int128_t reward_per_vote_delta = p.rewards_per_vote - last_rewards_per_vote;
-   if (reward_per_vote_delta > 0 && votes > 0) {
-      int64_t amount = calc_voter_rewards(votes, reward_per_vote_delta);
-      if (amount > 0) {
-         CHECK(p.allocating_rewards.amount >= amount, "producer allocating rewards insufficient"
-            ", allocating_rewards=" + std::to_string(p.allocating_rewards.amount) +
-            ", new_rewards=" + std::to_string(amount) +
-            ", producer=" + p.owner.to_string());
-         p.allocating_rewards.amount -= amount;
-         p.allocated_rewards.amount += amount;
-         new_reward_amount += amount;
-      }
-   }
-   return new_reward_amount;
+   return CORE_ASSET(rewards);
 }
 
 void amax_reward::addvote( const name& voter, const asset& votes ) {
@@ -225,7 +205,7 @@ void amax_reward::allocate_producer_rewards(const asset& votes_old, const asset&
    auto now = eosio::current_time_point();
    for ( auto& voted_prod : producers) {
       const auto& prod_name = voted_prod.first;
-      auto& voted_prod_info = voted_prod.second;
+      auto& last_rewards_per_vote = voted_prod.second.last_rewards_per_vote; // will be updated below
 
       auto prod_itr = _producer_tbl.find(prod_name.value);
       db::set(_producer_tbl, prod_itr, new_payer, same_payer, [&]( auto& p, bool is_new ) {
@@ -233,16 +213,21 @@ void amax_reward::allocate_producer_rewards(const asset& votes_old, const asset&
             p.owner = prod_name;
          }
 
-         if (votes_old.amount > 0) {
-            allocated_rewards.amount += allocate_rewards(votes_old.amount, voted_prod_info.last_rewards_per_vote, p);
-            // TODO: check allocated_rewards: overflow?
+         CHECK(p.rewards_per_vote >= last_rewards_per_vote, "last_rewards_per_vote invalid");
+         int128_t rewards_per_vote_delta = p.rewards_per_vote - last_rewards_per_vote;
+         if (rewards_per_vote_delta > 0 && votes_old.amount > 0) {
+            asset new_rewards = calc_voter_rewards(votes_old, rewards_per_vote_delta);
+            CHECK(p.allocating_rewards >= new_rewards, "producer allocating rewards insufficient");
+            p.allocating_rewards -= new_rewards;
+            p.allocated_rewards += new_rewards;
+            allocated_rewards += new_rewards; // update allocated_rewards for voter
          }
 
          p.votes += votes_delta;
          CHECK(p.votes.amount >= 0, "producer votes can not be negtive")
          p.update_at = now;
 
-         voted_prod_info.last_rewards_per_vote = p.rewards_per_vote; // update last_rewards_per_vote for voted_prod
+         last_rewards_per_vote = p.rewards_per_vote; // update for voted_prod
       });
 
    }
