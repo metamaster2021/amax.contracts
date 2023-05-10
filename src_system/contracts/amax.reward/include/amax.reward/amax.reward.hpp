@@ -28,6 +28,8 @@ namespace amax {
 
    static constexpr name      SYSTEM_CONTRACT   = "amax"_n;
    static constexpr name      CORE_TOKEN        = "amax.token"_n;
+   static constexpr symbol    vote_symbol       = symbol("VOTE", 4);
+   static const asset         vote_asset_0      = asset(0, vote_symbol);
    static constexpr int128_t  HIGH_PRECISION    = 1'000'000'000'000'000'000; // 10^18
 
    struct amax_system {
@@ -62,9 +64,11 @@ namespace amax {
     */
    class [[eosio::contract("amax.reward")]] amax_reward : public contract {
       public:
-
          amax_reward( name s, name code, eosio::datastream<const char*> ds ):
-               contract(s, code, ds), _global(get_self(), get_self().value)
+               contract(s, code, ds),
+               _global(get_self(), get_self().value),
+               _voter_tbl(get_self(), get_self().value),
+               _producer_tbl(get_self(), get_self().value)
          {
             _gstate  = _global.exists() ? _global.get() : global_state{};
          }
@@ -74,14 +78,32 @@ namespace amax {
          }
 
          /**
-          * update votes.
+          * addvote.
           *
-          * @param voter_name - the account of voter,
-          * @param producers  - producer set
+          * @param voter      - the account of voter,
           * @param votes      - votes value,
           */
          [[eosio::action]]
-         void updatevotes(const name& voter_name, const std::set<name>& producers, int64_t votes);
+         void addvote( const name& voter, const asset& votes );
+
+         /**
+          * subvote.
+          *
+          * @param voter      - the account of voter,
+          * @param votes      - votes value,
+          */
+         [[eosio::action]]
+         void subvote( const name& voter, const asset& votes );
+
+
+         /**
+          * Vote producer action, votes for a set of producers.
+          *
+          * @param voter - the account to change the voted producers for,
+          * @param producers - the list of producers to vote for, a maximum of 30 producers is allowed.
+          */
+         [[eosio::action]]
+         void voteproducer( const name& voter, const std::set<name>& producers );
 
          /**
           * add reward for producer, deduct from the reward balance
@@ -123,12 +145,16 @@ namespace amax {
             typedef eosio::singleton< "global"_n, global_state >   table;
          };
 
+         /**
+          * producer table.
+          * scope: contract self
+         */
          struct [[eosio::table]] producer {
             name              owner;
             asset             unallocated_rewards  = CORE_ASSET(0);
             asset             allocating_rewards   = CORE_ASSET(0);
             asset             allocated_rewards    = CORE_ASSET(0);
-            int64_t           votes                = 0;
+            asset             votes                = vote_asset_0;
             int128_t          rewards_per_vote     = 0;
             block_timestamp   update_at;
 
@@ -142,18 +168,23 @@ namespace amax {
             typedef eosio::multi_index< "producers"_n, producer > table;
          };
 
-
-         struct vote_reward_info {
+         struct voted_produer_info {
             int128_t           last_rewards_per_vote         = 0;
          };
 
+         using voted_produer_map = std::map<name, voted_produer_info>;
+
+         /**
+          * voter table.
+          * scope: contract self
+         */
          struct [[eosio::table]] voter {
-            name                             owner;
-            int64_t                          votes             = 0;
-            std::map<name, vote_reward_info> producers;
-            asset                            unclaimed_rewards = CORE_ASSET(0);
-            asset                            claimed_rewards   = CORE_ASSET(0);
-            block_timestamp                  update_at;
+            name                       owner;
+            asset                      votes             = vote_asset_0;
+            voted_produer_map          producers;
+            asset                      unclaimed_rewards = CORE_ASSET(0);
+            asset                      claimed_rewards   = CORE_ASSET(0);
+            block_timestamp            update_at;
 
             uint64_t primary_key()const { return owner.value; }
 
@@ -163,7 +194,12 @@ namespace amax {
    private:
       global_state::table     _global;
       global_state            _gstate;
+      voter::table            _voter_tbl;
+      producer::table         _producer_tbl;
 
+
+      void allocate_producer_rewards(const asset& votes_old, const asset& votes_delta, voted_produer_map& producers, asset &allocated_rewards, const name& new_payer);
+      void change_vote(const name& voter, const asset& votes, bool is_adding);
    };
 
 }
