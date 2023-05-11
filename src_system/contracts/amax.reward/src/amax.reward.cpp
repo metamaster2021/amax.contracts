@@ -128,30 +128,6 @@ void amax_reward::voteproducer( const name& voter, const std::set<name>& produce
    });
 }
 
-void amax_reward::addrewards(const name& producer, const asset& quantity) {
-
-   require_auth(producer);
-
-   check(is_account(producer), "producer account not found");
-   check(quantity.symbol == CORE_SYMBOL, "symbol mismatch");
-   check(quantity.amount > 0, "quantity must be positive");
-   check(quantity <= _gstate.reward_balance, "reward balance insufficient");
-
-   auto now = eosio::current_time_point();
-   _gstate.reward_balance -= quantity;
-
-   auto prod_itr = _producer_tbl.find(producer.value);
-   check(prod_itr != _producer_tbl.end(), "producer not found");
-   check(!prod_itr->is_registered, "producer not registered");
-   _producer_tbl.modify(prod_itr, producer, [&]( auto& p ) {
-      p.total_rewards         += quantity;
-      p.allocating_rewards   += quantity;
-      p.rewards_per_vote      = calc_rewards_per_vote(p.rewards_per_vote, quantity.amount, p.votes.amount);
-      p.update_at = now;
-   });
-
-}
-
 void amax_reward::claimrewards(const name& voter) {
    require_auth( voter );
 
@@ -180,8 +156,18 @@ void amax_reward::ontransfer(    const name &from,
                                  const string &memo)
 {
    if (get_first_receiver() == CORE_TOKEN && quantity.symbol == CORE_SYMBOL && from != get_self() && to == get_self()) {
-      _gstate.reward_balance += quantity;
       _gstate.total_rewards += quantity;
+      _global.set(_gstate, get_self());
+
+      auto prod_itr = _producer_tbl.find(from.value);
+      check(prod_itr != _producer_tbl.end(), "producer(from) not found");
+      check(!prod_itr->is_registered, "producer(from) not registered");
+      _producer_tbl.modify(prod_itr, same_payer, [&]( auto& p ) {
+         p.total_rewards         += quantity;
+         p.allocating_rewards   += quantity;
+         p.rewards_per_vote      = calc_rewards_per_vote(p.rewards_per_vote, quantity.amount, p.votes.amount);
+         p.update_at = eosio::current_time_point();
+      });
    }
 }
 

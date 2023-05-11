@@ -73,10 +73,6 @@ namespace amax {
             _gstate  = _global.exists() ? _global.get() : global_state{};
          }
 
-         ~amax_reward() {
-            _global.set(_gstate, get_self());
-         }
-
          /**
           * Register producer action.
           * Producer must register before add rewards.
@@ -117,16 +113,6 @@ namespace amax {
          void voteproducer( const name& voter, const std::set<name>& producers );
 
          /**
-          * add reward for producer, deduct from the reward balance
-          *
-          * @param producer_name - the account of producer,
-          * @param quantity - reward quantity
-          */
-         [[eosio::action]]
-         void addrewards(const name& producer_name, const asset& quantity);
-
-
-         /**
           * claim rewards for voter
           *
           * @param voter_name - the account of voter
@@ -150,7 +136,6 @@ namespace amax {
 
 
          struct [[eosio::table("global")]] global_state {
-            asset                reward_balance = CORE_ASSET(0);
             asset                total_rewards  = CORE_ASSET(0);
 
             typedef eosio::singleton< "global"_n, global_state >   table;
