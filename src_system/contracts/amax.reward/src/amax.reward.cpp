@@ -91,14 +91,17 @@ void amax_reward::subvote( const name& voter, const asset& votes ) {
    change_vote(voter, votes, true /* is_adding */);
 }
 
-void amax_reward::voteproducer( const name& voter, const std::set<name>& producers ) {
+void amax_reward::voteproducer( const name& voter, const std::vector<name>& producers ) {
 
    require_auth( SYSTEM_CONTRACT );
    require_auth( voter );
+   for( size_t i = 1; i < producers.size(); ++i ) {
+      check( producers[i - 1] < producers[i], "producer votes must be uniqued and sorted" );
+   }
+
    auto now = eosio::current_time_point();
 
    auto voter_itr = _voter_tbl.find(voter.value);
-
    db::set(_voter_tbl, voter_itr, voter, voter, [&]( auto& v, bool is_new ) {
       if (is_new) {
          v.owner = voter;
@@ -109,16 +112,35 @@ void amax_reward::voteproducer( const name& voter, const std::set<name>& produce
 
       voted_produer_map added_prods;
 
-      auto voted_prod_itr = v.producers.begin();
-      while(voted_prod_itr != v.producers.end()) {
-         if (producers.count(voted_prod_itr->first)) {
-            added_prods.emplace(*voted_prod_itr);
-            voted_prod_itr++;
-         } else {
-            voted_prod_itr = v.producers.erase(voted_prod_itr);
+      auto new_prod_itr = producers.begin();
+      auto old_prod_itr = v.producers.begin();
+      while( old_prod_itr != v.producers.end() || new_prod_itr != producers.end() ) {
+
+         if (old_prod_itr != v.producers.end() && new_prod_itr != producers.end()) {
+            if ( old_prod_itr->first < (*new_prod_itr) ) {
+               // old is discarded, new is processed in next loop
+               old_prod_itr = v.producers.erase(old_prod_itr);
+            }else if ( (*new_prod_itr) < old_prod_itr->first ) {
+               // old is processed in next loop, new is added to added_prods
+               added_prods[*new_prod_itr] = {};
+               new_prod_itr++;
+            } else { // old_prod_itr->first == (*new_prod_itr))
+               // old is keeped in v.producers, new is discarded
+               old_prod_itr++;
+               new_prod_itr++;
+            }
+
+         } else if (old_prod_itr != v.producers.end()) {
+            // no new, old is discarded
+            old_prod_itr = v.producers.erase(old_prod_itr);
+         } else { // new_prod_itr != producers.end()
+            // no old, new is added to added_prods
+            added_prods[*new_prod_itr] = {};
+            new_prod_itr++;
          }
       }
-      // just update new voted prods, because old_votes are 0
+
+      // update new added prods
       allocate_producer_rewards(vote_asset_0, v.votes, added_prods, v.unclaimed_rewards, voter);
       for (auto& added_prod : added_prods) {
          v.producers.emplace(added_prod);

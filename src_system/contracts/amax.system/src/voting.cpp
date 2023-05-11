@@ -772,10 +772,8 @@ namespace eosiosystem {
          }
       }
 
-      // TODO:
-      // amax_reward_interface::updatevotes_action act{ reward_account,
-      //       { {get_self(), active_permission} , {voter_name, active_permission} } };
-      // act.send( voter_name, producers, new_votes.amount);
+      amax_reward::voteproducer_action voteproducer_act{ reward_account, { {get_self(), active_permission}, {voter, active_permission} } };
+      voteproducer_act.send( voter, producers );
 
       proposed_producer_changes changes;
       update_producer_elected_votes(removed_prods, -voter_itr->votes, false, changes);

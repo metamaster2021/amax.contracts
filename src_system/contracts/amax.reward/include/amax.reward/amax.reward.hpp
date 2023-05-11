@@ -110,7 +110,7 @@ namespace amax {
           * @param producers - the list of producers to vote for, a maximum of 30 producers is allowed.
           */
          [[eosio::action]]
-         void voteproducer( const name& voter, const std::set<name>& producers );
+         void voteproducer( const name& voter, const std::vector<name>& producers );
 
          /**
           * claim rewards for voter
