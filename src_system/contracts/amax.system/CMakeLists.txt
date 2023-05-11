@@ -14,7 +14,8 @@ add_contract( ${contract_name} ${contract_name}
 target_include_directories(${contract_name}
    PUBLIC
    ${CMAKE_CURRENT_SOURCE_DIR}/include
-   ${CMAKE_CURRENT_SOURCE_DIR}/../amax.token/include)
+   ${CMAKE_CURRENT_SOURCE_DIR}/../amax.token/include
+   ${CMAKE_CURRENT_SOURCE_DIR}/../amax.reward/include)
 
 set_target_properties(${contract_name}
    PROPERTIES
