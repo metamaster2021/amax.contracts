@@ -78,6 +78,17 @@ namespace amax {
          }
 
          /**
+          * Register producer action.
+          * Producer must register before add rewards.
+          * Producer must pay for storage.
+          *
+          * @param producer - account registering to be a producer candidate,
+          *
+          */
+         [[eosio::action]]
+         void regproducer( const name& producer );
+
+         /**
           * addvote.
           *
           * @param voter      - the account of voter,
@@ -150,20 +161,15 @@ namespace amax {
           * scope: contract self
          */
          struct [[eosio::table]] producer {
-            name              owner;
-            asset             unallocated_rewards  = CORE_ASSET(0);
+            name              owner;                                 // PK
+            bool              is_registered        = false;          // is initialized
+            asset             total_rewards    = CORE_ASSET(0);
             asset             allocating_rewards   = CORE_ASSET(0);
-            asset             allocated_rewards    = CORE_ASSET(0);
             asset             votes                = vote_asset_0;
             int128_t          rewards_per_vote     = 0;
             block_timestamp   update_at;
 
             uint64_t primary_key()const { return owner.value; }
-
-            int128_t get_total_reward_amount() const {
-               return (int128_t)unallocated_rewards.amount + allocating_rewards.amount + allocated_rewards.amount;
-            }
-
 
             typedef eosio::multi_index< "producers"_n, producer > table;
          };
