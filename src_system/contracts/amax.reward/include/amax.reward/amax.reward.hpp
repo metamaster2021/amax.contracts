@@ -134,7 +134,12 @@ namespace amax {
                            const asset &quantity,
                            const string &memo);
 
-
+         using regproducer_action = eosio::action_wrapper<"regproducer"_n, &amax_reward::regproducer>;
+         using addvote_action = eosio::action_wrapper<"addvote"_n, &amax_reward::addvote>;
+         using subvote_action = eosio::action_wrapper<"subvote"_n, &amax_reward::subvote>;
+         using voteproducer_action = eosio::action_wrapper<"voteproducer"_n, &amax_reward::voteproducer>;
+         using claimrewards_action = eosio::action_wrapper<"claimrewards"_n, &amax_reward::claimrewards>;
+   public:
          struct [[eosio::table("global")]] global_state {
             asset                total_rewards  = CORE_ASSET(0);
 
@@ -182,6 +187,15 @@ namespace amax {
             typedef eosio::multi_index< "voters"_n, voter > table;
          };
 
+
+         static inline bool is_producer_registered(const name& contract_account, const name& producer) {
+            producer::table producer_tbl(contract_account, contract_account.value);
+            auto itr = producer_tbl.find(producer.value);
+            if (itr != producer_tbl.end()) {
+               return itr->is_registered;
+            }
+            return false;
+         }
    private:
       global_state::table     _global;
       global_state            _gstate;

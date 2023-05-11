@@ -9,6 +9,7 @@
 
 #include <amax.system/amax.system.hpp>
 #include <amax.token/amax.token.hpp>
+#include <amax.reward/amax.reward.hpp>
 
 #include <type_traits>
 #include <limits>
@@ -48,6 +49,7 @@ namespace eosiosystem {
    using std::to_string;
    using std::string;
    using eosio::token;
+   using amax::amax_reward;
 
    inline bool operator == ( const eosio::key_weight& lhs, const eosio::key_weight& rhs ) {
       return tie( lhs.key, lhs.weight ) == tie( rhs.key, rhs.weight );
@@ -334,6 +336,11 @@ namespace eosiosystem {
             producer_key = auth.keys[0].key;
          }
       }, producer_authority );
+
+      if (!amax_reward::is_producer_registered(reward_account, producer)) {
+         amax_reward::regproducer_action reg_act{ reward_account, { {producer, active_permission} } };
+         reg_act.send( producer );
+      }
 
       if ( prod != _producers.end() ) {
          auto elect_idx = _producers.get_index<"electedprod"_n>();
@@ -646,10 +653,6 @@ namespace eosiosystem {
       CHECK(votes.amount > 0, "votes must be positive")
 
       auto now = current_time_point();
-      // TODO: amax.reward: addvote
-      // amax_reward_interface::updatevotes_action act{ reward_account,
-      //       { {get_self(), active_permission} , {voter_name, active_permission} } };
-      // act.send( voter_name, producers, new_votes.amount);
       auto voter_itr = _voters.find( voter.value );
       if( voter_itr != _voters.end() ) {
          CHECK( time_point(voter_itr->vote_updated_time) + seconds(vote_interval_sec) >= now, "Voter can only update votes once a day" )
@@ -676,6 +679,8 @@ namespace eosiosystem {
       token::transfer_action transfer_act{ token_account, { {voter, active_permission} } };
       transfer_act.send( voter, vote_account, vote_staked, "addvote" );
 
+      amax_reward::addvote_action addvote_act{ reward_account, { {get_self(), active_permission}, {voter, active_permission} } };
+      addvote_act.send( voter, votes );
    }
 
    void system_contract::subvote( const name& voter, const asset& votes ) {
@@ -690,10 +695,6 @@ namespace eosiosystem {
       auto now = current_time_point();
 
       CHECK( time_point(voter_itr->vote_updated_time) + seconds(vote_interval_sec) >= now, "Voter can only update votes once a day" )
-      // TODO: amax.reward: subvote
-      // amax_reward_interface::updatevotes_action act{ reward_account,
-      //       { {get_self(), active_permission} , {voter_name, active_permission} } };
-      // act.send( voter_name, producers, new_votes.amount);
 
       vote_refund_table vote_refund_tbl( get_self(), voter.value );
       CHECK( vote_refund_tbl.find( voter.value ) == vote_refund_tbl.end(), "This account already has a vote refund" );
@@ -712,6 +713,9 @@ namespace eosiosystem {
          r.votes = votes;
          r.request_time = now;
       });
+
+      amax_reward::subvote_action subvote_act{ reward_account, { {get_self(), active_permission}, {voter, active_permission} } };
+      subvote_act.send( voter, votes );
 
       eosio::transaction refund_trx;
       refund_trx.actions.emplace_back( permission_level{voter, active_permission},

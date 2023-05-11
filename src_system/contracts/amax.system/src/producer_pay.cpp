@@ -1,11 +1,13 @@
 #include <amax.system/amax.system.hpp>
 #include <amax.token/amax.token.hpp>
+#include <amax.reward/amax.reward.hpp>
 
 namespace eosiosystem {
 
    using eosio::current_time_point;
    using eosio::microseconds;
    using eosio::token;
+   using amax::amax_reward;
 
    inline constexpr int64_t power(int64_t base, int64_t exp) {
       int64_t ret = 1;
@@ -122,23 +124,22 @@ namespace eosiosystem {
       check(prod.unclaimed_rewards.amount > 0, "There are no more rewards to claim");
       int64_t shared_amount = multiply_decimal64(prod.unclaimed_rewards.amount, prod.ext->reward_shared_ratio, ratio_boost);
       ASSERT(shared_amount >= 0 && prod.unclaimed_rewards.amount >= shared_amount);
-      uint64_t self_amount = prod.unclaimed_rewards.amount - shared_amount;
 
       token::issue_action issue_act{ token_account, { {get_self(), active_permission} } };
-      issue_act.send( get_self(), prod.unclaimed_rewards, "issue tokens for producer rewards" );
+      issue_act.send( get_self(), prod.unclaimed_rewards, "issue block rewards for producer" );
+
+      token::transfer_action transfer_act{ token_account, { {get_self(), active_permission} } };
+      transfer_act.send( get_self(), prod.owner, prod.unclaimed_rewards, "producer block rewards" );
 
       if (shared_amount > 0) {
          auto shared_quant = asset(shared_amount, prod.unclaimed_rewards.symbol);
-         token::transfer_action transfer_act{ token_account, { {get_self(), active_permission} } };
-         transfer_act.send( get_self(), reward_account, shared_quant, "producer shared rewards" );
-         amax_reward_interface::addrewards_action addrewards_act{ reward_account,
-                  { {get_self(), active_permission}, {owner, active_permission} } };
-         addrewards_act.send( owner, shared_quant );
-      }
+         if (!amax_reward::is_producer_registered(reward_account, owner)) {
+            amax_reward::regproducer_action reg_act{ reward_account, { {owner, active_permission} } };
+            reg_act.send( owner );
 
-      if (self_amount > 0) {
-         token::transfer_action transfer_act{ token_account, { {get_self(), active_permission} } };
-         transfer_act.send( get_self(), prod.owner, asset(self_amount, prod.unclaimed_rewards.symbol), "producer self rewards" );
+         }
+         token::transfer_action transfer_act{ token_account, { {owner, active_permission} } };
+         transfer_act.send( owner, reward_account, shared_quant, "reward" );
       }
 
       _producers.modify( prod, same_payer, [&](auto& p ) {

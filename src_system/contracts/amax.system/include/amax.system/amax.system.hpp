@@ -361,9 +361,9 @@ namespace eosiosystem {
    // - `staked` the amount staked
    struct [[eosio::table, eosio::contract("amax.system")]] voter_info {
       name                owner;     /// the voter
-      name                proxy;     /// the proxy set by the voter, if any
+      name                proxy;     /// [deprecated] the proxy set by the voter, if any
       std::vector<name>   producers; /// the producers approved by this voter if no proxy set
-      int64_t             staked = 0; /// [deprecated]
+      int64_t             staked = 0; /// [deprecated] staked of CPU and NET
 
       //  Every time a vote is cast we must first "undo" the last vote weight, before casting the
       //  new vote weight.  Vote weight is calculated as:
@@ -1656,13 +1656,5 @@ namespace eosiosystem {
          }
    };
 
-
-   struct amax_reward_interface {
-      void updatevotes(const name& voter_name, const std::vector<name>& producers, int64_t votes);
-      void addrewards(const name& producer_name, const asset& quantity);
-
-      using updatevotes_action = eosio::action_wrapper<"updatevotes"_n, &amax_reward_interface::updatevotes>;
-      using addrewards_action = eosio::action_wrapper<"addrewards"_n, &amax_reward_interface::addrewards>;
-   };
 
 }
