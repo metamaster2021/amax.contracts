@@ -64,24 +64,24 @@ void amax_two::aplswaplog( const name& miner, const asset& recd_apls, const asse
     require_recipient(miner);
 }
 
-void amax_two::_claim_reward( const name& to, 
+void amax_two::_claim_reward( const name& from, 
                                 const asset& recd_apls,
                                 const string& memo )
 {
     asset reward = asset(0, SYS_SYMBOL);
-    _cal_reward(reward, to, recd_apls);
+    _cal_reward(reward, from, recd_apls);
     CHECKC( reward <= _gstate.mine_token_remained, two_err::REWARD_NOT_ENOUGH, "reward token insufficient" )
     _gstate.mine_token_remained = _gstate.mine_token_remained - reward;
 
-    TRANSFER(_gstate.mine_token_contract, to, reward, memo )
-    _on_apl_swap_log(to, recd_apls, reward, PHASES, current_time_point());
+    TRANSFER(_gstate.mine_token_contract, from, reward, memo )
+    _on_apl_swap_log(from, recd_apls, reward, PHASES, current_time_point());
 }
 
 void amax_two::_cal_reward( asset&   reward, 
-                            const name&   to,
+                            const name&   from,
                             const asset&  recd_apls )
 {
-    asset sumbalance = aplink::token::get_sum( APL_CONTRACT, to, APL_SYMBOL.code() );  
+    asset sumbalance = aplink::token::get_sum( APL_CONTRACT, from, APL_SYMBOL.code() );  
     CHECKC( sumbalance.amount >= 1000'0000, two_err::SBT_NOT_ENOUGH, "sbt must be at least 1000" )
     double sbt =  sumbalance.amount/PERCENT_BOOST;
     double a = 1 + pow(log(sbt - 800)/16, 4.0);
