@@ -137,7 +137,6 @@ namespace eosiosystem {
          if (!amax_reward::is_producer_registered(reward_account, owner)) {
             amax_reward::regproducer_action reg_act{ reward_account, { {owner, active_permission} } };
             reg_act.send( owner );
-
          }
          token::transfer_action transfer_act{ token_account, { {owner, active_permission} } };
          transfer_act.send( owner, reward_account, shared_quant, "reward" );

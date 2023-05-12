@@ -499,6 +499,9 @@ namespace eosiosystem {
 
    void system_contract::voteproducer( const name& voter_name, const name& proxy, const std::vector<name>& producers ) {
       check(!bool(proxy), "proxy is unsupported");
+
+      CHECK(!_elect_gstate.is_init(), "voteproducer is unsupported, use vote() action instead" );
+
       require_auth( voter_name );
       vote_stake_updater( voter_name );
       update_vote_weight_old( voter_name, proxy, producers, true );
@@ -655,12 +658,12 @@ namespace eosiosystem {
    void system_contract::addvote( const name& voter, const asset& votes ) {
       require_auth(voter);
 
+      CHECK(votes.symbol == vote_symbol, "votes symbol mismatch")
       CHECK(votes.amount > 0, "votes must be positive")
 
       auto now = current_time_point();
       auto voter_itr = _voters.find( voter.value );
       if( voter_itr != _voters.end() ) {
-         CHECK( time_point(voter_itr->vote_updated_time) + seconds(vote_interval_sec) >= now, "Voter can only update votes once a day" )
 
          if (voter_itr->producers.size() > 0) {
             proposed_producer_changes changes;
@@ -690,6 +693,8 @@ namespace eosiosystem {
 
    void system_contract::subvote( const name& voter, const asset& votes ) {
       require_auth(voter);
+
+      CHECK(votes.symbol == vote_symbol, "votes symbol mismatch")
       CHECK(votes.amount > 0, "votes must be positive")
 
       auto voter_itr = _voters.find( voter.value );
@@ -780,6 +785,7 @@ namespace eosiosystem {
       voteproducer_act.send( voter, producers );
 
       proposed_producer_changes changes;
+      // TODO: update the prod in both old and new list?
       update_producer_elected_votes(removed_prods, -voter_itr->votes, false, changes);
       update_producer_elected_votes(added_prods, voter_itr->votes, true, changes);
 
