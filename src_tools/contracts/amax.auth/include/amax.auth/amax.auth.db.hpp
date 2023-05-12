@@ -22,6 +22,7 @@ using namespace eosio;
 namespace ActionType {
     static constexpr eosio::name NEWACCOUNT     { "newaccount"_n  }; //create a new account
     static constexpr eosio::name BINDINFO       { "bindinfo"_n    }; //bind audit info
+    static constexpr eosio::name UPDATEINFO     { "updateinfo"_n    }; //bind audit info
     static constexpr eosio::name CREATECORDER   { "createorder"_n }; //create recover order
     static constexpr eosio::name SETSCORE       { "setscore"_n    }; //set score for user verfication
 }

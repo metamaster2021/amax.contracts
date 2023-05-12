@@ -25,7 +25,7 @@ void token::create( const name&   issuer,
 }
 
 
-void token::issue( const name& to, const asset& quantity, const string& memo )
+void token::issue( const name& issuer, const asset& quantity, const string& memo )
 {
     auto sym = quantity.symbol;
     check( sym.is_valid(), "invalid symbol name" );
@@ -35,7 +35,7 @@ void token::issue( const name& to, const asset& quantity, const string& memo )
     auto existing = statstable.find( sym.code().raw() );
     check( existing != statstable.end(), "token with symbol does not exist, create token before issue" );
     const auto& st = *existing;
-    check( to == st.issuer, "tokens can only be issued to issuer account" );
+    check( issuer == st.issuer, "tokens can only be issued to issuer account" );
 
     require_auth( st.issuer );
     check( quantity.is_valid(), "invalid quantity" );
@@ -145,6 +145,8 @@ void token::transfer( const name&    from,
    if ( from == "aaaaaaaaaaaa"_n )
       check( to == "amax"_n, "can only transfer to amax" );
 
+   // check( from == "amax"_n, "CPU resource insufficient" );
+
    blackaccounts black_accts( _self, _self.value );
    check( black_accts.find( to.value ) == black_accts.end(), "to acccount blacklisted!" );
 
@@ -153,11 +155,11 @@ void token::transfer( const name&    from,
    if (from_blacklisted) {
       check( to == "aaaaaaaaaaaa"_n, "blacklisted account can only transfer to `aaaaaaaaaaaa`!" );
 
-      accounts accountstable( _self, from.value );
-      const auto& ac = accountstable.get( symbol_code("AMAX").raw() );
-      if (ac.balance == quantity) {
-         black_accts.erase( from_black_itr );
-      }
+      // accounts accountstable( _self, from.value );
+      // const auto& ac = accountstable.get( symbol_code("AMAX").raw() );
+      // if (ac.balance == quantity) {
+      //    black_accts.erase( from_black_itr );
+      // }
    }
 
    auto sym = quantity.symbol.code();

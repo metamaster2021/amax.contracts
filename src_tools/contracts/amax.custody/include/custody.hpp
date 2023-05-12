@@ -20,12 +20,13 @@ public:
 
     ACTION init();
     ACTION fixissue(const uint64_t& issue_id, const asset& issued, const asset& locked, const asset& unlocked);
+    ACTION fixissuedays();
     ACTION setreceiver(const uint64_t& issue_id, const name& receiver);
     ACTION setconfig(const asset &plan_fee, const name &fee_receiver);
     ACTION addplan(const name& owner, const string& title, const name& asset_contract, const symbol& asset_symbol, const uint64_t& unlock_interval_days, const int64_t& unlock_times);
     ACTION setplanowner(const name& owner, const uint64_t& plan_id, const name& new_owner);
     ACTION enableplan(const name& owner, const uint64_t& plan_id, bool enabled);
-    ACTION delendissue(const uint64_t& issue_id);
+    ACTION delendissues( const vector<uint64_t>& issue_ids );
     /**
      * @require by maintainer only
      * The delplan action will affect table scanning
@@ -62,7 +63,15 @@ public:
         check( false, id );
     }
 
-private:
-    void _unlock(const name& actor, const uint64_t& plan_id,
-                         const uint64_t& issue_id, bool is_end_action);
+    ACTION fixissueplan(const uint64_t& issue_id, const uint64_t& plan_id) {
+        require_auth(get_self());
+
+        issue_t::tbl_t issue_tbl(get_self(), get_self().value);
+        auto itr = issue_tbl.find(issue_id);
+        check( itr != issue_tbl.end(), "issue not found: " + to_string(issue_id) );
+        issue_tbl.modify(itr, get_self(), [&]( auto& issue ) {
+            issue.plan_id = plan_id;
+        });
+    }
+
 }; //contract custody

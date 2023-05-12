@@ -29,7 +29,7 @@ void custody::init() {
     //     if (itr->plan_id != 1 || itr->issuer != "armoniaadmin"_n) {
     //         itr = issues.erase( itr );
     //         step++;
-    //     } else 
+    //     } else
     //         itr++;
     // }
 
@@ -42,20 +42,30 @@ void custody::init() {
         if (itr->id != 1) {
             itr = plans.erase( itr );
             step++;
-        } else 
+        } else
             itr++;
     }
 
     check( step > 0, "none deleted" );
 }
 
-[[eosio::action]] 
+[[eosio::action]]
 void custody::fixissue(const uint64_t& issue_id, const asset& issued, const asset& locked, const asset& unlocked) {
     require_auth(get_self());
 
     issue_t::tbl_t issue_tbl(get_self(), get_self().value);
     auto itr = issue_tbl.find(issue_id);
     check( itr != issue_tbl.end(), "issue not found: " + to_string(issue_id) );
+    check( issued.symbol == itr->issued.symbol, "issued symbol mismatch");
+    check( locked.symbol == itr->locked.symbol, "locked symbol mismatch");
+    check( unlocked.symbol == itr->unlocked.symbol, "unlocked symbol mismatch");
+
+    check( issued.amount >= 0, "issued amount can not be negtive");
+    check( locked.amount >= 0, "locked amount can not be negtive");
+    check( unlocked.amount >= 0, "unlocked amount can not be negtive");
+    check( issued.amount == locked.amount + unlocked.amount,
+            "issued.amount must be equal to (locked.amount + unlocked.amount)");
+
     issue_tbl.modify(itr, get_self(), [&]( auto& issue ) {
         issue.issued = issued;
         issue.locked = locked;
@@ -63,8 +73,22 @@ void custody::fixissue(const uint64_t& issue_id, const asset& issued, const asse
     });
 }
 
+[[eosio::action]]
+void custody::fixissuedays() {
+    require_auth(get_self());
+    issue_t::tbl_t issue_tbl(get_self(), get_self().value);
+    for (auto itr = issue_tbl.begin(); itr != issue_tbl.end(); itr++) {
+        if (itr->first_unlock_days == 0) {
+            issue_tbl.modify(itr, same_payer, [&]( auto& issue ) {
+                issue.first_unlock_days = issue.unlock_interval_days;
+            });
+        }
+    }
+}
+
 void custody::setreceiver(const uint64_t& issue_id, const name& receiver) {
     require_auth(get_self());
+    check(is_account(receiver), "receiver account not existed");
 
     issue_t::tbl_t issue_tbl(get_self(), get_self().value);
     auto itr = issue_tbl.find(issue_id);
@@ -178,10 +202,14 @@ void custody::ontransfer(name from, name to, asset quantity, string memo) {
 	CHECK( quantity.amount > 0, "quantity must be positive" )
 
     //memo params format:
-    //1. plan:${plan_id}, Eg: "plan:" or "plan:1"
+    //0. $plan_id, Eg: memo: "66"
+    //1. plan:${plan_id}, Eg: memo: "plan:" or "plan:1"
     //2. issue:${receiver}:${plan_id}:${first_unlock_days}, Eg: "issue:receiver1234:1:30"
     vector<string_view> memo_params = split(memo, ":");
     ASSERT(memo_params.size() > 0);
+    if( memo_params.size() == 1 ) {
+
+    }
     if (memo_params[0] == "plan") {
         CHECK(memo_params.size() == 2, "ontransfer:plan params size of must be 2")
         auto param_plan_id = memo_params[1];
@@ -264,10 +292,36 @@ void custody::ontransfer(name from, name to, asset quantity, string memo) {
 
 [[eosio::action]]
 void custody::endissue(const uint64_t& plan_id, const name& issuer, const uint64_t& issue_id) {
-    CHECK( has_auth( issuer ) || has_auth( _self ), "not authorized to end issue" )
+    CHECK(has_auth( _self ), "not authorized to end issue" )
     // require_auth( issuer );
 
-    _unlock(issuer, plan_id, issue_id, /*is_end_action=*/true);
+    issue_t::tbl_t issue_tbl(get_self(), get_self().value);
+    auto issue_itr = issue_tbl.find(issue_id);
+    CHECK( issue_itr != issue_tbl.end(), "issue not found: " + to_string(issue_id) )
+    CHECK( issue_itr->plan_id == plan_id, "plan id mismatch" )
+
+    CHECK( issue_itr->status != ISSUE_ENDED, "issue already ended, status: " + to_string(issue_itr->status) )
+    CHECK( issuer == issue_itr->issuer || issuer == _self, "not authorized" )
+
+    plan_t::tbl_t plan_tbl(get_self(), get_self().value);
+    auto plan_itr = plan_tbl.find(plan_id);
+    CHECK( plan_itr != plan_tbl.end(), "plan not found: " + to_string(plan_id) )
+    CHECK( plan_itr->status == PLAN_ENABLED, "plan not enabled, status:" + to_string(plan_itr->status) )
+
+    auto to_refund = issue_itr->locked;
+    TRANSFER_OUT( plan_itr->asset_contract, issue_itr->issuer, to_refund, string("refund: " + to_string(issue_id)) )
+
+    auto now = current_time_point();
+
+    plan_tbl.modify( plan_itr, same_payer, [&]( auto& plan ) {
+        plan.total_refunded     += to_refund;
+        plan.updated_at         = now;
+    });
+
+    issue_tbl.modify( issue_itr, same_payer, [&]( auto& issue ) {
+        issue.status            = ISSUE_ENDED;
+        issue.updated_at        = now;
+    });
 }
 
 /**
@@ -277,100 +331,67 @@ void custody::endissue(const uint64_t& plan_id, const name& issuer, const uint64
 void custody::unlock(const name& issuer, const uint64_t& plan_id, const uint64_t& issue_id) {
     require_auth(issuer);
 
-    _unlock(issuer, plan_id, issue_id, /*is_end_action=*/false);
-}
-
-void custody::delendissue(const uint64_t& issue_id) {
-    issue_t::tbl_t issue_tbl(get_self(), get_self().value);
-    auto issue_itr = issue_tbl.find(issue_id);
-    CHECK( issue_itr != issue_tbl.end(), "issue not found: " + to_string(issue_id) )
-    CHECK( issue_itr->status == issue_status_t::ISSUE_ENDED, "issue not ended" )
-    issue_tbl.erase( issue_itr );
-}
-
-void custody::_unlock(const name& issuer, const uint64_t& plan_id, const uint64_t& issue_id, bool to_terminate)
-{
-    auto now = current_time_point();
-
+     auto now = current_time_point();
     issue_t::tbl_t issue_tbl(get_self(), get_self().value);
     auto issue_itr = issue_tbl.find(issue_id);
     CHECK( issue_itr != issue_tbl.end(), "issue not found: " + to_string(issue_id) )
     CHECK( issue_itr->plan_id == plan_id, "plan id mismatch" )
+    ASSERT( now >= issue_itr->issued_at );
 
     plan_t::tbl_t plan_tbl(get_self(), get_self().value);
     auto plan_itr = plan_tbl.find(plan_id);
     CHECK( plan_itr != plan_tbl.end(), "plan not found: " + to_string(plan_id) )
     CHECK( plan_itr->status == PLAN_ENABLED, "plan not enabled, status:" + to_string(plan_itr->status) )
+    ASSERT( plan_itr->unlock_times > 0 && plan_itr->unlock_interval_days > 0 );
 
-    if (to_terminate) {
-        CHECK( issue_itr->status != ISSUE_ENDED,
-            "issue has been ended, status: " + to_string(issue_itr->status) );
-
-        CHECK( issuer == issue_itr->issuer || issuer == _self, "not authorized" )
-    } else {
-        CHECK( issue_itr->status == ISSUE_NORMAL,
-            "issue not normal, status: " + to_string(issue_itr->status) );
-    }
-
-    int64_t total_unlocked = 0;
+    auto issued_days = (now.sec_since_epoch() - issue_itr->issued_at.sec_since_epoch()) / DAY_SECONDS;
+    int unlocked_days = issued_days - issue_itr->first_unlock_days;
+    int64_t total_unlocked = 0;   // already_unlocked + to_be_unlocked
     int64_t remaining_locked = issue_itr->locked.amount;
-    if (issue_itr->status == ISSUE_NORMAL) {
-        ASSERT(now >= issue_itr->issued_at)
-        auto issued_days = (now.sec_since_epoch() - issue_itr->issued_at.sec_since_epoch()) / DAY_SECONDS;
-        auto unlocked_days = issued_days > issue_itr->first_unlock_days ? issued_days - issue_itr->first_unlock_days : 0;
-        ASSERT(plan_itr->unlock_interval_days > 0);
-        auto unlocked_times = std::min(unlocked_days / plan_itr->unlock_interval_days, plan_itr->unlock_times);
-        if (unlocked_times >= plan_itr->unlock_times) {
-            total_unlocked = issue_itr->issued.amount;
-        } else {
-            ASSERT(plan_itr->unlock_times > 0)
-            total_unlocked = multiply_decimal64(issue_itr->issued.amount, unlocked_times, plan_itr->unlock_times);
-            ASSERT(total_unlocked >= issue_itr->unlocked.amount && issue_itr->issued.amount >= total_unlocked)
-        }
 
-        int64_t cur_unlocked = total_unlocked - issue_itr->unlocked.amount;
-        remaining_locked = issue_itr->issued.amount - total_unlocked;
-        ASSERT(remaining_locked >= 0);
+    CHECK( issue_itr->status == ISSUE_NORMAL, "issue abnormal, status: " + to_string(issue_itr->status) )
+    CHECK( unlocked_days >= 0, "premature to unlock by n days, n = " + to_string( -1 * unlocked_days ) )
 
-        TRACE("unlock detail: ", PP0(issued_days), PP(unlocked_days), PP(unlocked_times), PP(total_unlocked),
-            PP(cur_unlocked), PP(remaining_locked), "\n");
+    auto unlocked_times = 1 + std::min( unlocked_days / plan_itr->unlock_interval_days, plan_itr->unlock_times );
+    if( unlocked_times >= plan_itr->unlock_times ) {
+        total_unlocked = issue_itr->issued.amount;
 
-        if (cur_unlocked > 0) {
-            auto unlock_quantity = asset(cur_unlocked, plan_itr->asset_symbol);
-            string memo = "unlock: " + to_string(issue_id) + "@" + to_string(plan_id);
-            TRANSFER_OUT( plan_itr->asset_contract, issue_itr->receiver, unlock_quantity, memo )
-
-        } else { // cur_unlocked == 0
-            if (!to_terminate) {
-                CHECK( false, "It's not time to unlock yet" )
-            } // else ignore
-        }
-
-        uint64_t refunded = 0;
-        if (to_terminate && remaining_locked > 0) {
-            refunded = remaining_locked;
-            auto memo = "refund: " + to_string(issue_id);
-            auto refunded_quantity = asset(refunded, plan_itr->asset_symbol);
-            TRANSFER_OUT( plan_itr->asset_contract, issue_itr->issuer, refunded_quantity, memo )
-            remaining_locked = 0;
-        }
-
-        plan_tbl.modify( plan_itr, same_payer, [&]( auto& plan ) {
-            plan.total_unlocked.amount += cur_unlocked;
-            if (refunded > 0) {
-                plan.total_refunded.amount += refunded;
-            }
-            plan.updated_at = current_time_point();
-        });
+    } else {
+        // total_unlocked = issued_amount * unlockable_times / total_unlock_times
+        total_unlocked = multiply_decimal64(issue_itr->issued.amount, unlocked_times, plan_itr->unlock_times);
+        ASSERT(total_unlocked >= issue_itr->unlocked.amount && issue_itr->issued.amount >= total_unlocked)
     }
+
+    int64_t curr_unlockable = total_unlocked - issue_itr->unlocked.amount;
+    remaining_locked = issue_itr->issued.amount - total_unlocked;
+    ASSERT(remaining_locked >= 0);
+
+    CHECK( curr_unlockable > 0, "premature to unlock" )
+    auto unlock_quantity = asset(curr_unlockable, plan_itr->asset_symbol);
+    string memo = "unlock: " + to_string(issue_id) + "@" + to_string(plan_id);
+    TRANSFER_OUT( plan_itr->asset_contract, issue_itr->receiver, unlock_quantity, memo )
+
+    plan_tbl.modify( plan_itr, same_payer, [&]( auto& plan ) {
+        plan.total_unlocked.amount += curr_unlockable;
+        plan.updated_at         = now;
+    });
 
     issue_tbl.modify( issue_itr, same_payer, [&]( auto& issue ) {
-        issue.unlocked.amount = total_unlocked;
-        issue.locked.amount = remaining_locked;
-        if (to_terminate || issue.unlocked == issue.issued) {
-            issue.status = ISSUE_ENDED;
-        }
-        issue.updated_at = current_time_point();
+        issue.unlocked.amount   = total_unlocked;
+        issue.locked.amount     = remaining_locked;
+        if( issue.unlocked == issue.issued )
+            issue.status        = ISSUE_ENDED;
+        issue.updated_at        = now;
     });
 }
 
+void custody::delendissues(const vector<uint64_t>& issue_ids) {
+    issue_t::tbl_t issue_tbl(get_self(), get_self().value);
+
+    for( auto& issue_id : issue_ids ) {
+        auto issue_itr = issue_tbl.find(issue_id);
+        CHECK( issue_itr != issue_tbl.end(), "issue not found: " + to_string(issue_id) )
+        CHECK( issue_itr->status == issue_status_t::ISSUE_ENDED, "issue not ended" )
+        issue_tbl.erase( issue_itr );
+    }
+}
