@@ -40,8 +40,8 @@ public:
    }
 
    transaction_trace_ptr create_account_with_resources( account_name a, account_name creator, asset ramfunds, bool multisig,
-                                                        asset net = core_sym::from_string("100000.0000"), 
-                                                        asset cpu = core_sym::from_string("100000.0000") ) 
+                                                        asset net = core_sym::from_string("100000.0000"),
+                                                        asset cpu = core_sym::from_string("100000.0000") )
    {
       signed_transaction trx;
       set_transaction_headers(trx);
@@ -92,7 +92,7 @@ public:
    }
    void issue( name to, const asset& amount, name manager = config::system_account_name ) {
       base_tester::push_action( N(amax.token), N(issue), manager, mutable_variant_object()
-                                ("to",      to )
+                                ("issuer",      to )
                                 ("quantity", amount )
                                 ("memo", "")
                                 );

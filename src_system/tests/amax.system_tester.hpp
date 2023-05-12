@@ -865,7 +865,7 @@ public:
 
    void issue( const asset& amount, const name& manager = config::system_account_name ) {
       base_tester::push_action( N(amax.token), N(issue), manager, mutable_variant_object()
-                                ("to",       manager )
+                                ("issuer",       manager )
                                 ("quantity", amount )
                                 ("memo",     "")
                                 );
@@ -897,7 +897,7 @@ public:
       trx.actions.emplace_back( get_action( N(amax.token), N(issue),
                                             vector<permission_level>{{manager, config::active_name}},
                                             mutable_variant_object()
-                                            ("to",       manager )
+                                            ("issuer",       manager )
                                             ("quantity", amount )
                                             ("memo",     "")
                                             )

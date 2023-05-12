@@ -71,7 +71,7 @@ public:
 
    action_result issue( account_name issuer, asset quantity, string memo ) {
       return push_action( issuer, N(issue), mvo()
-           ( "to", issuer)
+           ( "issuer", issuer)
            ( "quantity", quantity)
            ( "memo", memo)
       );
