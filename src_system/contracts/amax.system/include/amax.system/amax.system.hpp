@@ -349,10 +349,6 @@ namespace eosiosystem {
          info.authority = producer_authority;
       }
 
-      inline void try_init_ext() {
-         if(!ext) ext.emplace();
-      }
-
       // explicit serialization macro is not necessary, used here only to improve compilation time
       EOSLIB_SERIALIZE( producer_info, (owner)(total_votes)(producer_key)(is_active)(url)(location)
                                        (last_claimed_time)(unclaimed_rewards)(producer_authority) (ext) )

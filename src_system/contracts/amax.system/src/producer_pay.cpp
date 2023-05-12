@@ -119,6 +119,7 @@ namespace eosiosystem {
 
       // check( false, "inflation and claimrewards are not supported" );
 
+      CHECK(prod.ext, "producer is not updated by regproducer")
       ASSERT(prod.ext->reward_shared_ratio <= ratio_boost);
 
       check(prod.unclaimed_rewards.amount > 0, "There are no more rewards to claim");

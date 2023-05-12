@@ -351,9 +351,14 @@ namespace eosiosystem {
             info.url                = url;
             info.location           = location;
             info.producer_authority = producer_authority;
-            info.try_init_ext();
+
+            if (!info.ext) {
+               info.ext = producer_info_ext{};
+            }
+
             if (reward_shared_ratio)
                info.ext->reward_shared_ratio = *reward_shared_ratio;
+
             if ( info.last_claimed_time == time_point() )
                info.last_claimed_time = ct;
 
@@ -376,10 +381,10 @@ namespace eosiosystem {
             info.is_active          = true;
             info.url                = url;
             info.location           = location;
-            info.last_claimed_time    = ct;
-            info.unclaimed_rewards     = asset(0, core_sym);
+            info.last_claimed_time  = ct;
+            info.unclaimed_rewards  = asset(0, core_sym);
             info.producer_authority = producer_authority;
-            info.try_init_ext();
+            info.ext                = producer_info_ext{};
             if (reward_shared_ratio)
                info.ext->reward_shared_ratio = *reward_shared_ratio;
          });
@@ -631,14 +636,14 @@ namespace eosiosystem {
             CHECK( pitr->active() , "producer " + pitr->owner.to_string() + " is not active" );
          }
 
-         CHECK(pitr->ext, "producer " + pitr->owner.to_string() + " is not updated")
+         CHECK(pitr->ext, "producer " + pitr->owner.to_string() + " is not updated by regproducer")
          ASSERT(elect_idx.iterator_to(*pitr) != elect_idx.end());
 
          auto elected_info_old = pitr->get_elected_info();
          _producers.modify( pitr, same_payer, [&]( auto& p ) {
             p.total_votes = 0; // clear old vote info
             p.ext->elected_votes += votes_delta;
-            CHECK( p.ext->elected_votes.amount >= 0, "producer elect_votes can not be negative" )
+            CHECK( p.ext->elected_votes.amount >= 0, "producer's elected votes can not be negative" )
             _elect_gstate.total_producer_elected_votes += votes_delta.amount;
             check(_elect_gstate.total_producer_elected_votes >= 0, "total_producer_elected_votes can not be negative");
          });
@@ -749,7 +754,8 @@ namespace eosiosystem {
       auto new_prod_itr = producers.begin();
       std::vector<name> removed_prods; removed_prods.reserve(old_prods.size());
       std::vector<name> added_prods;   added_prods.reserve(producers.size());
-      while(true) {
+      while(old_prod_itr != old_prods.end() || new_prod_itr != producers.end()) {
+
          if (old_prod_itr != old_prods.end() && new_prod_itr != producers.end()) {
             if (old_prod_itr < new_prod_itr) {
                removed_prods.push_back(*old_prod_itr);
@@ -764,11 +770,9 @@ namespace eosiosystem {
          } else if ( old_prod_itr != old_prods.end() ) { //  && new_prod_itr == producers.end()
                removed_prods.push_back(*old_prod_itr);
                old_prod_itr++;
-         } else if (new_prod_itr != producers.end()) { // && old_prod_itr == old_prods.end()
+         } else { // new_prod_itr != producers.end() && old_prod_itr == old_prods.end()
                added_prods.push_back(*new_prod_itr);
                new_prod_itr++;
-         } else { // old_prod_itr == old_prods.end() && new_prod_itr == producers.end()
-            break;
          }
       }
 
