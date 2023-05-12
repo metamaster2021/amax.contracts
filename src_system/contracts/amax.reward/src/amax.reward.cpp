@@ -183,7 +183,7 @@ void amax_reward::ontransfer(    const name &from,
 
       auto prod_itr = _producer_tbl.find(from.value);
       check(prod_itr != _producer_tbl.end(), "producer(from) not found");
-      check(!prod_itr->is_registered, "producer(from) not registered");
+      check(prod_itr->is_registered, "producer(from) not registered");
       _producer_tbl.modify(prod_itr, same_payer, [&]( auto& p ) {
          p.total_rewards         += quantity;
          p.allocating_rewards   += quantity;

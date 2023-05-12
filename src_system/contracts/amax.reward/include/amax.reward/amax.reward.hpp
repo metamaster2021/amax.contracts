@@ -153,7 +153,7 @@ namespace amax {
          struct [[eosio::table]] producer {
             name              owner;                                 // PK
             bool              is_registered        = false;          // is initialized
-            asset             total_rewards    = CORE_ASSET(0);
+            asset             total_rewards        = CORE_ASSET(0);
             asset             allocating_rewards   = CORE_ASSET(0);
             asset             votes                = vote_asset_0;
             int128_t          rewards_per_vote     = 0;

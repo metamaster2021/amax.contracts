@@ -117,8 +117,12 @@ namespace eosiosystem {
    static constexpr symbol   vote_symbol                 = symbol("VOTE", 4);
    static constexpr uint32_t max_vote_producer_count     = 30;
    static constexpr uint32_t vote_interval_sec           = 1 * seconds_per_day;
+   static constexpr int64_t  vote_to_core_asset_ratio    = 10000;
+
 
    static const asset        vote_asset_0                = asset(0, vote_symbol);
+
+   #define VOTE_ASSET(amount) asset(amount, vote_symbol)
 
   /**
    * The `amax.system` smart contract is provided by `Armoniax` as a sample system contract, and it defines the structures and actions needed for blockchain's core functionality.
@@ -166,13 +170,13 @@ namespace eosiosystem {
 
    struct producer_elected_info {
       eosio::name             name;
-      bool                    is_active         = false;
+      bool                    is_active         = true;
       asset                   elected_votes     = asset(0, vote_symbol);
       eosio::block_signing_authority authority;
 
       void clear() {
          name.value = 0;
-         is_active = false;
+         is_active = true;
          elected_votes.amount = 0;
          authority = eosio::block_signing_authority{};
       }
@@ -202,7 +206,7 @@ namespace eosiosystem {
          return !(a == b);
       }
 
-      EOSLIB_SERIALIZE( producer_elected_info, (name)(elected_votes)(authority) )
+      EOSLIB_SERIALIZE( producer_elected_info, (name)(is_active)(elected_votes)(authority) )
    };
 
    // Defines new global state parameters.
@@ -255,7 +259,7 @@ namespace eosiosystem {
       int128_t                   total_producer_elected_votes  = 0; /// the sum of all producer elected votes
       uint32_t                   max_main_producer_count       = 21;
       uint32_t                   max_backup_producer_count     = 10000;
-      int64_t                    min_producer_votes            = 1'000'0000'0000;
+      asset                      min_producer_votes            = VOTE_ASSET(1'000'0000);
 
       uint64_t                   last_producer_change_id       = 0;
       bool                       producer_change_interrupted   = false;
@@ -307,7 +311,7 @@ namespace eosiosystem {
          static constexpr uint64_t uint64_max = std::numeric_limits<uint64_t>::max();
          static_assert( uint64_max - (uint64_t)int64_max == (uint64_t)int64_max + 1 );
          uint64_t amount = votes.amount;
-         ASSERT(amount >= 0 && amount < int64_max);
+         ASSERT(amount < int64_max);
          uint64_t hi = is_active ? (uint64_t)int64_max - amount : uint64_max - amount;
          return uint128_t(hi) << 64 | owner.value;
       }
@@ -1647,12 +1651,12 @@ namespace eosiosystem {
 
          inline asset vote_to_core_asset(const asset& votes);
 
-         inline bool is_prod_votes_valid(int64_t votes_amount) {
-            return votes_amount > 0 && votes_amount >= _elect_gstate.min_producer_votes;
+         inline bool is_prod_votes_valid(const asset& votes) {
+            return votes.amount > 0 && votes >= _elect_gstate.min_producer_votes;
          }
 
          inline bool is_prod_votes_valid(const producer_elected_info &elected_info) {
-            return is_prod_votes_valid(elected_info.elected_votes.amount);
+            return is_prod_votes_valid(elected_info.elected_votes);
          }
    };
 

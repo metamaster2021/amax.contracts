@@ -36,7 +36,7 @@ public:
       produce_blocks( 2 );
 
       create_accounts({ N(amax.token), N(amax.ram), N(amax.ramfee), N(amax.stake),
-               N(amax.bpay), N(amax.vpay), N(amax.saving), N(amax.names), N(amax.rex), N(amax.reward) });
+               N(amax.bpay), N(amax.vpay), N(amax.saving), N(amax.names), N(amax.rex), N(amax.reward), N(amax.vote) });
 
 
       produce_blocks( 100 );

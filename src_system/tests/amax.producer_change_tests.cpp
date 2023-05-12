@@ -26,11 +26,16 @@
 #define LESS_OR(a, b, other_compare)   (a) < (b) ? true : (a) > (b) ? false : ( other_compare )
 #define LARGER_OR(a, b, other_compare) (a) > (b) ? true : (a) < (b) ? false : ( other_compare )
 
-#define CHECK(exp, msg) { if (exp) { BOOST_REQUIRE_MESSAGE( (exp), msg ); } }
+#define CHECK(exp, msg) { if ( !(exp) ) { BOOST_REQUIRE_MESSAGE( (exp), msg ); } }
 
-static constexpr int128_t  HIGH_PRECISION    = 1'000'000'000'000'000'000; // 10^18
+static constexpr int128_t  HIGH_PRECISION          = 1'000'000'000'000'000'000; // 10^18
 
-static const fc::microseconds block_interval_us = fc::microseconds(eosio::chain::config::block_interval_us);
+static const symbol           vote_symbol          = symbol(4, "VOTE");
+static const asset            vote_asset_0         = asset(0, vote_symbol);
+static const fc::microseconds block_interval_us    = fc::microseconds(eosio::chain::config::block_interval_us);
+static constexpr int64_t  vote_to_core_asset_ratio = 10000;
+
+#define VOTE_ASSET(amount) asset(amount, vote_symbol)
 
 uint64_t sum_consecutive_int(uint64_t max_num) {
    uint64_t sum = 0;
@@ -58,37 +63,40 @@ inline float128_t to_softfloat128( double d ) {
    return f64_to_f128(to_softfloat64(d));
 }
 
- inline uint128_t by_elected_prod(const name& owner, int64_t elected_votes, bool is_active = true) {
+inline static uint128_t by_elected_prod(const name& owner, bool is_active, const asset& votes) {
    static constexpr int64_t int64_max = std::numeric_limits<int64_t>::max();
-   static constexpr int64_t uint64_max = std::numeric_limits<uint64_t>::max();
+   static constexpr uint64_t uint64_max = std::numeric_limits<uint64_t>::max();
    static_assert( uint64_max - (uint64_t)int64_max == (uint64_t)int64_max + 1 );
-   BOOST_ASSERT(elected_votes >= 0 && elected_votes != int64_max);
-   uint64_t hi = is_active ? int64_max - elected_votes : uint64_max - elected_votes;
+   uint64_t amount = votes.get_amount();
+   // ASSERT(amount < int64_max);
+   uint64_t hi = is_active ? (uint64_t)int64_max - amount : uint64_max - amount;
    return uint128_t(hi) << 64 | owner.to_uint64_t();
 }
 
 struct producer_elected_info {
    name                    name;
-   int64_t                 elected_votes = 0.0;
+   bool                    is_active         = true;
+   asset                   elected_votes     = asset(0, vote_symbol);
    block_signing_authority authority;
+
    bool empty() const {
       return !bool(name);
    }
-
 };
-FC_REFLECT( producer_elected_info, (name)(elected_votes)(authority) )
+
+FC_REFLECT( producer_elected_info, (name)(is_active)(elected_votes)(authority) )
 
 
 inline uint128_t by_elected_prod(const producer_elected_info& v) {
-   return by_elected_prod(v.name, v.elected_votes);
+   return by_elected_prod(v.name, v.is_active, v.elected_votes);
 }
 
 inline bool operator<(const producer_elected_info& a, const producer_elected_info& b)  {
-   return LESS_OR(a.elected_votes, b.elected_votes, LARGER(a.name, b.name));
+   return LESS_OR(a.is_active, b.is_active, LESS_OR(a.elected_votes, b.elected_votes, LARGER(a.name, b.name)));
 }
 
 inline bool operator>(const producer_elected_info& a, const producer_elected_info& b)  {
-   return LARGER_OR(a.elected_votes, b.elected_votes, LESS(a.name, b.name));
+   return LARGER_OR(a.is_active, b.is_active, LARGER_OR(a.elected_votes, b.elected_votes, LESS(a.name, b.name)));
 }
 
 inline bool operator<=(const producer_elected_info& a, const producer_elected_info& b)  {
@@ -98,14 +106,14 @@ inline bool operator>=(const producer_elected_info& a, const producer_elected_in
    return !(a < b);
 }
 inline bool operator==(const producer_elected_info& a, const producer_elected_info& b)  {
-   return a.elected_votes == b.elected_votes && a.name == b.name;
+   return a.is_active == b.is_active && a.elected_votes == b.elected_votes && a.name == b.name;
 }
 inline bool operator!=(const producer_elected_info& a, const producer_elected_info& b)  {
    return !(a == b);
 }
 
 struct producer_elected_queue {
-   uint32_t                  last_producer_count = 0;
+   uint32_t                 last_producer_count = 0;
    producer_elected_info    tail;
    producer_elected_info    tail_prev;
    producer_elected_info    tail_next;
@@ -117,7 +125,7 @@ struct elect_global_state {
    int128_t                   total_producer_elected_votes  = 0; /// the sum of all producer elected votes
    uint32_t                   max_main_producer_count       = 21;
    uint32_t                   max_backup_producer_count     = 10000;
-   int64_t                    min_producer_votes            = 1'000'0000'0000;
+   asset                      min_producer_votes            = VOTE_ASSET(1'000'0000);
 
    uint64_t                   last_producer_change_id       = 0;
    bool                       producer_change_interrupted   = false;
@@ -151,7 +159,7 @@ struct amax_global_state: public eosio::chain::chain_config {
    block_timestamp_type   last_ram_increase;
    time_point        inflation_start_time;         // inflation start time
    asset             initial_inflation_per_block;  // initial inflation per block
-   uint64_t          reverved = 0;                 // reverved
+   uint64_t          reserved = 0;                 // reserved
    uint8_t           revision = 0; ///< used to track version updates in the future.
 };
 
@@ -161,13 +169,13 @@ FC_REFLECT_DERIVED( amax_global_state, (eosio::chain::chain_config),
                   (total_activated_stake)(thresh_activated_stake_time)
                   (last_producer_schedule_size)(total_producer_vote_weight)(last_name_close)
                   (new_ram_per_block)(last_ram_increase)
-                  (inflation_start_time)(initial_inflation_per_block)(reverved)
+                  (inflation_start_time)(initial_inflation_per_block)(reserved)
                   (revision)
 )
 
 struct producer_info_ext {
-   int64_t        elected_votes     = 0;
-   uint32_t       reward_shared_ratio = 0;
+   asset          elected_votes        = vote_asset_0;
+   uint32_t       reward_shared_ratio  = 0;
 };
 FC_REFLECT( producer_info_ext, (elected_votes)(reward_shared_ratio))
 
@@ -195,7 +203,7 @@ struct elected_change {
 
 FC_REFLECT( elected_change, (id)(changes)(created_at) )
 
-vector<account_name> gen_producer_names(uint32_t count, uint64_t from) {
+vector<account_name> gen_account_names(uint32_t count, uint64_t from) {
    vector<account_name> result;
    from >>= 4;
    for (uint64_t n = from; result.size() < count; n++) {
@@ -205,30 +213,32 @@ vector<account_name> gen_producer_names(uint32_t count, uint64_t from) {
 }
 
 struct producer_shared_reward {
-   name                    owner;
-   asset                   unallocated_rewards;
-   asset                   allocating_rewards;
-   asset                   allocated_rewards;
-   int64_t                 votes                = 0;
+   name                    owner;                                 // PK
+   bool                    is_registered        = false;          // is initialized
+   asset                   total_rewards        = CORE_ASSET(0);
+   asset                   allocating_rewards   = CORE_ASSET(0);
+   asset                   votes                = vote_asset_0;
    int128_t                rewards_per_vote     = 0;
    block_timestamp_type    update_at;
 };
 
-FC_REFLECT( producer_shared_reward, (owner)(unallocated_rewards)(allocating_rewards)(allocated_rewards)
+FC_REFLECT( producer_shared_reward, (owner)(is_registered)(total_rewards)(allocating_rewards)
                                     (votes)(rewards_per_vote)(update_at) )
 
-struct vote_reward_info {
+struct voted_produer_info {
    int128_t                last_rewards_per_vote = 0;
 };
-FC_REFLECT( vote_reward_info, (last_rewards_per_vote) )
+FC_REFLECT( voted_produer_info, (last_rewards_per_vote) )
+
+using voted_produer_map = std::map<name, voted_produer_info>;
 
 struct voter_reward {
-   name                             owner;
-   int64_t                          votes;
-   std::map<name, vote_reward_info> producers;
-   asset                            unclaimed_rewards;
-   asset                            claimed_rewards;
-   block_timestamp_type             update_at;
+   name                       owner;
+   asset                      votes             = vote_asset_0;
+   voted_produer_map          producers;
+   asset                      unclaimed_rewards = CORE_ASSET(0);
+   asset                      claimed_rewards   = CORE_ASSET(0);
+   block_timestamp_type       update_at;
 };
 
 FC_REFLECT( voter_reward, (owner)(votes)(producers)(unclaimed_rewards)(claimed_rewards)(update_at) )
@@ -329,20 +339,27 @@ namespace producer_change_helper {
 
 struct voter_info_t {
    vector<name> producers;
+   asset votes                = vote_asset_0;   // = staked / 10000
    asset staked               = CORE_ASSET(0);
-   asset net                  = CORE_ASSET(0);
-   asset cpu                  = CORE_ASSET(0);
-   int64_t last_votes         = 0; /// the vote weight cast the last time the vote was updated
 };
 
-FC_REFLECT( voter_info_t, (producers)(staked)(net)(cpu)(last_votes) )
+FC_REFLECT( voter_info_t, (producers)(votes)(staked) )
+
+inline asset vote_to_core_asset(const asset& votes) {
+   CHECK( votes.get_symbol() == vote_symbol, "vote symbol mismatch" );
+   int128_t amount = votes.get_amount() * vote_to_core_asset_ratio;
+   CHECK( amount >= 0 && amount <= std::numeric_limits<int64_t>::max(), "votes out of range")
+   return CORE_ASSET(amount);
+}
 
 using namespace eosio_system;
 
 struct producer_change_tester : eosio_system_tester {
 
-   vector<account_name> producers = gen_producer_names(100, N(prod.1111111).to_uint64_t());
-   vector<account_name> voters = gen_producer_names(100, N(voter.111111).to_uint64_t());
+   vector<account_name> producers = gen_account_names(100, N(prod.1111111).to_uint64_t());
+   vector<account_name> voters = gen_account_names(100, N(voter.111111).to_uint64_t());
+   account_name old_voter_1 = N(voter.old.1);
+   account_name old_prod_1 = N(prod.old.1);
    fc::flat_map<name, producer_elected_info> producer_map;
    fc::flat_map<name, voter_info_t> voter_map;
 
@@ -445,11 +462,29 @@ struct producer_change_tester : eosio_system_tester {
       return stake( acnt, acnt, net, cpu );
    }
 
-   auto vote( const account_name& voter, const std::vector<account_name>& producers, const account_name& proxy = name(0) ) {
+   auto voteproducer( const account_name& voter, const std::vector<account_name>& producers, const account_name& proxy = name(0) ) {
       return push_action(voter, N(voteproducer), mvo()
                          ("voter",     voter)
                          ("proxy",     proxy)
                          ("producers", producers));
+   }
+
+   auto addvote( const name& voter, const asset& votes ) {
+      return push_action(voter, N(addvote), mvo()
+                     ("voter",     voter)
+                     ("votes",     votes));
+   }
+
+   auto subvote( const name& voter, const asset& votes ) {
+      return push_action(voter, N(subvote), mvo()
+                     ("voter",     voter)
+                     ("votes",     votes));
+   }
+
+   auto vote( const name& voter, const std::vector<name>& producers ) {
+      return push_action(voter, N(vote), mvo()
+                     ("voter",     voter)
+                     ("producers", producers));
    }
 
    auto transfer( const name& from, const name& to, const asset& amount, const string& memo = "" ) {
@@ -457,8 +492,7 @@ struct producer_change_tester : eosio_system_tester {
                                 ("from",        from)
                                 ("to",          to )
                                 ("quantity",    amount)
-                                ("memo",        memo)
-                                );
+                                ("memo",        memo));
    }
 
    auto producer_claimrewards( const name& owner ) {
@@ -505,7 +539,7 @@ struct producer_change_tester : eosio_system_tester {
       return *idx_id;
    }
 
-   vector<producer_elected_info> get_elected_producers_from_db(uint8_t min_elected_version, size_t max_size = -1) {
+   vector<producer_elected_info> get_elected_producers_from_db(size_t max_size = -1) {
       vector<producer_elected_info> ret;
       const auto& db = control->db();
       const auto& idx_id = get_table_index_id(config::system_account_name, config::system_account_name, N(producers), 1);
@@ -526,7 +560,7 @@ struct producer_change_tester : eosio_system_tester {
          //    wdump( (info.owner) (info.ext.value.elected_votes));
          //    break;
          // }
-         ret.push_back({info.owner, info.ext.value.elected_votes, info.producer_authority});
+         ret.push_back({info.owner, info.is_active, info.ext.value.elected_votes, info.producer_authority});
       }
       auto sz = std::min(max_size, ret.size());
       return vector<producer_elected_info>(ret.begin(), ret.begin() + sz);
@@ -585,12 +619,12 @@ struct producer_change_tester : eosio_system_tester {
       }
    }
 
-   std::map<name, int64_t> get_voters_of_producer(const name& producer_name) {
-      std::map<name, int64_t> ret;
+   std::map<name, asset> get_voters_of_producer(const name& producer_name) {
+      std::map<name, asset> ret;
       for(const auto& v : voter_map) {
          const auto& producers = v.second.producers;
          if ( std::find(producers.begin(), producers.end(), producer_name) != producers.end() ) {
-            ret[v.first] = v.second.last_votes;
+            ret[v.first] = v.second.votes;
             continue;
          }
       }
@@ -644,8 +678,8 @@ struct producer_change_tester : eosio_system_tester {
    }
 
 
-   inline int128_t calc_rewards_per_vote(const int128_t& old_rewards_per_vote, int64_t rewards, int64_t votes) {
-      auto  new_rewards_per_vote = old_rewards_per_vote + rewards * HIGH_PRECISION / votes;
+   inline int128_t calc_rewards_per_vote(const int128_t& old_rewards_per_vote, const asset& rewards, const asset& votes) {
+      auto  new_rewards_per_vote = old_rewards_per_vote + rewards.get_amount() * HIGH_PRECISION / votes.get_amount();
       CHECK(new_rewards_per_vote >= old_rewards_per_vote, "calculated rewards_per_vote overflow");
       return new_rewards_per_vote;
    }
@@ -657,6 +691,10 @@ struct producer_change_tester : eosio_system_tester {
       CHECK(rewards >= 0 && rewards <= std::numeric_limits<int64_t>::max(),
             "calculated rewards overflow");
       return rewards;
+   }
+
+   inline int64_t calc_voter_rewards(const asset& votes, const int128_t& rewards_per_vote) {
+      return calc_voter_rewards(votes.get_amount(), rewards_per_vote);
    }
 
 };
@@ -677,27 +715,56 @@ BOOST_FIXTURE_TEST_CASE(producer_elects_test, producer_change_tester) try {
    produce_block();
    auto ram_asset = core_sym::from_string("10000.0000");
    for (size_t i = 0; i < producers.size(); i++) {
-      create_account_with_resources( producers[i], config::system_account_name, 10 * 1024 );
-      regproducer( producers[i] );
-      producer_map[ producers[i] ] = { producers[i], 0, make_producer_authority(producers[i], 1) };
-      // wdump( (producers[i]) (get_producer_info(producers[i])) );
 
       if (i % 20 == 0)
          produce_block();
+
+      create_account_with_resources( producers[i], config::system_account_name, 10 * 1024 );
+      regproducer( producers[i] );
+      producer_map[ producers[i] ] = { producers[i], true, VOTE_ASSET(0), make_producer_authority(producers[i], 1) };
    }
 
-   auto total_staked = core_sym::min_activated_stake + core_sym::from_string("1.0000");
-   uint64_t total_weight = sum_consecutive_int(voters.size());
+   create_account_with_resources( old_prod_1, config::system_account_name, 10 * 1024 );
+   regproducer( old_prod_1 );
+   make_producer_authority(old_prod_1, 1);
+
+   produce_block();
+
+   for (size_t i = 0; i < voters.size(); i++) {
+      auto const& voter = voters[i];
+      create_account_with_resources( voter, config::system_account_name, 10 * 1024);
+   }
+
+   create_account_with_resources( old_voter_1, config::system_account_name, 10 * 1024);
+   transfer(N(amax), old_voter_1, core_sym::min_activated_stake);
+   auto old_voter_net = CORE_ASSET(core_sym::min_activated_stake.get_amount() / 2);
+   auto old_voter_cpu = core_sym::min_activated_stake - old_voter_net;
+   if(!stake( old_voter_1, old_voter_net, old_voter_cpu) ) {
+      BOOST_FAIL("stake failed");
+   }
+   if( !voteproducer( old_voter_1, {old_prod_1} ) ) {
+      BOOST_FAIL("vote failed");
+   }
+
+   auto gstate = get_global_state();
+   wdump((gstate.thresh_activated_stake_time));
+   BOOST_REQUIRE( gstate.thresh_activated_stake_time == control->pending_block_time() );
+   produce_block();
+
+
+   gstate = get_global_state();
+   BOOST_REQUIRE( gstate.thresh_activated_stake_time == control->head_block_time() );
+
+   auto elect_gstate = get_elect_global_state();
+   auto min_producer_votes = elect_gstate.min_producer_votes;
    for (size_t i = 0; i < voters.size(); i++) {
       auto const& voter = voters[i];
       auto& voter_info = voter_map[voter];
-      voter_info.staked = CORE_ASSET( total_staked.get_amount() * (i + 1) / total_weight );
-      voter_info.net = CORE_ASSET(voter_info.staked.get_amount() / 2);
-      voter_info.cpu = voter_info.staked - voter_info.net;
-      voter_info.last_votes = voter_info.staked.get_amount();
-      create_account_with_resources( voter, config::system_account_name, 10 * 1024);
+      voter_info.votes =  VOTE_ASSET( min_producer_votes.get_amount() * (voters.size() - i) / voters.size()  );
+      voter_info.staked = vote_to_core_asset(voter_info.votes);
+
       transfer(N(amax), voter, voter_info.staked);
-      if(!stake( voter, voter_info.net, voter_info.cpu ) ) {
+      if(!addvote( voter, voter_info.votes ) ) {
          BOOST_FAIL("stake failed");
       }
       size_t max_count = std::min(30ul, producers.size());
@@ -705,7 +772,7 @@ BOOST_FIXTURE_TEST_CASE(producer_elects_test, producer_change_tester) try {
       for (size_t j = 0; j < max_count; j++) {
          const auto& prod = producers[ (i + j) % producers.size() ];
          voter_info.producers[j] = prod;
-         producer_map[prod].elected_votes += voter_info.last_votes;
+         producer_map[prod].elected_votes += voter_info.votes;
       }
       std::sort( voter_info.producers.begin(), voter_info.producers.end());
 
@@ -719,12 +786,9 @@ BOOST_FIXTURE_TEST_CASE(producer_elects_test, producer_change_tester) try {
 
    const auto& gpo = control->get_global_properties();
 
-   auto gstate = get_global_state();
-   auto elect_gstate = get_elect_global_state();
+   gstate = get_global_state();
+   elect_gstate = get_elect_global_state();
    BOOST_REQUIRE_EQUAL( elect_gstate.elected_version, 0 );
-
-   wdump( (gstate.thresh_activated_stake_time) );
-   BOOST_REQUIRE( gstate.thresh_activated_stake_time == control->pending_block_time() );
 
    initelects(43);
    elect_gstate = get_elect_global_state();
@@ -733,7 +797,7 @@ BOOST_FIXTURE_TEST_CASE(producer_elects_test, producer_change_tester) try {
    BOOST_REQUIRE_EQUAL(*gpo.proposed_schedule_block_num, control->head_block_num() + 1);
    BOOST_REQUIRE_EQUAL(gpo.proposed_schedule.version, 0);
    BOOST_REQUIRE_EQUAL(gpo.proposed_schedule.producers.size(), 0);
-   BOOST_REQUIRE_EQUAL(gpo.proposed_schedule_change.version, 1);
+   BOOST_REQUIRE_EQUAL(gpo.proposed_schedule_change.version, 2);
    BOOST_REQUIRE_EQUAL(gpo.proposed_schedule_change.main_changes.producer_count, 21);
    BOOST_REQUIRE_EQUAL(gpo.proposed_schedule_change.backup_changes.producer_count, 3);
 
@@ -748,9 +812,8 @@ BOOST_FIXTURE_TEST_CASE(producer_elects_test, producer_change_tester) try {
    BOOST_REQUIRE_EQUAL(elect_gstate.backup_elected_queue.last_producer_count, 3);
 
    auto elected_producers = get_elected_producers(producer_map);
-   auto elected_producers_in_db = get_elected_producers_from_db(elect_gstate.elected_version);
-   // wdump(  (elected_producers) );
-   // wdump(  (elected_producers_in_db) );
+   auto elected_producers_in_db = get_elected_producers_from_db();
+
    BOOST_REQUIRE( vector_matched(elected_producers, elected_producers_in_db, 21) );
 
    // wdump( (elect_gstate.main_elected_queue.tail_prev)(elected_producers[19]) );
@@ -764,21 +827,20 @@ BOOST_FIXTURE_TEST_CASE(producer_elects_test, producer_change_tester) try {
    produce_block();
    auto hbs = control->head_block_state();
    auto header_exts = hbs->header_exts;
-   // wdump( (hbs));
 
    BOOST_REQUIRE(!gpo.proposed_schedule_block_num);
    BOOST_REQUIRE_EQUAL( header_exts.count(producer_schedule_change_extension_v2::extension_id()) , 1 );
    const auto& new_producer_schedule = header_exts.lower_bound(producer_schedule_change_extension_v2::extension_id())->second.get<producer_schedule_change_extension_v2>();
 
    // wdump((new_producer_schedule));
-   BOOST_REQUIRE_EQUAL(new_producer_schedule.version, 1);
+   BOOST_REQUIRE_EQUAL(new_producer_schedule.version, 2);
    BOOST_REQUIRE_EQUAL(new_producer_schedule.main_changes.producer_count, 21);
    BOOST_REQUIRE_EQUAL(new_producer_schedule.backup_changes.producer_count, 3);
 
    BOOST_REQUIRE_EQUAL( hbs->pending_schedule.schedule_lib_num, control->head_block_num() );
    BOOST_REQUIRE( hbs->pending_schedule.schedule.contains<producer_schedule_change>());
    const auto& change = hbs->pending_schedule.schedule.get<producer_schedule_change>();
-   BOOST_REQUIRE_EQUAL( change.version, 1 );
+   BOOST_REQUIRE_EQUAL( change.version, 2 );
    BOOST_REQUIRE_EQUAL(change.main_changes.producer_count, 21);
    BOOST_REQUIRE_EQUAL(change.backup_changes.producer_count, 3);
 
@@ -793,8 +855,8 @@ BOOST_FIXTURE_TEST_CASE(producer_elects_test, producer_change_tester) try {
 
    auto main_active_schedule = producer_change_helper::producers_from(hbs->active_schedule);
 
-   BOOST_REQUIRE_EQUAL( hbs->header.producer, N(amax) );
-   BOOST_REQUIRE_EQUAL( hbs->active_schedule.version, 1 );
+   BOOST_REQUIRE_EQUAL( hbs->header.producer, old_prod_1 );
+   BOOST_REQUIRE_EQUAL( hbs->active_schedule.version, 2 );
    // wdump((hbs->active_schedule.producers));
    // wdump((main_schedule));
    BOOST_REQUIRE( main_active_schedule == main_schedule);
@@ -804,7 +866,7 @@ BOOST_FIXTURE_TEST_CASE(producer_elects_test, producer_change_tester) try {
    BOOST_REQUIRE( hbs->active_backup_schedule.schedule == hbs->active_backup_schedule.get_schedule() );
    auto active_backup_schedule = *hbs->active_backup_schedule.schedule;
 
-   BOOST_REQUIRE_EQUAL( active_backup_schedule.version, 1 );
+   BOOST_REQUIRE_EQUAL( active_backup_schedule.version, 2 );
    BOOST_REQUIRE( active_backup_schedule.producers == backup_schedule);
 
    producing_backup = true;
@@ -824,7 +886,7 @@ BOOST_FIXTURE_TEST_CASE(producer_elects_test, producer_change_tester) try {
    BOOST_REQUIRE_EQUAL(next_main_prod, next_main_prod_info.owner);
    BOOST_REQUIRE(next_main_prod_info.last_claimed_time < hbs->header.timestamp.to_time_point());
    BOOST_REQUIRE_EQUAL(next_main_prod_info.unclaimed_rewards, core_sym::from_string("0.0000"));
-   BOOST_REQUIRE_GT(next_main_prod_info.ext.value.elected_votes, 0);
+   BOOST_REQUIRE_GT(next_main_prod_info.ext.value.elected_votes, vote_asset_0);
    BOOST_REQUIRE(next_main_prod_info.ext.value.reward_shared_ratio == 8000);
 
    auto backup_prod = calc_backup_scheduled_producer(
@@ -835,7 +897,7 @@ BOOST_FIXTURE_TEST_CASE(producer_elects_test, producer_change_tester) try {
    BOOST_REQUIRE_EQUAL(backup_prod, backup_prod_info.owner);
    BOOST_REQUIRE(backup_prod_info.last_claimed_time < hbs->header.timestamp.to_time_point());
    BOOST_REQUIRE_EQUAL(backup_prod_info.unclaimed_rewards, core_sym::from_string("0.0000"));
-   BOOST_REQUIRE_GT(backup_prod_info.ext.value.elected_votes, 0);
+   BOOST_REQUIRE_GT(backup_prod_info.ext.value.elected_votes, vote_asset_0);
    BOOST_REQUIRE(backup_prod_info.ext.value.reward_shared_ratio == 8000);
 
    asset initial_inflation_per_block = CORE_ASSET(2'000'0000);
@@ -875,11 +937,11 @@ BOOST_FIXTURE_TEST_CASE(producer_elects_test, producer_change_tester) try {
    BOOST_REQUIRE_EQUAL( get_balance(main_prod), main_prod_balance + self_rewards );
    auto main_shared_reward_info = get_producer_shared_reward(main_prod);
    // wdump((main_shared_reward_info));
-   BOOST_REQUIRE_EQUAL( main_shared_reward_info.unallocated_rewards, CORE_ASSET(0) );
+   BOOST_REQUIRE_EQUAL( main_shared_reward_info.total_rewards, shared_rewards );
    BOOST_REQUIRE_EQUAL( main_shared_reward_info.allocating_rewards, shared_rewards );
    BOOST_REQUIRE_EQUAL( main_shared_reward_info.votes, main_prod_info.ext.value.elected_votes );
-   BOOST_REQUIRE( main_shared_reward_info.votes > 0 );
-   BOOST_REQUIRE( main_shared_reward_info.rewards_per_vote == calc_rewards_per_vote(0, shared_rewards.get_amount(), main_shared_reward_info.votes));
+   BOOST_REQUIRE_GT( main_shared_reward_info.votes, vote_asset_0 );
+   BOOST_REQUIRE( main_shared_reward_info.rewards_per_vote == calc_rewards_per_vote(0, shared_rewards, main_shared_reward_info.votes));
 
    auto main_prod_voters = get_voters_of_producer(main_prod);
    auto main_voter_info = main_prod_voters.begin();
@@ -921,9 +983,12 @@ BOOST_FIXTURE_TEST_CASE(producer_elects_test, producer_change_tester) try {
    BOOST_REQUIRE_EQUAL(elect_gstate.backup_elected_queue.last_producer_count, 4);
    BOOST_REQUIRE(elect_gstate.main_elected_queue.tail_next     == elected_producers[21]);
    BOOST_REQUIRE(elect_gstate.backup_elected_queue.tail_prev   == elected_producers[23]);
-   // wdump( (elect_gstate.backup_elected_queue.tail)(elected_producers[24]) );
    BOOST_REQUIRE(elect_gstate.backup_elected_queue.tail        == elected_producers[24]);
    BOOST_REQUIRE(elect_gstate.backup_elected_queue.tail_next   == elected_producers[25]);
+
+   for (auto& prod : producer_map) {
+      prod.second.elected_votes = vote_asset_0;
+   }
 
    for (size_t i = 0; i < voters.size(); i++) {
       if (i % 20 == 0) {
@@ -931,36 +996,19 @@ BOOST_FIXTURE_TEST_CASE(producer_elects_test, producer_change_tester) try {
       }
       auto voter = voters[voters.size() - i - 1];
       auto& voter_info = voter_map[voter];
-      std::map<name, int64_t> producer_deltas;
-
-      auto sub_votes = voter_info.last_votes;
-      double old_votes_0 = 0.0;
-      for (const auto& prod : voter_info.producers) {
-         producer_deltas[prod] -= voter_info.last_votes;
-      }
-
-      voter_info.last_votes = voter_info.staked.get_amount();
 
       size_t max_count = std::min(30ul, producers.size());
       voter_info.producers.resize(max_count);
       for (size_t j = 0; j < max_count; j++) {
          const auto& prod = producers[ (i + j) % producers.size() ];
          voter_info.producers[j] = prod;
-         producer_deltas[prod] += voter_info.last_votes;
+         producer_map[prod].elected_votes += voter_info.votes;
       }
       std::sort( voter_info.producers.begin(), voter_info.producers.end());
-
-      for (const auto& pd : producer_deltas) {
-         auto& pv = producer_map[pd.first];
-         pv.elected_votes += pd.second;
-         if (pv.elected_votes < 0) pv.elected_votes = 0;
-      }
-
 
       if( !vote( voter, voter_info.producers ) ) {
          BOOST_FAIL("vote failed");
       }
-      // wdump( (elected_change_count_in_db()) );
    }
    produce_blocks();
 
@@ -971,24 +1019,10 @@ BOOST_FIXTURE_TEST_CASE(producer_elects_test, producer_change_tester) try {
    {
       hbs = control->head_block_state();
       elected_producers = get_elected_producers(producer_map);
-      elected_producers_in_db = get_elected_producers_from_db(elect_gstate.elected_version);
+      elected_producers_in_db = get_elected_producers_from_db();
       elect_gstate = get_elect_global_state();
       auto& meq = elect_gstate.main_elected_queue;
       auto& beq = elect_gstate.backup_elected_queue;
-
-      // for (size_t i = 0; i < elected_producers_in_db.size(); i++)
-      // {
-      //    wdump( (i) (elected_producers_in_db[i]));
-      // }
-
-      // for (size_t i = 0; i < elected_producers.size(); i++)
-      // wdump( (elected_producers.size() ));
-      // for (size_t i = 0; i < 21; i++)
-      // {
-      //    wdump( (i) (elected_producers[i]));
-      // }
-
-      // wdump((elect_gstate));
 
       BOOST_REQUIRE_EQUAL(elect_gstate.main_elected_queue.last_producer_count, 21);
       BOOST_REQUIRE_GT(elect_gstate.backup_elected_queue.last_producer_count, 3);
@@ -1002,17 +1036,9 @@ BOOST_FIXTURE_TEST_CASE(producer_elects_test, producer_change_tester) try {
       BOOST_REQUIRE(elect_gstate.backup_elected_queue.tail        == elected_producers_in_db[bpc-1]);
       BOOST_REQUIRE(elect_gstate.backup_elected_queue.tail_next   == elected_producers_in_db[bpc]);
 
-      // wdump(  (elected_producers) );
-      // wdump(  (elected_producers_in_db) );
-
       BOOST_REQUIRE( vector_matched(elected_producers, elected_producers_in_db, bpc) );
 
-      // return;
       auto elected_change = get_elected_change_from_db();
-      // wdump( (elected_change.size()) );
-      // for (size_t i = 0; i < elected_change.size(); i++) {
-      //    wdump((i)(elected_change[i]));
-      // }
 
       BOOST_REQUIRE_GT(elected_change.size(), 0);
 
@@ -1020,10 +1046,6 @@ BOOST_FIXTURE_TEST_CASE(producer_elects_test, producer_change_tester) try {
       backup_schedule = hbs->active_backup_schedule.get_schedule()->producers;
       flat_map<name, block_signing_authority>   main_schedule_merged = main_schedule;
       flat_map<name, block_signing_authority>   backup_schedule_merged = backup_schedule;
-
-      // wdump((main_schedule));
-      // wdump((backup_schedule));
-
 
       get_producer_schedule(elected_producers, elect_gstate.main_elected_queue.last_producer_count,
          elect_gstate.backup_elected_queue.last_producer_count, main_schedule, backup_schedule);

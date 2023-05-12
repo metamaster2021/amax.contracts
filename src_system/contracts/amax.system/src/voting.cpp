@@ -269,7 +269,7 @@ namespace eosiosystem {
       // TODO: need using location to order producers?
       for( auto it = elect_idx.cbegin(); it != elect_idx.cend(); ++it ) {
          auto elected_info = it->get_elected_info();
-         if (!it->active() || is_prod_votes_valid(elected_info)) {
+         if (!it->active() || !is_prod_votes_valid(elected_info)) {
             break;
          }
          if (main_changes.changes.size() < meq.last_producer_count) {
@@ -1253,7 +1253,7 @@ namespace eosiosystem {
    }
 
    inline asset system_contract::vote_to_core_asset(const asset& votes) {
-      int128_t amount = votes.amount * 10000;
+      int128_t amount = votes.amount * vote_to_core_asset_ratio;
       CHECK( amount >= 0 && amount <= std::numeric_limits<int64_t>::max(), "votes out of range")
       return asset((int64_t)amount, core_symbol());
    }
