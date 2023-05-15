@@ -107,10 +107,8 @@ void amax_reward::voteproducer( const name& voter, const std::vector<name>& prod
          v.owner = voter;
       }
 
-      // allocate rewards for old voted producers
-      allocate_producer_rewards(v.votes, vote_asset_0, v.producers, v.unclaimed_rewards, voter);
-
       voted_produer_map added_prods;
+      voted_produer_map removed_prods;
 
       auto new_prod_itr = producers.begin();
       auto old_prod_itr = v.producers.begin();
@@ -118,7 +116,8 @@ void amax_reward::voteproducer( const name& voter, const std::vector<name>& prod
 
          if (old_prod_itr != v.producers.end() && new_prod_itr != producers.end()) {
             if ( old_prod_itr->first < (*new_prod_itr) ) {
-               // old is discarded, new is processed in next loop
+               // old is discarded and add to removed_prods, new is processed in next loop
+               removed_prods.emplace(*old_prod_itr);
                old_prod_itr = v.producers.erase(old_prod_itr);
             }else if ( (*new_prod_itr) < old_prod_itr->first ) {
                // old is processed in next loop, new is added to added_prods
@@ -129,9 +128,9 @@ void amax_reward::voteproducer( const name& voter, const std::vector<name>& prod
                old_prod_itr++;
                new_prod_itr++;
             }
-
          } else if (old_prod_itr != v.producers.end()) {
-            // no new, old is discarded
+            // no new, old is discarded and add to removed_prods,
+            removed_prods.emplace(*old_prod_itr);
             old_prod_itr = v.producers.erase(old_prod_itr);
          } else { // new_prod_itr != producers.end()
             // no old, new is added to added_prods
@@ -140,8 +139,9 @@ void amax_reward::voteproducer( const name& voter, const std::vector<name>& prod
          }
       }
 
-      // update new added prods
-      allocate_producer_rewards(vote_asset_0, v.votes, added_prods, v.unclaimed_rewards, voter);
+      allocate_producer_rewards(removed_prods, v.votes, -v.votes, voter, v.unclaimed_rewards);
+      allocate_producer_rewards(v.producers, v.votes, vote_asset_0, voter, v.unclaimed_rewards);
+      allocate_producer_rewards(added_prods, vote_asset_0, v.votes, voter, v.unclaimed_rewards);
       for (auto& added_prod : added_prods) {
          v.producers.emplace(added_prod);
       }
@@ -161,8 +161,7 @@ void amax_reward::claimrewards(const name& voter) {
 
    _voter_tbl.modify(voter_itr, voter, [&]( auto& v) {
 
-      allocate_producer_rewards(v.votes, vote_asset_0, v.producers, v.unclaimed_rewards, voter);
-
+      allocate_producer_rewards(v.producers, v.votes, vote_asset_0, voter, v.unclaimed_rewards);
       check(v.unclaimed_rewards.amount > 0, "no rewards to claim");
       TRANSFER_OUT(CORE_TOKEN, voter, v.unclaimed_rewards, "voted rewards");
 
@@ -207,20 +206,21 @@ void amax_reward::change_vote(const name& voter, const asset& votes, bool is_add
          v.owner = voter;
       }
 
-      allocate_producer_rewards(v.votes, votes, v.producers, v.unclaimed_rewards, voter);
-      if (is_adding) {
-         v.votes        += votes;
-      } else {
+      auto votes_delta = votes;
+      if (!is_adding) {
          CHECK(v.votes >= votes, "voter's votes insufficent")
-         v.votes        -= votes;
+         votes_delta = -votes;
       }
+      allocate_producer_rewards(v.producers, v.votes, votes_delta, voter, v.unclaimed_rewards);
+      v.votes        += votes_delta;
       CHECK(v.votes.amount >= 0, "voter's votes can not be negtive")
+
       v.update_at    = now;
    });
 }
 
-void amax_reward::allocate_producer_rewards(const asset& votes_old, const asset& votes_delta,
-      voted_produer_map& producers, asset &allocated_rewards, const name& new_payer) {
+void amax_reward::allocate_producer_rewards(voted_produer_map& producers, const asset& votes_old,
+         const asset& votes_delta, const name& new_payer, asset &allocated_rewards_out) {
 
    auto now = eosio::current_time_point();
    for ( auto& voted_prod : producers) {
@@ -243,7 +243,7 @@ void amax_reward::allocate_producer_rewards(const asset& votes_old, const asset&
 
             ASSERT(p.total_rewards == p.allocating_rewards + p.allocated_rewards)
 
-            allocated_rewards += new_rewards; // update allocated_rewards for voter
+            allocated_rewards_out += new_rewards; // update allocated_rewards for voter
          }
 
          p.votes += votes_delta;

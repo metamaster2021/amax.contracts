@@ -204,7 +204,7 @@ namespace amax {
       producer::table         _producer_tbl;
 
 
-      void allocate_producer_rewards(const asset& votes_old, const asset& votes_delta, voted_produer_map& producers, asset &allocated_rewards, const name& new_payer);
+      void allocate_producer_rewards(voted_produer_map& producers, const asset& votes_old, const asset& votes_delta, const name& new_payer, asset &allocated_rewards_out);
       void change_vote(const name& voter, const asset& votes, bool is_adding);
    };
 
