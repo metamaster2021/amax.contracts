@@ -1593,8 +1593,7 @@ namespace eosiosystem {
          void update_elected_producers( const block_timestamp& timestamp );
          void update_elected_producer_changes( const block_timestamp& timestamp );
          void update_vote_weight_old( const name& voter, const name& proxy, const std::vector<name>& producers, bool voting );
-         void update_votes( const name& voter, const std::vector<name>& producers, const asset& votes_delta, bool voting );
-         void update_producer_elected_vote( const name& producer_name, const asset& votes_delta,
+         void update_producer_elected_votes( const std::vector<name>& producers, const asset& votes_delta,
                                              bool is_adding, proposed_producer_changes &changes);
          void propagate_weight_change( const voter_info& voter, const name& payer );
 

@@ -624,26 +624,31 @@ namespace eosiosystem {
       });
    }
 
-   void system_contract::update_producer_elected_vote( const name& producer_name, const asset& votes_delta,
-                                       bool is_adding, proposed_producer_changes &changes) {
+   void system_contract::update_producer_elected_votes(  const std::vector<name>& producers,
+                                                         const asset& votes_delta,
+                                                         bool is_adding,
+                                                         proposed_producer_changes& changes ) {
 
-      auto pitr = _producers.find( producer_name.value );
-      CHECK( pitr != _producers.end(), "producer " + producer_name.to_string() + " is not registered" );
-      if (is_adding) {
-         CHECK( pitr->active() , "producer " + pitr->owner.to_string() + " is not active" );
+      for( const auto& p : producers ) {
+         auto pitr = _producers.find( p.value );
+
+         CHECK( pitr != _producers.end(), "producer " + p.to_string() + " is not registered" );
+         if (is_adding) {
+            CHECK( pitr->active() , "producer " + pitr->owner.to_string() + " is not active" );
+         }
+         CHECK(pitr->ext, "producer " + pitr->owner.to_string() + " is not updated by regproducer")
+
+         auto elected_info_old = pitr->get_elected_info();
+         _producers.modify( pitr, same_payer, [&]( auto& p ) {
+            p.total_votes = 0; // clear old vote info
+            p.ext->elected_votes += votes_delta;
+            CHECK( p.ext->elected_votes.amount >= 0, "producer's elected votes can not be negative" )
+            _elect_gstate.total_producer_elected_votes += votes_delta.amount;
+            check(_elect_gstate.total_producer_elected_votes >= 0, "total_producer_elected_votes can not be negative");
+         });
+
+         process_elected_producer(elected_info_old, pitr->get_elected_info(), changes);
       }
-      CHECK(pitr->ext, "producer " + pitr->owner.to_string() + " is not updated by regproducer")
-
-      auto elected_info_old = pitr->get_elected_info();
-      _producers.modify( pitr, same_payer, [&]( auto& p ) {
-         p.total_votes = 0; // clear old vote info
-         p.ext->elected_votes += votes_delta;
-         CHECK( p.ext->elected_votes.amount >= 0, "producer's elected votes can not be negative" )
-         _elect_gstate.total_producer_elected_votes += votes_delta.amount;
-         check(_elect_gstate.total_producer_elected_votes >= 0, "total_producer_elected_votes can not be negative");
-      });
-
-      process_elected_producer(elected_info_old, pitr->get_elected_info(), changes);
    }
 
    void system_contract::addvote( const name& voter, const asset& votes ) {
@@ -662,9 +667,7 @@ namespace eosiosystem {
 
          if (voter_itr->producers.size() > 0) {
             proposed_producer_changes changes;
-            for (const auto& p : voter_itr->producers) {
-               update_producer_elected_vote(p, votes, false, changes);
-            }
+            update_producer_elected_votes(voter_itr->producers, votes, false, changes);
             save_producer_changes(changes, voter);
          }
 
@@ -704,9 +707,7 @@ namespace eosiosystem {
 
       auto votes_delta = -votes;
       proposed_producer_changes changes;
-      for (const auto& p : voter_itr->producers) {
-         update_producer_elected_vote(p, votes_delta, false, changes);
-      }
+      update_producer_elected_votes(voter_itr->producers, votes_delta, false, changes);
       save_producer_changes(changes, voter);
 
       _voters.modify( voter_itr, same_payer, [&]( auto& v ) {
@@ -754,6 +755,7 @@ namespace eosiosystem {
       auto old_prod_itr = old_prods.begin();
       auto new_prod_itr = producers.begin();
       std::vector<name> removed_prods; removed_prods.reserve(old_prods.size());
+      std::vector<name> modified_prods; removed_prods.reserve(old_prods.size());
       std::vector<name> added_prods;   added_prods.reserve(producers.size());
       while(old_prod_itr != old_prods.end() || new_prod_itr != producers.end()) {
 
@@ -767,6 +769,7 @@ namespace eosiosystem {
             } else { // new_prod_itr == old_prod_itr
                old_prod_itr++;
                new_prod_itr++;
+               modified_prods.push_back(*old_prod_itr);
             }
          } else if ( old_prod_itr != old_prods.end() ) { //  && new_prod_itr == producers.end()
                removed_prods.push_back(*old_prod_itr);
@@ -777,33 +780,15 @@ namespace eosiosystem {
          }
       }
 
+      proposed_producer_changes changes;
+      auto unvotes = -voter_itr->votes;
+      update_producer_elected_votes(removed_prods, unvotes, false, changes);
+      update_producer_elected_votes(modified_prods, vote_asset_0, false, changes);
+      update_producer_elected_votes(added_prods, voter_itr->votes, false, changes);
+      save_producer_changes(changes, voter);
+
       amax_reward::voteproducer_action voteproducer_act{ reward_account, { {get_self(), active_permission}, {voter, active_permission} } };
       voteproducer_act.send( voter, producers );
-
-      proposed_producer_changes changes;
-      // TODO: update the prod in both old and new list?
-
-      std::set<name> new_producers;
-      for (const auto& p : producers) {
-         new_producers.insert(p);
-      }
-
-      auto unvotes = -voter_itr->votes;
-      for (const auto& p : voter_itr->producers) {
-         auto itr = new_producers.find(p);
-         if (itr != new_producers.end()) {
-            new_producers.erase(itr);
-            update_producer_elected_vote(p, vote_asset_0, false, changes);
-         } else {
-            update_producer_elected_vote(p, unvotes, false, changes);
-         }
-      }
-
-      for (const auto& p : new_producers) {
-         update_producer_elected_vote(p, voter_itr->votes, true, changes);
-      }
-
-      save_producer_changes(changes, voter);
 
       _voters.modify( voter_itr, same_payer, [&]( auto& v ) {
          v.producers          = producers;
