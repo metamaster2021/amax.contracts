@@ -239,6 +239,10 @@ void amax_reward::allocate_producer_rewards(const asset& votes_old, const asset&
             asset new_rewards = calc_voter_rewards(votes_old, rewards_per_vote_delta);
             CHECK(p.allocating_rewards >= new_rewards, "producer allocating rewards insufficient");
             p.allocating_rewards -= new_rewards;
+            p.allocated_rewards += new_rewards;
+
+            ASSERT(p.total_rewards == p.allocating_rewards + p.allocated_rewards)
+
             allocated_rewards += new_rewards; // update allocated_rewards for voter
          }
 

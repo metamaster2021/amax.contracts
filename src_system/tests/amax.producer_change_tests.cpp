@@ -217,12 +217,13 @@ struct producer_shared_reward {
    bool                    is_registered        = false;          // is initialized
    asset                   total_rewards        = CORE_ASSET(0);
    asset                   allocating_rewards   = CORE_ASSET(0);
+   asset                   allocated_rewards    = CORE_ASSET(0);
    asset                   votes                = vote_asset_0;
    int128_t                rewards_per_vote     = 0;
    block_timestamp_type    update_at;
 };
 
-FC_REFLECT( producer_shared_reward, (owner)(is_registered)(total_rewards)(allocating_rewards)
+FC_REFLECT( producer_shared_reward, (owner)(is_registered)(total_rewards)(allocating_rewards)(allocated_rewards)
                                     (votes)(rewards_per_vote)(update_at) )
 
 struct voted_produer_info {

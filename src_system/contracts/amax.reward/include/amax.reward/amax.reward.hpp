@@ -155,6 +155,7 @@ namespace amax {
             bool              is_registered        = false;          // is initialized
             asset             total_rewards        = CORE_ASSET(0);
             asset             allocating_rewards   = CORE_ASSET(0);
+            asset             allocated_rewards    = CORE_ASSET(0); // = total_rewards - allocating_rewards
             asset             votes                = vote_asset_0;
             int128_t          rewards_per_vote     = 0;
             block_timestamp   update_at;
