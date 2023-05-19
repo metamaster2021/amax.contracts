@@ -31,7 +31,7 @@ namespace eosiosystem {
       name& producer = bh.producer;
 
       /** until activation, no new rewards are paid */
-      if( _gstate.thresh_activated_stake_time == time_point() )
+      if( _gstate.thresh_activated_stake_time == time_point() || !_elect_gstate.is_init())
          return;
 
       /**
@@ -111,8 +111,7 @@ namespace eosiosystem {
       const auto& prod = _producers.get( owner.value );
       check( prod.active(), "producer does not have an active key" );
 
-      check( _gstate.thresh_activated_stake_time != time_point(),
-                    "cannot claim rewards until the chain is activated (at least 5% of all tokens participate in voting)" );
+      check(_elect_gstate.is_init(), "election does not initialized");
 
       const auto ct = current_time_point();
       check( ct >= _gstate.inflation_start_time, "inflation has not yet started");

@@ -228,8 +228,6 @@ namespace eosiosystem {
 
    void system_contract::initelects( uint32_t max_backup_producer_count ) {
       require_auth( get_self() );
-      check(_gstate.thresh_activated_stake_time != time_point(),
-         "cannot initelects until the chain is activated (at least 5% of all tokens participate in voting)");
       check(max_backup_producer_count >= min_backup_producer_count,
          "max_backup_producer_count must >= " + to_string(min_backup_producer_count));
       check(!_elect_gstate.is_init(), "elected producer has been initialized");
