@@ -700,7 +700,7 @@ namespace eosiosystem {
 
       auto now = current_time_point();
 
-      CHECK( time_point(voter_itr->vote_updated_time) + seconds(vote_interval_sec) >= now, "Voter can only update votes once a day" )
+      CHECK( time_point(voter_itr->vote_updated_time) + seconds(vote_interval_sec) < now, "Voter can only update votes once a day" )
 
       vote_refund_table vote_refund_tbl( get_self(), voter.value );
       CHECK( vote_refund_tbl.find( voter.value ) == vote_refund_tbl.end(), "This account already has a vote refund" );
@@ -736,6 +736,7 @@ namespace eosiosystem {
    }
 
    void system_contract::vote( const name& voter, const std::vector<name>& producers ) {
+      require_auth(voter);
 
       check( producers.size() <= max_vote_producer_count, "attempt to vote for too many producers" );
       for( size_t i = 1; i < producers.size(); ++i ) {
@@ -749,7 +750,7 @@ namespace eosiosystem {
       CHECK( voter_itr->producers != producers, "producers no change" )
 
       auto now = current_time_point();
-      CHECK( time_point(voter_itr->vote_updated_time) + seconds(vote_interval_sec) >= now, "Voter can only update votes once a day" )
+      CHECK( time_point(voter_itr->vote_updated_time) + seconds(vote_interval_sec) < now, "Voter can only update votes once a day" )
 
       const auto& old_prods = voter_itr->producers;
       auto old_prod_itr = old_prods.begin();
