@@ -272,7 +272,7 @@ namespace eosiosystem {
          if (!it->active() || !is_prod_votes_valid(elected_info)) {
             break;
          }
-         if (main_changes.changes.size() < meq.last_producer_count) {
+         if (main_changes.changes.size() < main_changes.producer_count) {
             main_changes.changes.emplace(
                it->owner, eosio::producer_authority_add {
                   .authority = it->producer_authority
@@ -284,7 +284,7 @@ namespace eosiosystem {
             meq.tail = elected_info;
 
             ASSERT(meq.tail_prev.empty() || meq.tail_prev > meq.tail);
-         } else if (backup_changes.changes.size() < beq.last_producer_count) {
+         } else if (backup_changes.changes.size() < backup_changes.producer_count) {
 
             backup_changes.changes.emplace(
                it->owner, eosio::producer_authority_add {
@@ -296,7 +296,7 @@ namespace eosiosystem {
             }
             beq.tail = elected_info;
 
-            if (backup_changes.changes.size() == 1) {
+            if (meq.tail_next.empty()) {
                meq.tail_next = beq.tail;
             }
             ASSERT(beq.tail_prev.empty() || beq.tail_prev > beq.tail);
