@@ -46,22 +46,22 @@ namespace db {
 
 }// namespace db
 
-inline static int128_t calc_rewards_per_vote(const int128_t& old_rewards_per_vote, int64_t rewards, int64_t votes) {
-   ASSERT(rewards >= 0 && votes >= 0);
+inline static int128_t calc_rewards_per_vote(const int128_t& old_rewards_per_vote, const asset& rewards, const asset& votes) {
+   ASSERT(rewards.amount >= 0 && votes.amount >= 0);
    int128_t  new_rewards_per_vote = old_rewards_per_vote;
-   if (rewards > 0 && votes > 0) {
-      new_rewards_per_vote = old_rewards_per_vote + rewards * HIGH_PRECISION / votes;
+   if (rewards.amount > 0 && votes.amount > 0) {
+      new_rewards_per_vote = old_rewards_per_vote + rewards.amount * HIGH_PRECISION / votes.amount;
       CHECK(new_rewards_per_vote >= old_rewards_per_vote, "calculated rewards_per_vote overflow")
    }
    return new_rewards_per_vote;
 }
 
 inline static asset calc_voter_rewards(const asset& votes, const int128_t& rewards_per_vote) {
-   // with rounding-off method
+   ASSERT(votes.amount >= 0 && rewards_per_vote >= 0);
+   CHECK(votes.amount * rewards_per_vote >= rewards_per_vote, "calculated rewards overflow");
    int128_t rewards = votes.amount * rewards_per_vote / HIGH_PRECISION;
-   CHECK(rewards >= 0 && rewards <= std::numeric_limits<int64_t>::max(),
-         "calculated rewards overflow");
-   return CORE_ASSET(rewards);
+   CHECK(rewards >= 0 && rewards <= std::numeric_limits<int64_t>::max(), "calculated rewards overflow");
+   return CORE_ASSET((int64_t)rewards);
 }
 
 void amax_reward::regproducer( const name& producer ) {
@@ -186,7 +186,7 @@ void amax_reward::ontransfer(    const name &from,
       _producer_tbl.modify(prod_itr, same_payer, [&]( auto& p ) {
          p.total_rewards         += quantity;
          p.allocating_rewards   += quantity;
-         p.rewards_per_vote      = calc_rewards_per_vote(p.rewards_per_vote, quantity.amount, p.votes.amount);
+         p.rewards_per_vote      = calc_rewards_per_vote(p.rewards_per_vote, quantity, p.votes);
          p.update_at = eosio::current_time_point();
       });
    }
@@ -236,6 +236,7 @@ void amax_reward::allocate_producer_rewards(voted_produer_map& producers, const 
          CHECK(p.rewards_per_vote >= last_rewards_per_vote, "last_rewards_per_vote invalid");
          int128_t rewards_per_vote_delta = p.rewards_per_vote - last_rewards_per_vote;
          if (rewards_per_vote_delta > 0 && votes_old.amount > 0) {
+            ASSERT(votes_old <= p.votes)
             asset new_rewards = calc_voter_rewards(votes_old, rewards_per_vote_delta);
             CHECK(p.allocating_rewards >= new_rewards, "producer allocating rewards insufficient");
             p.allocating_rewards -= new_rewards;
