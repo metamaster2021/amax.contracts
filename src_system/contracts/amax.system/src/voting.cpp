@@ -246,6 +246,10 @@ namespace eosiosystem {
 
       _gstate.last_producer_schedule_update = current_block_time();
       _gstate.total_producer_vote_weight = 0; // clear the old vote info
+
+      if( _gstate.thresh_activated_stake_time == time_point() ) {
+         _gstate.thresh_activated_stake_time = current_time_point();
+      }
    }
 
    template<typename elect_index_type>
