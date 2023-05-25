@@ -1292,7 +1292,7 @@ namespace eosiosystem {
    }
 
    inline asset system_contract::vote_to_core_asset(const asset& votes) {
-      int128_t amount = votes.amount * vote_to_core_asset_ratio;
+      int128_t amount = votes.amount * vote_to_core_asset_factor;
       CHECK( amount >= 0 && amount <= std::numeric_limits<int64_t>::max(), "votes out of range")
       return asset((int64_t)amount, core_symbol());
    }

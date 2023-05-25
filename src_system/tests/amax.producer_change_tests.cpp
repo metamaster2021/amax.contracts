@@ -28,12 +28,12 @@
 
 #define CHECK(exp, msg) { if ( !(exp) ) { BOOST_REQUIRE_MESSAGE( (exp), msg ); } }
 
-static constexpr int128_t  HIGH_PRECISION          = 1'000'000'000'000'000'000; // 10^18
+static constexpr int128_t  HIGH_PRECISION             = 1'000'000'000'000'000'000; // 10^18
 
-static const symbol           vote_symbol          = symbol(4, "VOTE");
-static const asset            vote_asset_0         = asset(0, vote_symbol);
-static const fc::microseconds block_interval_us    = fc::microseconds(eosio::chain::config::block_interval_us);
-static constexpr int64_t  vote_to_core_asset_ratio = 10000;
+static const symbol           vote_symbol             = symbol(4, "VOTE");
+static const asset            vote_asset_0            = asset(0, vote_symbol);
+static const fc::microseconds block_interval_us       = fc::microseconds(eosio::chain::config::block_interval_us);
+static constexpr int64_t  vote_to_core_asset_factor   = 10000;
 
 #define VOTE_ASSET(amount) asset(amount, vote_symbol)
 
@@ -348,7 +348,7 @@ FC_REFLECT( voter_info_t, (producers)(votes)(staked) )
 
 inline asset vote_to_core_asset(const asset& votes) {
    CHECK( votes.get_symbol() == vote_symbol, "vote symbol mismatch" );
-   int128_t amount = votes.get_amount() * vote_to_core_asset_ratio;
+   int128_t amount = votes.get_amount() * vote_to_core_asset_factor;
    CHECK( amount >= 0 && amount <= std::numeric_limits<int64_t>::max(), "votes out of range")
    return CORE_ASSET(amount);
 }

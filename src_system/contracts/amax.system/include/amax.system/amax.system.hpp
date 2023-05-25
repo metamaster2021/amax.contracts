@@ -117,7 +117,7 @@ namespace eosiosystem {
    static constexpr symbol   vote_symbol                 = symbol("VOTE", 4);
    static constexpr uint32_t max_vote_producer_count     = 30;
    static constexpr uint32_t vote_interval_sec           = 1 * seconds_per_day;
-   static constexpr int64_t  vote_to_core_asset_ratio    = 10000;
+   static constexpr int64_t  vote_to_core_asset_factor   = 10000;
 
 
    static const asset        vote_asset_0                = asset(0, vote_symbol);
