@@ -689,13 +689,11 @@ namespace eosiosystem {
                v.votes           = vote_asset_0;
             }
             v.votes             += votes;
-            v.vote_updated_time  = now;
          });
       } else {
          _voters.emplace( voter, [&]( auto& v ) {
             v.owner              = voter;
             v.votes              = votes;
-            v.vote_updated_time  = now;
          });
       }
 
@@ -716,7 +714,7 @@ namespace eosiosystem {
 
       auto now = current_time_point();
 
-      CHECK( time_point(voter_itr->vote_updated_time) + seconds(vote_interval_sec) < now, "Voter can only update votes once a day" )
+      CHECK( time_point(voter_itr->last_unvoted_time) + seconds(vote_interval_sec) < now, "Voter can only unvote once a day" )
 
       vote_refund_table vote_refund_tbl( get_self(), voter.value );
       CHECK( vote_refund_tbl.find( voter.value ) == vote_refund_tbl.end(), "This account already has a vote refund" );
@@ -731,7 +729,7 @@ namespace eosiosystem {
             v.votes           = vote_asset_0;
          }
          v.votes             += votes_delta;
-         v.vote_updated_time  = now;
+         v.last_unvoted_time  = now;
       });
 
       vote_refund_tbl.emplace( voter, [&]( auto& r ) {
@@ -769,7 +767,7 @@ namespace eosiosystem {
       CHECK( voter_itr->producers != producers, "producers no change" )
 
       auto now = current_time_point();
-      CHECK( time_point(voter_itr->vote_updated_time) + seconds(vote_interval_sec) < now, "Voter can only update votes once a day" )
+      CHECK( time_point(voter_itr->last_unvoted_time) + seconds(vote_interval_sec) < now, "Voter can only unvote once a day" )
 
       const auto& old_prods = voter_itr->producers;
       auto old_prod_itr = old_prods.begin();
@@ -815,7 +813,7 @@ namespace eosiosystem {
             v.votes           = vote_asset_0;
          }
          v.producers          = producers;
-         v.vote_updated_time  = now;
+         v.last_unvoted_time  = now;
       });
    }
 

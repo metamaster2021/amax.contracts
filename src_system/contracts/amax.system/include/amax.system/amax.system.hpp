@@ -377,7 +377,7 @@ namespace eosiosystem {
 
       uint32_t            flags1                = 0;                       /// resource managed flags
       asset               votes                 = asset(0, vote_symbol);   /// elected votes
-      block_timestamp     vote_updated_time;                               /// vote updated time
+      block_timestamp     last_unvoted_time;                               /// vote updated time
 
       uint64_t primary_key()const { return owner.value; }
 
@@ -389,7 +389,7 @@ namespace eosiosystem {
 
       // explicit serialization macro is not necessary, used here only to improve compilation time
       EOSLIB_SERIALIZE( voter_info, (owner)(proxy)(producers)(staked)(last_vote_weight)
-                                    (proxied_vote_weight)(is_proxy)(flags1)(votes)(vote_updated_time) )
+                                    (proxied_vote_weight)(is_proxy)(flags1)(votes)(last_unvoted_time) )
    };
 
 
