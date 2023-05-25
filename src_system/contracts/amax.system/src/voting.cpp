@@ -560,6 +560,9 @@ namespace eosiosystem {
                check( old_proxy != _voters.end(), "old proxy not found" ); //data corruption
                _voters.modify( old_proxy, same_payer, [&]( auto& vp ) {
                      vp.proxied_vote_weight -= voter->last_vote_weight;
+                     if (vp.votes.symbol != vote_symbol) {
+                        vp.votes              = vote_asset_0;
+                     }
                   });
                propagate_weight_change( *old_proxy, voter_name );
             }
@@ -584,6 +587,10 @@ namespace eosiosystem {
          if ( new_vote_weight >= 0 || old_proxy_weight > 0 ) {
             _voters.modify( new_proxy, same_payer, [&]( auto& vp ) {
                   vp.proxied_vote_weight     += new_vote_weight - old_proxy_weight;
+
+                  if (vp.votes.symbol != vote_symbol) {
+                     vp.votes                 = vote_asset_0;
+                  }
                });
             propagate_weight_change( *new_proxy, voter_name );
          }
@@ -623,6 +630,10 @@ namespace eosiosystem {
          av.last_vote_weight = new_vote_weight;
          av.producers = producers;
          av.proxy     = proxy;
+
+         if (av.votes.symbol != vote_symbol) {
+            av.votes  = vote_asset_0;
+         }
       });
    }
 
@@ -674,6 +685,9 @@ namespace eosiosystem {
          }
 
          _voters.modify( voter_itr, same_payer, [&]( auto& v ) {
+            if (v.votes.symbol != vote_symbol) {
+               v.votes           = vote_asset_0;
+            }
             v.votes             += votes;
             v.vote_updated_time  = now;
          });
@@ -713,6 +727,9 @@ namespace eosiosystem {
       save_producer_changes(changes, voter);
 
       _voters.modify( voter_itr, same_payer, [&]( auto& v ) {
+         if (v.votes.symbol != vote_symbol) {
+            v.votes           = vote_asset_0;
+         }
          v.votes             += votes_delta;
          v.vote_updated_time  = now;
       });
@@ -794,6 +811,9 @@ namespace eosiosystem {
       voteproducer_act.send( voter, producers );
 
       _voters.modify( voter_itr, same_payer, [&]( auto& v ) {
+         if (v.votes.symbol != vote_symbol) {
+            v.votes           = vote_asset_0;
+         }
          v.producers          = producers;
          v.vote_updated_time  = now;
       });
@@ -822,8 +842,11 @@ namespace eosiosystem {
       if ( pitr != _voters.end() ) {
          check( isproxy != pitr->is_proxy, "action has no effect" );
          check( !isproxy || !pitr->proxy, "account that uses a proxy is not allowed to become a proxy" );
-         _voters.modify( pitr, same_payer, [&]( auto& p ) {
-               p.is_proxy = isproxy;
+         _voters.modify( pitr, same_payer, [&]( auto& v ) {
+               v.is_proxy = isproxy;
+               if (v.votes.symbol != vote_symbol) {
+                  v.votes           = vote_asset_0;
+               }
             });
          propagate_weight_change( *pitr, proxy );
       } else {
@@ -849,6 +872,9 @@ namespace eosiosystem {
             auto& proxy = _voters.get( voter.proxy.value, "proxy not found" ); //data corruption
             _voters.modify( proxy, same_payer, [&]( auto& pv ) {
                   pv.proxied_vote_weight     += new_weight - voter.last_vote_weight;
+                  if (pv.votes.symbol != vote_symbol) {
+                     pv.votes                 = vote_asset_0;
+                  }
                }
             );
             propagate_weight_change( proxy, payer );
@@ -869,6 +895,9 @@ namespace eosiosystem {
       }
       _voters.modify( voter, same_payer, [&]( auto& v ) {
             v.last_vote_weight = new_weight;
+            if (v.votes.symbol != vote_symbol) {
+               v.votes         = vote_asset_0;
+            }
          }
       );
    }
