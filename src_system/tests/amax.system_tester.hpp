@@ -1099,13 +1099,13 @@ public:
       }
    }
 
-   action_result setinflation( int64_t annual_rate, int64_t inflation_pay_factor, int64_t votepay_factor ) {
-      return push_action( N(amax), N(setinflation), mvo()
-               ("annual_rate",     annual_rate)
-               ("inflation_pay_factor", inflation_pay_factor)
-               ("votepay_factor", votepay_factor)
-      );
-   }
+   // action_result setinflation( int64_t annual_rate, int64_t inflation_pay_factor, int64_t votepay_factor ) {
+   //    return push_action( N(amax), N(setinflation), mvo()
+   //             ("annual_rate",     annual_rate)
+   //             ("inflation_pay_factor", inflation_pay_factor)
+   //             ("votepay_factor", votepay_factor)
+   //    );
+   // }
 
    fc::variant get_account_limits( const account_name &acct ) {
       int64_t ram_bytes = 0, net = 0, cpu = 0;

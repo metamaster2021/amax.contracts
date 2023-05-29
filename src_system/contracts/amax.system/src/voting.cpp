@@ -213,19 +213,6 @@ namespace eosiosystem {
 
    }
 
-   void system_contract::setinflation(  time_point inflation_start_time, const asset& initial_inflation_per_block ) {
-      require_auth(get_self());
-      check(initial_inflation_per_block.symbol == core_symbol(), "inflation symbol mismatch with core symbol");
-
-      const auto& ct = eosio::current_time_point();
-      if (_gstate.inflation_start_time != time_point() ) {
-         check( ct < _gstate.inflation_start_time, "inflation has been started");
-      }
-
-      _gstate.inflation_start_time = inflation_start_time > ct ? inflation_start_time : ct;
-      _gstate.initial_inflation_per_block = initial_inflation_per_block;
-   }
-
    void system_contract::initelects( uint32_t max_backup_producer_count ) {
       require_auth( get_self() );
       check(max_backup_producer_count >= min_backup_producer_count,

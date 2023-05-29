@@ -105,7 +105,12 @@ namespace eosiosystem {
    static constexpr uint32_t blocks_per_minute     = 60 * 1000 / block_timestamp::block_interval_ms;
    static constexpr uint32_t blocks_per_day        = seconds_per_day * 1000 / block_timestamp::block_interval_ms;
 
-   static constexpr int64_t  min_activated_stake   = 50'000'000'0000'0000;
+   static constexpr int64_t  min_activated_stake            = 50'000'000'0000'0000;
+   static constexpr int64_t  total_main_producer_rewards    = 50'000'000'0000'0000;
+   static constexpr int64_t  total_backup_producer_rewards  = 50'000'000'0000'0000;
+   static constexpr int64_t  reward_halving_period_seconds  = 5 * useconds_per_year;
+   static constexpr int64_t  blocks_per_halving_period      = reward_halving_period_seconds * 1000 / block_timestamp::block_interval_ms;
+
    static constexpr int64_t  ram_gift_bytes        = 1400;
 
    static constexpr uint32_t refund_delay_sec      = 3 * seconds_per_day;
@@ -253,6 +258,14 @@ namespace eosiosystem {
       EOSLIB_SERIALIZE( producer_elected_queue, (last_producer_count)(tail)(tail_prev)(tail_next) )
    };
 
+
+   struct producer_reward_info {
+      asset                     init_rewards_per_block;     /// rewards per block in initializing reward phase
+      asset                     init_produced_rewards;      /// produced rewards in initializing reward phase
+      asset                     produced_rewards;           /// all of produced rewards, include init_produced_rewards
+   };
+
+
    // Defines elect global state parameters.
    struct [[eosio::table("electglobal"), eosio::contract("amax.system")]] elect_global_state {
       uint8_t                    elected_version               = 0;
@@ -265,6 +278,11 @@ namespace eosiosystem {
       bool                       producer_change_interrupted   = false;
       producer_elected_queue     main_elected_queue;
       producer_elected_queue     backup_elected_queue;
+
+      time_point                 init_reward_start_time;    /// start time of initializing reward phase
+      time_point                 init_reward_end_time;      /// end time of initializing reward phase
+      producer_reward_info       main_reward_info;          /// reward info of main producers
+      producer_reward_info       backup_reward_info;        /// reward info of backup producers
 
       EOSLIB_SERIALIZE( elect_global_state, (elected_version)(total_producer_elected_votes)
                                             (max_main_producer_count)(max_backup_producer_count)
@@ -1440,14 +1458,17 @@ namespace eosiosystem {
          void bidrefund( const name& bidder, const name& newname );
 
          /**
-          * Set inflation Parameters
-          * Only be set after contract init() and before inflation start.
+          * Config reward parameters
+          * Only be set after contract init() and before reward start.
           *
-          * @param inflation_start_time - inflation start time
-          * @param initial_inflation_per_block initial inflation per block.
+          * @param init_reward_start_time - start time of initializing reward phase.
+          * @param init_reward_end_time - end time of initializing reward phase.
+          * @param main_init_rewards_per_block - rewards per block of main producers in initializing reward phase.
+          * @param backup_init_rewards_per_block - rewards per block of backup producers in initializing reward phase.
           */
          [[eosio::action]]
-         void setinflation( time_point inflation_start_time, const asset& initial_inflation_per_block );
+         void cfgreward( const time_point& init_reward_start_time, const time_point& init_reward_end_time,
+                         const asset& main_init_rewards_per_block, const asset& backup_init_rewards_per_block );
 
          /**
           * initialize elect producers
@@ -1532,7 +1553,7 @@ namespace eosiosystem {
          using setpriv_action = eosio::action_wrapper<"setpriv"_n, &system_contract::setpriv>;
          using setalimits_action = eosio::action_wrapper<"setalimits"_n, &system_contract::setalimits>;
          using setparams_action = eosio::action_wrapper<"setparams"_n, &system_contract::setparams>;
-         using setinflation_action = eosio::action_wrapper<"setinflation"_n, &system_contract::setinflation>;
+         using cfgreward_action = eosio::action_wrapper<"cfgreward"_n, &system_contract::cfgreward>;
          using cfgpowerup_action = eosio::action_wrapper<"cfgpowerup"_n, &system_contract::cfgpowerup>;
          using powerupexec_action = eosio::action_wrapper<"powerupexec"_n, &system_contract::powerupexec>;
          using powerup_action = eosio::action_wrapper<"powerup"_n, &system_contract::powerup>;
