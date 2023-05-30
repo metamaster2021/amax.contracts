@@ -39,31 +39,33 @@ namespace eosiosystem {
        * and therefore there may be no producer object for them.
        */
       const auto ct = current_time_point();
-      if ( _elect_gstate.is_init() && _elect_gstate.init_reward_start_time != time_point() && ct >= _elect_gstate.init_reward_start_time ) {
+      if ( _elect_gstate.is_init() && _gstate.init_reward_start_time != time_point() && ct >= _gstate.init_reward_start_time ) {
          asset main_rewards    = asset(0, _gstate.core_symbol);
          asset backup_rewards   = asset(0, _gstate.core_symbol);
-         if (ct < _elect_gstate.init_reward_end_time) {
+         if (ct < _gstate.init_reward_end_time) {
             if (_elect_gstate.main_reward_info.init_rewards_per_block.amount > 0){
-
+               main_rewards = _elect_gstate.main_reward_info.init_rewards_per_block;
+               _elect_gstate.main_reward_info.init_produced_rewards += main_rewards;
+               check(total_main_producer_rewards >= _elect_gstate.main_reward_info.init_produced_rewards.amount,
+                     "too large init_produced_rewards of main producers" );
             }
-            main_rewards = _elect_gstate.main_reward_info.init_rewards_per_block;
-            _elect_gstate.main_reward_info.init_produced_rewards += main_rewards;
-            check(total_main_producer_rewards > _elect_gstate.main_reward_info.init_produced_rewards.amount,
-                  "too large init_produced_rewards of main producers" );
 
-            backup_rewards = _elect_gstate.backup_reward_info.init_rewards_per_block;
-            _elect_gstate.backup_reward_info.init_produced_rewards += backup_rewards;
-            check(total_backup_producer_rewards > _elect_gstate.backup_reward_info.init_produced_rewards.amount,
-                  "too large init_produced_rewards of backup producers" );
+            if (_elect_gstate.backup_reward_info.init_rewards_per_block.amount > 0){
+
+               backup_rewards = _elect_gstate.backup_reward_info.init_rewards_per_block;
+               _elect_gstate.backup_reward_info.init_produced_rewards += backup_rewards;
+               check(total_backup_producer_rewards >= _elect_gstate.backup_reward_info.init_produced_rewards.amount,
+                     "too large init_produced_rewards of backup producers" );
+            }
 
          } else {
-            int64_t period_count = 1 + (ct - _elect_gstate.init_reward_end_time).to_seconds() / reward_halving_period_seconds;
+            int64_t period_count = 1 + (ct - _gstate.init_reward_end_time).to_seconds() / reward_halving_period_seconds;
 
             auto main_election_reward_amount = total_main_producer_rewards - _elect_gstate.main_reward_info.init_produced_rewards.amount;
-            main_rewards.amount = main_election_reward_amount / pow(2, period_count) / blocks_per_halving_period;
+            main_rewards.amount = main_election_reward_amount / power(2, period_count) / blocks_per_halving_period;
 
             auto backup_election_reward_amount = total_backup_producer_rewards - _elect_gstate.backup_reward_info.init_produced_rewards.amount;
-            backup_rewards.amount = backup_election_reward_amount / pow(2, period_count) / blocks_per_halving_period;
+            backup_rewards.amount = backup_election_reward_amount / power(2, period_count) / blocks_per_halving_period;
          }
 
          if (main_rewards.amount > 0 ) {
@@ -134,28 +136,35 @@ namespace eosiosystem {
       require_auth(get_self());
 
       check( init_reward_end_time >= init_reward_start_time,
-         "\"init_reward_end_time\" can not be less than \"init_reward_start_time\"");
+         "init_reward_end_time can not be less than init_reward_start_time");
 
       const auto& ct = eosio::current_time_point();
 
-      if (_elect_gstate.init_reward_end_time != time_point() && ct >= _elect_gstate.init_reward_end_time ) {
-         check( init_reward_end_time == _elect_gstate.init_reward_end_time,
-            "\"init_reward_end_time\" mismatch with the old one when initializing reward phase has been ended");
+      if (_gstate.init_reward_end_time != time_point() && ct >= _gstate.init_reward_end_time ) {
+         check( init_reward_end_time == _gstate.init_reward_end_time,
+            "init_reward_end_time mismatch with the old one when initializing reward phase has been ended");
       }
-      if (_elect_gstate.init_reward_start_time != time_point() && ct >= _elect_gstate.init_reward_start_time ) {
-         check( init_reward_start_time == _elect_gstate.init_reward_start_time,
-            "\"init_reward_start_time\" mismatch with the old one when initializing reward phase has been started");
+      if (_gstate.init_reward_start_time != time_point() && ct >= _gstate.init_reward_start_time ) {
+         check( init_reward_start_time == _gstate.init_reward_start_time,
+            "init_reward_start_time mismatch with the old one when initializing reward phase has been started");
       }
 
-      check(main_init_rewards_per_block.symbol == core_symbol() && backup_init_rewards_per_block.symbol == core_symbol(),
+      const auto& symb = core_symbol();
+      check(main_init_rewards_per_block.symbol == symb && backup_init_rewards_per_block.symbol == symb,
          "rewards symbol mismatch with core symbol");
       check(main_init_rewards_per_block.amount >= 0  && backup_init_rewards_per_block.amount >= 0,
          "rewards amount can not be negative");
 
-      _elect_gstate.init_reward_start_time = init_reward_start_time;
-      _elect_gstate.init_reward_end_time = init_reward_end_time;
+      _gstate.init_reward_start_time = init_reward_start_time;
+      _gstate.init_reward_end_time = init_reward_end_time;
+
       _elect_gstate.main_reward_info.init_rewards_per_block = main_init_rewards_per_block;
+      _elect_gstate.main_reward_info.init_produced_rewards = asset(0, symb);
+      _elect_gstate.main_reward_info.produced_rewards = asset(0, symb);
+
       _elect_gstate.backup_reward_info.init_rewards_per_block = backup_init_rewards_per_block;
+      _elect_gstate.backup_reward_info.init_produced_rewards = asset(0, symb);
+      _elect_gstate.backup_reward_info.produced_rewards = asset(0, symb);
    }
 
    void system_contract::claimrewards( const name& owner ) {
@@ -167,9 +176,6 @@ namespace eosiosystem {
       check(_elect_gstate.is_init(), "election does not initialized");
 
       const auto ct = current_time_point();
-      check( ct >= _gstate.inflation_start_time, "inflation has not yet started");
-
-      // check( false, "inflation and claimrewards are not supported" );
 
       CHECK(prod.ext, "producer is not updated by regproducer")
       ASSERT(prod.ext->reward_shared_ratio <= ratio_boost);

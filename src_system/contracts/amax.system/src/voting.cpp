@@ -476,7 +476,6 @@ namespace eosiosystem {
          for (size_t i = 0; i < rows && itr != _elected_changes.end(); ++i) {
             itr = _elected_changes.erase(itr);
          }
-         _gstate.last_producer_schedule_update = current_block_time();
       }
    }
 

@@ -230,12 +230,13 @@ namespace eosiosystem {
       double               total_producer_vote_weight = 0; /// the sum of all producer votes
       block_timestamp      last_name_close;
 
-      uint16_t          new_ram_per_block = 0;
-      block_timestamp   last_ram_increase;
-      time_point        inflation_start_time;         // inflation start time
-      asset             initial_inflation_per_block;  // initial inflation per block
-      uint64_t          reserved = 0;                 // reserved
-      uint8_t           revision = 0; ///< used to track version updates in the future.
+      uint16_t             new_ram_per_block = 0;
+      block_timestamp      last_ram_increase;
+      time_point           init_reward_start_time;    /// start time of initializing reward phase
+      time_point           init_reward_end_time;      /// end time of initializing reward phase
+      uint64_t             reserved0 = 0;             // reserved0
+      uint64_t             reserved1 = 0;             // reserved1
+      uint8_t              revision = 0; ///< used to track version updates in the future.
 
       // explicit serialization macro is not necessary, used here only to improve compilation time
       EOSLIB_SERIALIZE_DERIVED( amax_global_state, eosio::blockchain_parameters,
@@ -244,7 +245,7 @@ namespace eosiosystem {
                                 (total_activated_stake)(thresh_activated_stake_time)
                                 (last_producer_schedule_size)(total_producer_vote_weight)(last_name_close)
                                 (new_ram_per_block)(last_ram_increase)
-                                (inflation_start_time)(initial_inflation_per_block)(reserved)
+                                (init_reward_start_time)(init_reward_end_time)(reserved0)(reserved1)
                                 (revision)
       )
    };
@@ -279,8 +280,6 @@ namespace eosiosystem {
       producer_elected_queue     main_elected_queue;
       producer_elected_queue     backup_elected_queue;
 
-      time_point                 init_reward_start_time;    /// start time of initializing reward phase
-      time_point                 init_reward_end_time;      /// end time of initializing reward phase
       producer_reward_info       main_reward_info;          /// reward info of main producers
       producer_reward_info       backup_reward_info;        /// reward info of backup producers
 
@@ -288,7 +287,8 @@ namespace eosiosystem {
                                             (max_main_producer_count)(max_backup_producer_count)
                                             (min_producer_votes)(last_producer_change_id)
                                             (producer_change_interrupted)
-                                            (main_elected_queue)(backup_elected_queue))
+                                            (main_elected_queue)(backup_elected_queue)
+                                            (main_reward_info)(backup_reward_info))
 
       bool is_init() const  { return elected_version > 0; }
       uint32_t min_producer_count() const {
