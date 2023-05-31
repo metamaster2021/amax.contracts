@@ -109,7 +109,7 @@ namespace eosiosystem {
    static constexpr int64_t  total_main_producer_rewards    = 50'000'000'0000'0000;
    static constexpr int64_t  total_backup_producer_rewards  = 50'000'000'0000'0000;
    static constexpr int64_t  reward_halving_period_seconds  = 5 * useconds_per_year;
-   static constexpr int64_t  blocks_per_halving_period      = reward_halving_period_seconds * 1000 / block_timestamp::block_interval_ms;
+   static constexpr int64_t  reward_halving_period_blocks   = reward_halving_period_seconds * 1000 / block_timestamp::block_interval_ms;
 
    static constexpr int64_t  ram_gift_bytes        = 1400;
 
@@ -264,6 +264,24 @@ namespace eosiosystem {
       asset                     init_rewards_per_block;     /// rewards per block in initializing reward phase
       asset                     init_produced_rewards;      /// produced rewards in initializing reward phase
       asset                     produced_rewards;           /// all of produced rewards, include init_produced_rewards
+
+      bool inc_init_rewards(const int64_t& rewards_per_block, const int64_t& total_producer_rewards) {
+         if (total_producer_rewards >= produced_rewards.amount + rewards_per_block ) {
+            produced_rewards.amount += rewards_per_block;
+            init_produced_rewards.amount += rewards_per_block;
+            ASSERT(produced_rewards == init_produced_rewards);
+            return true;
+         }
+         return false;
+      }
+
+      bool inc_having_rewards(const int64_t& rewards_per_block, const int64_t& total_producer_rewards) {
+         if (total_producer_rewards >= produced_rewards.amount + rewards_per_block ) {
+            produced_rewards.amount += rewards_per_block;
+            return true;
+         }
+         return false;
+      }
    };
 
 
@@ -365,6 +383,11 @@ namespace eosiosystem {
          info.name = owner;
          info.elected_votes = get_elected_votes();
          info.authority = producer_authority;
+      }
+
+      inline void inc_rewards(int64_t rewards) {
+         ASSERT(rewards >= 0 && unclaimed_rewards.amount + rewards >= unclaimed_rewards.amount)
+         unclaimed_rewards.amount += rewards;
       }
 
       // explicit serialization macro is not necessary, used here only to improve compilation time

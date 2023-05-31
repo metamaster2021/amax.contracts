@@ -40,44 +40,44 @@ namespace eosiosystem {
        */
       const auto ct = current_time_point();
       if ( _elect_gstate.is_init() && _gstate.init_reward_start_time != time_point() && ct >= _gstate.init_reward_start_time ) {
-         asset main_rewards    = asset(0, _gstate.core_symbol);
-         asset backup_rewards   = asset(0, _gstate.core_symbol);
+         int64_t main_rewards_per_block    = 0;
+         int64_t backup_rewards_per_block  = 0;
+         auto& main_reward_info           = _elect_gstate.main_reward_info;
+         auto& backup_reward_info         = _elect_gstate.backup_reward_info;
          if (ct < _gstate.init_reward_end_time) {
-            if (_elect_gstate.main_reward_info.init_rewards_per_block.amount > 0){
-               main_rewards = _elect_gstate.main_reward_info.init_rewards_per_block;
-               _elect_gstate.main_reward_info.init_produced_rewards += main_rewards;
-               check(total_main_producer_rewards >= _elect_gstate.main_reward_info.init_produced_rewards.amount,
-                     "too large init_produced_rewards of main producers" );
+            if (main_reward_info.inc_init_rewards(main_reward_info.init_rewards_per_block.amount, total_main_producer_rewards)) {
+               main_rewards_per_block = main_reward_info.init_rewards_per_block.amount;
             }
-
-            if (_elect_gstate.backup_reward_info.init_rewards_per_block.amount > 0){
-
-               backup_rewards = _elect_gstate.backup_reward_info.init_rewards_per_block;
-               _elect_gstate.backup_reward_info.init_produced_rewards += backup_rewards;
-               check(total_backup_producer_rewards >= _elect_gstate.backup_reward_info.init_produced_rewards.amount,
-                     "too large init_produced_rewards of backup producers" );
+            if (backup_reward_info.inc_init_rewards(backup_reward_info.init_rewards_per_block.amount, total_backup_producer_rewards)) {
+               backup_rewards_per_block = backup_reward_info.init_rewards_per_block.amount;
             }
 
          } else {
             int64_t period_count = 1 + (ct - _gstate.init_reward_end_time).to_seconds() / reward_halving_period_seconds;
 
-            auto main_election_reward_amount = total_main_producer_rewards - _elect_gstate.main_reward_info.init_produced_rewards.amount;
-            main_rewards.amount = main_election_reward_amount / power(2, period_count) / blocks_per_halving_period;
+            auto total_main_halving_rewards = total_main_producer_rewards - main_reward_info.init_produced_rewards.amount;
+            main_rewards_per_block = total_main_halving_rewards / power(2, period_count) / reward_halving_period_blocks;
+            if (!main_reward_info.inc_init_rewards(main_rewards_per_block, total_main_producer_rewards)) {
+               main_rewards_per_block = 0;
+            }
 
-            auto backup_election_reward_amount = total_backup_producer_rewards - _elect_gstate.backup_reward_info.init_produced_rewards.amount;
-            backup_rewards.amount = backup_election_reward_amount / power(2, period_count) / blocks_per_halving_period;
+            auto total_backup_halving_rewards = total_backup_producer_rewards - _elect_gstate.backup_reward_info.init_produced_rewards.amount;
+            backup_rewards_per_block = total_backup_halving_rewards / power(2, period_count) / reward_halving_period_blocks;
+            if (!backup_reward_info.inc_init_rewards(backup_rewards_per_block, total_backup_producer_rewards)) {
+               backup_rewards_per_block = 0;
+            }
          }
 
-         if (main_rewards.amount > 0 ) {
+         if (main_rewards_per_block > 0 ) {
             auto prod = _producers.find( producer.value );
             if ( prod != _producers.end() ) {
                _producers.modify( prod, same_payer, [&](auto& p ) {
-                     p.unclaimed_rewards += main_rewards;
+                     p.inc_rewards(main_rewards_per_block);
                });
             }
          }
 
-         if (backup_rewards.amount > 0 ) {
+         if (backup_rewards_per_block > 0 ) {
             backup_block_extension bbe;
             for( size_t i = 0; i < bh.header_extensions.size(); ++i ) {
                const auto& e = bh.header_extensions[i];
@@ -92,7 +92,7 @@ namespace eosiosystem {
                if ( backup_prod != _producers.end() ) {
                   _producers.modify( backup_prod, same_payer, [&](auto& p ) {
                      // TODO: if the backup producer contribution is too low, do not allocate reward
-                     p.unclaimed_rewards += backup_rewards;
+                     p.inc_rewards(backup_rewards_per_block);
                   });
                }
             }
@@ -138,22 +138,21 @@ namespace eosiosystem {
       check( init_reward_end_time >= init_reward_start_time,
          "init_reward_end_time can not be less than init_reward_start_time");
 
-      const auto& ct = eosio::current_time_point();
-
-      if (_gstate.init_reward_end_time != time_point() && ct >= _gstate.init_reward_end_time ) {
-         check( init_reward_end_time == _gstate.init_reward_end_time,
-            "init_reward_end_time mismatch with the old one when initializing reward phase has been ended");
-      }
-      if (_gstate.init_reward_start_time != time_point() && ct >= _gstate.init_reward_start_time ) {
-         check( init_reward_start_time == _gstate.init_reward_start_time,
-            "init_reward_start_time mismatch with the old one when initializing reward phase has been started");
-      }
-
       const auto& symb = core_symbol();
       check(main_init_rewards_per_block.symbol == symb && backup_init_rewards_per_block.symbol == symb,
          "rewards symbol mismatch with core symbol");
       check(main_init_rewards_per_block.amount >= 0  && backup_init_rewards_per_block.amount >= 0,
-         "rewards amount can not be negative");
+         "rewards can not be negative");
+
+      const auto& ct = eosio::current_time_point();
+
+      if (_gstate.init_reward_end_time != time_point() ) {
+         check(ct < _gstate.init_reward_end_time, "initializing reward phase has already ended");
+      }
+      if (_gstate.init_reward_start_time != time_point() && ct >= _gstate.init_reward_start_time ) {
+         check( init_reward_start_time == _gstate.init_reward_start_time,
+            "can not change init_reward_start_time when initializing reward phase has already started");
+      }
 
       _gstate.init_reward_start_time = init_reward_start_time;
       _gstate.init_reward_end_time = init_reward_end_time;
