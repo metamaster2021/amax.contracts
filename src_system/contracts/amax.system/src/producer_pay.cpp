@@ -87,11 +87,10 @@ namespace eosiosystem {
                   ext_ds >> bbe;
                }
             }
-            if (!bbe.is_backup && bbe.previous_backup) {
+            if (!bbe.is_backup && bbe.previous_backup && bbe.previous_backup->contribution >= _elect_gstate.min_backup_reward_contribution) {
                auto backup_prod = _producers.find( bbe.previous_backup->producer.value );
                if ( backup_prod != _producers.end() ) {
                   _producers.modify( backup_prod, same_payer, [&](auto& p ) {
-                     // TODO: if the backup producer contribution is too low, do not allocate reward
                      p.inc_rewards(backup_rewards_per_block);
                   });
                }
@@ -164,6 +163,16 @@ namespace eosiosystem {
       _elect_gstate.backup_reward_info.init_rewards_per_block = backup_init_rewards_per_block;
       _elect_gstate.backup_reward_info.init_produced_rewards = asset(0, symb);
       _elect_gstate.backup_reward_info.produced_rewards = asset(0, symb);
+   }
+
+
+   void system_contract::cfgcontrib( uint32_t min_backup_reward_contribution )
+   {
+      require_auth(get_self());
+
+      check( min_backup_reward_contribution <= 10000,
+         "min_backup_reward_contribution out of range");
+      _elect_gstate.min_backup_reward_contribution = min_backup_reward_contribution;
    }
 
    void system_contract::claimrewards( const name& owner ) {

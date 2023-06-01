@@ -301,6 +301,8 @@ namespace eosiosystem {
       producer_reward_info       main_reward_info;          /// reward info of main producers
       producer_reward_info       backup_reward_info;        /// reward info of backup producers
 
+      uint32_t                   min_backup_reward_contribution    = 3000; // the min contribution to which the backup producer is rewarded, boost 10000
+
       EOSLIB_SERIALIZE( elect_global_state, (elected_version)(total_producer_elected_votes)
                                             (max_main_producer_count)(max_backup_producer_count)
                                             (min_producer_votes)(last_producer_change_id)
@@ -1493,6 +1495,15 @@ namespace eosiosystem {
          void cfgreward( const time_point& init_reward_start_time, const time_point& init_reward_end_time,
                          const asset& main_init_rewards_per_block, const asset& backup_init_rewards_per_block );
 
+
+         /**
+          * Config contribution of producers
+          *
+          * @param min_backup_reward_contribution -  the min contribution to which the backup producer is rewarded, boost 10000.
+          */
+         [[eosio::action]]
+         void cfgcontrib( uint32_t min_backup_reward_contribution );
+
          /**
           * initialize elect producers
           *
@@ -1577,6 +1588,7 @@ namespace eosiosystem {
          using setalimits_action = eosio::action_wrapper<"setalimits"_n, &system_contract::setalimits>;
          using setparams_action = eosio::action_wrapper<"setparams"_n, &system_contract::setparams>;
          using cfgreward_action = eosio::action_wrapper<"cfgreward"_n, &system_contract::cfgreward>;
+         using cfgcontrib_action = eosio::action_wrapper<"cfgcontrib"_n, &system_contract::cfgcontrib>;
          using cfgpowerup_action = eosio::action_wrapper<"cfgpowerup"_n, &system_contract::cfgpowerup>;
          using powerupexec_action = eosio::action_wrapper<"powerupexec"_n, &system_contract::powerupexec>;
          using powerup_action = eosio::action_wrapper<"powerup"_n, &system_contract::powerup>;
