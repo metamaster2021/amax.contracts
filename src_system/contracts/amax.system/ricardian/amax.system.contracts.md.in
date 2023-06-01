@@ -586,6 +586,20 @@ icon: @ICON_BASE_URL@/@ADMIN_ICON_URI@
 * rewards per block of main producers in initializing reward phase: {{main_init_rewards_per_block}}
 * rewards per block of backup producers in initializing reward phase: {{backup_init_rewards_per_block}}
 
+
+<h1 class="contract">cfgcontrib</h1>
+
+---
+spec_version: "0.2.0"
+title: Config contribution parameters
+summary: 'Config contribution parameters'
+icon: @ICON_BASE_URL@/@ADMIN_ICON_URI@
+---
+
+{{$action.account}} config the reward parameters as follows:
+
+* the min contribution to which the backup producer is rewarded: {{min_backup_reward_contribution}}
+
 <h1 class="contract">undelegatebw</h1>
 
 ---
