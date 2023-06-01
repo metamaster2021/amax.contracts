@@ -57,13 +57,13 @@ namespace eosiosystem {
 
             auto total_main_halving_rewards = total_main_producer_rewards - main_reward_info.init_produced_rewards.amount;
             main_rewards_per_block = total_main_halving_rewards / power(2, period_count) / reward_halving_period_blocks;
-            if (!main_reward_info.inc_init_rewards(main_rewards_per_block, total_main_producer_rewards)) {
+            if (!main_reward_info.inc_having_rewards(main_rewards_per_block, total_main_producer_rewards)) {
                main_rewards_per_block = 0;
             }
 
             auto total_backup_halving_rewards = total_backup_producer_rewards - _elect_gstate.backup_reward_info.init_produced_rewards.amount;
             backup_rewards_per_block = total_backup_halving_rewards / power(2, period_count) / reward_halving_period_blocks;
-            if (!backup_reward_info.inc_init_rewards(backup_rewards_per_block, total_backup_producer_rewards)) {
+            if (!backup_reward_info.inc_having_rewards(backup_rewards_per_block, total_backup_producer_rewards)) {
                backup_rewards_per_block = 0;
             }
          }
