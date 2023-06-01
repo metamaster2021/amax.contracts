@@ -771,9 +771,9 @@ namespace eosiosystem {
                added_prods.push_back(*new_prod_itr);
                new_prod_itr++;
             } else { // new_prod_itr == old_prod_itr
+               modified_prods.push_back(*old_prod_itr);
                old_prod_itr++;
                new_prod_itr++;
-               modified_prods.push_back(*old_prod_itr);
             }
          } else if ( old_prod_itr != old_prods.end() ) { //  && new_prod_itr == producers.end()
                removed_prods.push_back(*old_prod_itr);
