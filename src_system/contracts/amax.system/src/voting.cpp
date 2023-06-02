@@ -405,6 +405,18 @@ namespace eosiosystem {
       register_producer( producer, producer_authority, url, location, reward_shared_ratio );
    }
 
+
+   void system_contract::addproducer( const name& producer,
+                                       const block_signing_authority& producer_authority,
+                                       const string& url,
+                                       uint16_t location,
+                                       optional<uint32_t> reward_shared_ratio) {
+      require_auth( get_self() );
+      check(is_account(producer), "producer account not found");
+      regproducer2_action act{ get_self(), { {producer, active_permission} } };
+      act.send( producer, producer_authority, url, location, reward_shared_ratio );
+   }
+
    void system_contract::unregprod( const name& producer ) {
       require_auth( producer );
 

@@ -1263,6 +1263,7 @@ namespace eosiosystem {
           * @param producer_key - the public key of the block producer, this is the key used by block producer to sign blocks,
           * @param url - the url of the block producer, normally the url of the block producer presentation website,
           * @param location - is the country code as defined in the ISO 3166, https://en.wikipedia.org/wiki/List_of_ISO_3166_country_codes
+          * @param reward_shared_ratio - reward shared ratio
           *
           * @pre Producer to register is an account
           * @pre Authority of producer to register
@@ -1280,12 +1281,32 @@ namespace eosiosystem {
           * @param producer_authority - the weighted threshold multisig block signing authority of the block producer used to sign blocks,
           * @param url - the url of the block producer, normally the url of the block producer presentation website,
           * @param location - is the country code as defined in the ISO 3166, https://en.wikipedia.org/wiki/List_of_ISO_3166_country_codes
+          * @param reward_shared_ratio - reward shared ratio
           *
           * @pre Producer to register is an account
           * @pre Authority of producer to register
           */
          [[eosio::action]]
          void regproducer2(   const name& producer, const block_signing_authority& producer_authority,
+                              const string& url, uint16_t location, optional<uint32_t> reward_shared_ratio );
+
+
+         /**
+          * Add producer action, indicates that a particular account wishes to become a producer,
+          * this action will create a `producer_config` and a `producer_info` object for `producer` scope
+          * in producers tables.
+          *
+          * @param producer - account registering to be a producer candidate,
+          * @param producer_authority - the weighted threshold multisig block signing authority of the block producer used to sign blocks,
+          * @param url - the url of the block producer, normally the url of the block producer presentation website,
+          * @param location - is the country code as defined in the ISO 3166, https://en.wikipedia.org/wiki/List_of_ISO_3166_country_codes
+          * @param reward_shared_ratio - reward shared ratio
+          *
+          * @pre Producer to register is an account
+          * @pre Authority of contract self
+          */
+         [[eosio::action]]
+         void addproducer(   const name& producer, const block_signing_authority& producer_authority,
                               const string& url, uint16_t location, optional<uint32_t> reward_shared_ratio );
 
          /**
@@ -1574,6 +1595,7 @@ namespace eosiosystem {
          using refund_action = eosio::action_wrapper<"refund"_n, &system_contract::refund>;
          using regproducer_action = eosio::action_wrapper<"regproducer"_n, &system_contract::regproducer>;
          using regproducer2_action = eosio::action_wrapper<"regproducer2"_n, &system_contract::regproducer2>;
+         using addproducer_action = eosio::action_wrapper<"addproducer"_n, &system_contract::addproducer>;
          using unregprod_action = eosio::action_wrapper<"unregprod"_n, &system_contract::unregprod>;
          using setram_action = eosio::action_wrapper<"setram"_n, &system_contract::setram>;
          using setramrate_action = eosio::action_wrapper<"setramrate"_n, &system_contract::setramrate>;
