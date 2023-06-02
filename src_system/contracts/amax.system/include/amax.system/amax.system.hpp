@@ -308,7 +308,7 @@ namespace eosiosystem {
                                             (min_producer_votes)(last_producer_change_id)
                                             (producer_change_interrupted)
                                             (main_elected_queue)(backup_elected_queue)
-                                            (main_reward_info)(backup_reward_info))
+                                            (main_reward_info)(backup_reward_info)(min_backup_reward_contribution))
 
       bool is_init() const  { return elected_version > 0; }
       uint32_t min_producer_count() const {
