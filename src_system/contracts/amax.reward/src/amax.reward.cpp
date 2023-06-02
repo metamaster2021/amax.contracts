@@ -88,7 +88,7 @@ void amax_reward::addvote( const name& voter, const asset& votes ) {
 
 
 void amax_reward::subvote( const name& voter, const asset& votes ) {
-   change_vote(voter, votes, true /* is_adding */);
+   change_vote(voter, votes, false /* is_adding */);
 }
 
 void amax_reward::voteproducer( const name& voter, const std::vector<name>& producers ) {
