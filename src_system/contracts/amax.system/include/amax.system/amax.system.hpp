@@ -290,7 +290,7 @@ namespace eosiosystem {
                                             (max_main_producer_count)(max_backup_producer_count)
                                             (min_producer_votes)(last_producer_change_id)
                                             (producer_change_interrupted)
-                                            (main_elected_queue)(backup_elected_queue)
+                                            (main_elected_queue)(backup_elected_queue)(having_period_num)
                                             (main_reward_info)(backup_reward_info)(min_backup_reward_contribution))
 
       bool is_init() const  { return elected_version > 0; }

@@ -142,6 +142,7 @@ struct elect_global_state {
    producer_elected_queue     main_elected_queue;
    producer_elected_queue     backup_elected_queue;
 
+   int64_t                    having_period_num = 0;     /// having period number
    producer_reward_info       main_reward_info;          /// reward info of main producers
    producer_reward_info       backup_reward_info;        /// reward info of backup producers
 
@@ -153,7 +154,8 @@ struct elect_global_state {
 FC_REFLECT( elect_global_state, (elected_version)(total_producer_elected_votes)
                                 (max_main_producer_count)(max_backup_producer_count)(min_producer_votes)
                                 (last_producer_change_id)(producer_change_interrupted)
-                                (main_elected_queue)(backup_elected_queue)(main_reward_info)(backup_reward_info) )
+                                (main_elected_queue)(backup_elected_queue)(having_period_num)
+                                (main_reward_info)(backup_reward_info)(min_backup_reward_contribution) )
 
 struct amax_global_state: public eosio::chain::chain_config {
    uint64_t free_ram()const { return max_ram_size - total_ram_bytes_reserved; }
