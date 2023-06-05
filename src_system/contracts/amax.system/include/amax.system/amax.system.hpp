@@ -96,7 +96,7 @@ namespace eosiosystem {
 
    #define multiply_decimal64(a, b, precision) multiply_decimal<int64_t>(a, b, precision)
 
-   static constexpr uint32_t seconds_per_year      = 52 * 7 * 24 * 3600;
+   static constexpr uint32_t seconds_per_year      = 365 * 24 * 3600;
    static constexpr uint32_t seconds_per_day       = 24 * 3600;
    static constexpr uint32_t seconds_per_hour      = 3600;
    static constexpr int64_t  useconds_per_year     = int64_t(seconds_per_year) * 1000'000ll;
@@ -108,7 +108,7 @@ namespace eosiosystem {
    static constexpr int64_t  min_activated_stake            = 50'000'000'0000'0000;
    static constexpr int64_t  total_main_producer_rewards    = 50'000'000'0000'0000;
    static constexpr int64_t  total_backup_producer_rewards  = 50'000'000'0000'0000;
-   static constexpr int64_t  reward_halving_period_seconds  = 5 * useconds_per_year;
+   static constexpr int64_t  reward_halving_period_seconds  = 5 * seconds_per_year;
    static constexpr int64_t  reward_halving_period_blocks   = reward_halving_period_seconds * 1000 / block_timestamp::block_interval_ms;
 
    static constexpr int64_t  ram_gift_bytes        = 1400;
@@ -261,27 +261,9 @@ namespace eosiosystem {
 
 
    struct producer_reward_info {
-      asset                     init_rewards_per_block;     /// rewards per block in initializing reward phase
-      asset                     init_produced_rewards;      /// produced rewards in initializing reward phase
-      asset                     produced_rewards;           /// all of produced rewards, include init_produced_rewards
-
-      bool inc_init_rewards(const int64_t& rewards_per_block, const int64_t& total_producer_rewards) {
-         if (total_producer_rewards >= produced_rewards.amount + rewards_per_block ) {
-            produced_rewards.amount += rewards_per_block;
-            init_produced_rewards.amount += rewards_per_block;
-            ASSERT(produced_rewards == init_produced_rewards);
-            return true;
-         }
-         return false;
-      }
-
-      bool inc_having_rewards(const int64_t& rewards_per_block, const int64_t& total_producer_rewards) {
-         if (total_producer_rewards >= produced_rewards.amount + rewards_per_block ) {
-            produced_rewards.amount += rewards_per_block;
-            return true;
-         }
-         return false;
-      }
+      asset                     total_rewards;              /// total rewards
+      asset                     rewards_per_block;          /// rewards per block
+      asset                     produced_rewards;           /// produced rewards
    };
 
 
@@ -298,6 +280,7 @@ namespace eosiosystem {
       producer_elected_queue     main_elected_queue;
       producer_elected_queue     backup_elected_queue;
 
+      int64_t                    having_period_num = 0;     /// having period number
       producer_reward_info       main_reward_info;          /// reward info of main producers
       producer_reward_info       backup_reward_info;        /// reward info of backup producers
 
@@ -385,11 +368,6 @@ namespace eosiosystem {
          info.name = owner;
          info.elected_votes = get_elected_votes();
          info.authority = producer_authority;
-      }
-
-      inline void inc_rewards(int64_t rewards) {
-         ASSERT(rewards >= 0 && unclaimed_rewards.amount + rewards >= unclaimed_rewards.amount)
-         unclaimed_rewards.amount += rewards;
       }
 
       // explicit serialization macro is not necessary, used here only to improve compilation time
@@ -1509,12 +1487,12 @@ namespace eosiosystem {
           *
           * @param init_reward_start_time - start time of initializing reward phase.
           * @param init_reward_end_time - end time of initializing reward phase.
-          * @param main_init_rewards_per_block - rewards per block of main producers in initializing reward phase.
-          * @param backup_init_rewards_per_block - rewards per block of backup producers in initializing reward phase.
+          * @param main_rewards_per_block - rewards per block of main producers in initializing reward phase.
+          * @param backup_rewards_per_block - rewards per block of backup producers in initializing reward phase.
           */
          [[eosio::action]]
          void cfgreward( const time_point& init_reward_start_time, const time_point& init_reward_end_time,
-                         const asset& main_init_rewards_per_block, const asset& backup_init_rewards_per_block );
+                         const asset& main_rewards_per_block, const asset& backup_rewards_per_block );
 
 
          /**
@@ -1731,6 +1709,8 @@ namespace eosiosystem {
          inline bool is_prod_votes_valid(const producer_elected_info &elected_info) {
             return is_prod_votes_valid(elected_info.elected_votes);
          }
+
+         void inc_producer_rewards(const name& producer, producer_reward_info& reward_info);
    };
 
 

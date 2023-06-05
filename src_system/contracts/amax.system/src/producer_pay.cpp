@@ -17,6 +17,25 @@ namespace eosiosystem {
       return ret;
    }
 
+   inline void update_reward_info(producer_reward_info& reward_info, const asset& total_rewards, const asset& rewards_per_block) {
+      reward_info.total_rewards           = total_rewards;
+      reward_info.rewards_per_block       = rewards_per_block;
+      if (!reward_info.produced_rewards.is_valid()) {
+         reward_info.produced_rewards = asset(0, reward_info.total_rewards.symbol);
+      }
+      ASSERT(reward_info.total_rewards >= reward_info.produced_rewards);
+   }
+
+   inline int64_t calc_having_rewards_per_block(int64_t total_rewards) {
+      return total_rewards / 2 / reward_halving_period_blocks;
+   }
+
+   inline asset calc_having_rewards_per_block(const producer_reward_info& reward_info) {
+      ASSERT(reward_info.total_rewards >= reward_info.produced_rewards)
+      int64_t amount = reward_info.total_rewards.amount - reward_info.produced_rewards.amount;
+      return asset(calc_having_rewards_per_block( amount >=0 ? amount : 0), reward_info.total_rewards.symbol);
+   }
+
    void system_contract::onblock( ignore<block_header> ) {
       using namespace eosio;
 
@@ -44,40 +63,19 @@ namespace eosiosystem {
          int64_t backup_rewards_per_block  = 0;
          auto& main_reward_info           = _elect_gstate.main_reward_info;
          auto& backup_reward_info         = _elect_gstate.backup_reward_info;
-         if (ct < _gstate.init_reward_end_time) {
-            if (main_reward_info.inc_init_rewards(main_reward_info.init_rewards_per_block.amount, total_main_producer_rewards)) {
-               main_rewards_per_block = main_reward_info.init_rewards_per_block.amount;
-            }
-            if (backup_reward_info.inc_init_rewards(backup_reward_info.init_rewards_per_block.amount, total_backup_producer_rewards)) {
-               backup_rewards_per_block = backup_reward_info.init_rewards_per_block.amount;
-            }
-
-         } else {
-            int64_t period_count = 1 + (ct - _gstate.init_reward_end_time).to_seconds() / reward_halving_period_seconds;
-
-            auto total_main_halving_rewards = total_main_producer_rewards - main_reward_info.init_produced_rewards.amount;
-            main_rewards_per_block = total_main_halving_rewards / power(2, period_count) / reward_halving_period_blocks;
-            if (!main_reward_info.inc_having_rewards(main_rewards_per_block, total_main_producer_rewards)) {
-               main_rewards_per_block = 0;
-            }
-
-            auto total_backup_halving_rewards = total_backup_producer_rewards - _elect_gstate.backup_reward_info.init_produced_rewards.amount;
-            backup_rewards_per_block = total_backup_halving_rewards / power(2, period_count) / reward_halving_period_blocks;
-            if (!backup_reward_info.inc_having_rewards(backup_rewards_per_block, total_backup_producer_rewards)) {
-               backup_rewards_per_block = 0;
+         if (ct >= _gstate.init_reward_end_time) {
+            int64_t cur_period_num = 1 + (ct - _gstate.init_reward_end_time).to_seconds() / reward_halving_period_seconds;
+            ASSERT(cur_period_num >= _elect_gstate.having_period_num)
+            if (cur_period_num > _elect_gstate.having_period_num) {
+               _elect_gstate.having_period_num = cur_period_num;
+               main_reward_info.rewards_per_block = calc_having_rewards_per_block(main_reward_info);
+               backup_reward_info.rewards_per_block = calc_having_rewards_per_block(backup_reward_info);
             }
          }
 
-         if (main_rewards_per_block > 0 ) {
-            auto prod = _producers.find( producer.value );
-            if ( prod != _producers.end() ) {
-               _producers.modify( prod, same_payer, [&](auto& p ) {
-                     p.inc_rewards(main_rewards_per_block);
-               });
-            }
-         }
+         inc_producer_rewards(producer, main_reward_info);
 
-         if (backup_rewards_per_block > 0 ) {
+         if (backup_reward_info.rewards_per_block.amount > 0 ) {
             backup_block_extension bbe;
             for( size_t i = 0; i < bh.header_extensions.size(); ++i ) {
                const auto& e = bh.header_extensions[i];
@@ -87,13 +85,10 @@ namespace eosiosystem {
                   ext_ds >> bbe;
                }
             }
-            if (!bbe.is_backup && bbe.previous_backup && bbe.previous_backup->contribution >= _elect_gstate.min_backup_reward_contribution) {
-               auto backup_prod = _producers.find( bbe.previous_backup->producer.value );
-               if ( backup_prod != _producers.end() ) {
-                  _producers.modify( backup_prod, same_payer, [&](auto& p ) {
-                     p.inc_rewards(backup_rewards_per_block);
-                  });
-               }
+            if (!bbe.is_backup && bbe.previous_backup
+                  && bbe.previous_backup->contribution >= _elect_gstate.min_backup_reward_contribution) {
+
+               inc_producer_rewards(bbe.previous_backup->producer, backup_reward_info);
             }
          }
       }
@@ -130,17 +125,17 @@ namespace eosiosystem {
    }
 
    void system_contract::cfgreward( const time_point& init_reward_start_time, const time_point& init_reward_end_time,
-                     const asset& main_init_rewards_per_block, const asset& backup_init_rewards_per_block )
+                     const asset& main_rewards_per_block, const asset& backup_rewards_per_block )
    {
       require_auth(get_self());
 
       check( init_reward_end_time >= init_reward_start_time,
          "init_reward_end_time can not be less than init_reward_start_time");
 
-      const auto& symb = core_symbol();
-      check(main_init_rewards_per_block.symbol == symb && backup_init_rewards_per_block.symbol == symb,
+      const auto& core_symb = core_symbol();
+      check(main_rewards_per_block.symbol == core_symb && backup_rewards_per_block.symbol == core_symb,
          "rewards symbol mismatch with core symbol");
-      check(main_init_rewards_per_block.amount >= 0  && backup_init_rewards_per_block.amount >= 0,
+      check(main_rewards_per_block.amount >= 0  && backup_rewards_per_block.amount >= 0,
          "rewards can not be negative");
 
       const auto& ct = eosio::current_time_point();
@@ -156,13 +151,15 @@ namespace eosiosystem {
       _gstate.init_reward_start_time = init_reward_start_time;
       _gstate.init_reward_end_time = init_reward_end_time;
 
-      _elect_gstate.main_reward_info.init_rewards_per_block = main_init_rewards_per_block;
-      _elect_gstate.main_reward_info.init_produced_rewards = asset(0, symb);
-      _elect_gstate.main_reward_info.produced_rewards = asset(0, symb);
+      auto main_rewards_per_block_max = calc_having_rewards_per_block(total_main_producer_rewards);
+      auto backup_rewards_per_block_max = calc_having_rewards_per_block(total_backup_producer_rewards);
+      CHECK(main_rewards_per_block.amount <= main_rewards_per_block_max,
+         "main_rewards_per_block is larger than " + asset(main_rewards_per_block_max, core_symb).to_string());
+      CHECK(backup_rewards_per_block.amount <= backup_rewards_per_block_max,
+         "backup_rewards_per_block is larger than " + asset(backup_rewards_per_block_max, core_symb).to_string());
 
-      _elect_gstate.backup_reward_info.init_rewards_per_block = backup_init_rewards_per_block;
-      _elect_gstate.backup_reward_info.init_produced_rewards = asset(0, symb);
-      _elect_gstate.backup_reward_info.produced_rewards = asset(0, symb);
+      update_reward_info(_elect_gstate.main_reward_info, asset(total_main_producer_rewards, core_symb), main_rewards_per_block );
+      update_reward_info(_elect_gstate.backup_reward_info, asset(total_backup_producer_rewards, core_symb), backup_rewards_per_block );
    }
 
 
@@ -173,6 +170,25 @@ namespace eosiosystem {
       check( min_backup_reward_contribution <= 10000,
          "min_backup_reward_contribution out of range");
       _elect_gstate.min_backup_reward_contribution = min_backup_reward_contribution;
+   }
+
+   void system_contract::inc_producer_rewards(const name& producer, producer_reward_info& reward_info) {
+      if (reward_info.rewards_per_block.amount <= 0) {
+         return;
+      }
+      auto prod_itr = _producers.find( producer.value );
+      if ( prod_itr == _producers.end() ) {
+         return;
+      }
+
+      auto produced_rewards = reward_info.produced_rewards + reward_info.rewards_per_block;
+      if (produced_rewards > reward_info.total_rewards) {
+         return;
+      }
+      _producers.modify( prod_itr, same_payer, [&](auto& p ) {
+            p.unclaimed_rewards += reward_info.rewards_per_block;
+      });
+      reward_info.produced_rewards = produced_rewards;
    }
 
    void system_contract::claimrewards( const name& owner ) {

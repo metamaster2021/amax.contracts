@@ -123,11 +123,11 @@ FC_REFLECT( producer_elected_queue, (last_producer_count)(tail)(tail_prev)(tail_
 
 
 struct producer_reward_info {
-   asset                     init_rewards_per_block;     /// rewards per block in initializing reward phase
-   asset                     init_produced_rewards;      /// produced rewards in initializing reward phase
-   asset                     produced_rewards;           /// all of produced rewards, include init_produced_rewards
+   asset                     total_rewards;              /// produced rewards in initializing reward phase
+   asset                     rewards_per_block;          /// rewards per block
+   asset                     produced_rewards;           /// produced rewards
 };
-FC_REFLECT( producer_reward_info, (init_rewards_per_block)(init_produced_rewards)(produced_rewards) )
+FC_REFLECT( producer_reward_info, (total_rewards)(rewards_per_block)(produced_rewards) )
 
 
 struct elect_global_state {
@@ -144,6 +144,8 @@ struct elect_global_state {
 
    producer_reward_info       main_reward_info;          /// reward info of main producers
    producer_reward_info       backup_reward_info;        /// reward info of backup producers
+
+   uint32_t                   min_backup_reward_contribution    = 3000; // the min contribution to which the backup producer is rewarded, boost 10000
 
    bool is_init() const  { return elected_version > 0; }
 };
@@ -396,13 +398,13 @@ struct producer_change_tester : eosio_system_tester {
    }
 
    transaction_trace_ptr cfgreward( const time_point& init_reward_start_time, const time_point& init_reward_end_time,
-                     const asset& main_init_rewards_per_block, const asset& backup_init_rewards_per_block ) {
+                     const asset& main_rewards_per_block, const asset& backup_rewards_per_block ) {
       // push action without commiting current block
       return push_action(config::system_account_name, N(cfgreward), mvo()
                   ("init_reward_start_time", init_reward_start_time)
                   ("init_reward_end_time", init_reward_end_time)
-                  ("main_init_rewards_per_block", main_init_rewards_per_block)
-                  ("backup_init_rewards_per_block", backup_init_rewards_per_block)
+                  ("main_rewards_per_block", main_rewards_per_block)
+                  ("backup_rewards_per_block", backup_rewards_per_block)
       );
    }
 
@@ -928,12 +930,13 @@ BOOST_FIXTURE_TEST_CASE(producer_elects_test, producer_change_tester) try {
    time_point  init_reward_end_time = init_reward_start_time + fc::seconds(10);      /// end time of initializing reward phase
 
    cfgreward(init_reward_start_time, init_reward_end_time, init_rewards_per_block, init_rewards_per_block);
+
    gstate = get_global_state();
    elect_gstate = get_elect_global_state();
    BOOST_REQUIRE(gstate.init_reward_start_time == init_reward_start_time);
    BOOST_REQUIRE(gstate.init_reward_end_time == init_reward_end_time);
-   BOOST_REQUIRE_EQUAL(elect_gstate.main_reward_info.init_rewards_per_block, init_rewards_per_block);
-   BOOST_REQUIRE_EQUAL(elect_gstate.backup_reward_info.init_rewards_per_block, init_rewards_per_block);
+   BOOST_REQUIRE_EQUAL(elect_gstate.main_reward_info.rewards_per_block, init_rewards_per_block);
+   BOOST_REQUIRE_EQUAL(elect_gstate.backup_reward_info.rewards_per_block, init_rewards_per_block);
 
    produce_block();
 

@@ -603,8 +603,8 @@ icon: @ICON_BASE_URL@/@ADMIN_ICON_URI@
 
 * start time of initializing reward phase: {{init_reward_start_time}}
 * end time of initializing reward phase: {{init_reward_end_time}}
-* rewards per block of main producers in initializing reward phase: {{main_init_rewards_per_block}}
-* rewards per block of backup producers in initializing reward phase: {{backup_init_rewards_per_block}}
+* rewards per block of main producers in initializing reward phase: {{main_rewards_per_block}}
+* rewards per block of backup producers in initializing reward phase: {{backup_rewards_per_block}}
 
 
 <h1 class="contract">cfgcontrib</h1>
