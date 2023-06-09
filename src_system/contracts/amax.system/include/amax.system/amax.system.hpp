@@ -117,7 +117,9 @@ namespace eosiosystem {
 
    static constexpr uint32_t ratio_boost           = 10000;
 
+   #ifdef APOS_ENABLED
    static constexpr uint32_t min_backup_producer_count = 3;
+   #endif
 
    static constexpr symbol   vote_symbol                 = symbol("VOTE", 4);
    static constexpr uint32_t max_vote_producer_count     = 30;
@@ -294,9 +296,12 @@ namespace eosiosystem {
                                             (main_reward_info)(backup_reward_info)(min_backup_reward_contribution))
 
       bool is_init() const  { return elected_version > 0; }
-      uint32_t min_producer_count() const {
+
+      #ifdef APOS_ENABLED
+      inline uint32_t min_producer_count() const {
          return max_main_producer_count + min_backup_producer_count;
       }
+      #endif//APOS_ENABLED
 
    };
 
@@ -319,7 +324,7 @@ namespace eosiosystem {
       bool                                                     is_active = true;
       std::string                                              url;
       uint16_t                                                 location = 0;
-      time_point                                               last_claimed_time;
+      time_point_sec                                               last_claimed_time;
       asset                                                    unclaimed_rewards;
       eosio::block_signing_authority                           producer_authority;
       eosio::binary_extension<producer_info_ext, false>        ext;
@@ -398,7 +403,9 @@ namespace eosiosystem {
 
       uint32_t            flags1                = 0;                       /// resource managed flags
       asset               votes                 = asset(0, vote_symbol);   /// elected votes
+      int32_t reserved = 0;
       block_timestamp     last_unvoted_time;                               /// vote updated time
+
 
       uint64_t primary_key()const { return owner.value; }
 
@@ -1494,7 +1501,7 @@ namespace eosiosystem {
          void cfgreward( const time_point& init_reward_start_time, const time_point& init_reward_end_time,
                          const asset& main_rewards_per_block, const asset& backup_rewards_per_block );
 
-
+         #ifdef APOS_ENABLED
          /**
           * Config contribution of producers
           *
@@ -1510,6 +1517,7 @@ namespace eosiosystem {
           */
          [[eosio::action]]
          void initelects( uint32_t max_backup_producer_count );
+         #endif //APOS_ENABLE
 
          /**
           * Configure the `power` market. The market becomes available the first time this
@@ -1588,7 +1596,9 @@ namespace eosiosystem {
          using setalimits_action = eosio::action_wrapper<"setalimits"_n, &system_contract::setalimits>;
          using setparams_action = eosio::action_wrapper<"setparams"_n, &system_contract::setparams>;
          using cfgreward_action = eosio::action_wrapper<"cfgreward"_n, &system_contract::cfgreward>;
+         #ifdef APOS_ENABLED
          using cfgcontrib_action = eosio::action_wrapper<"cfgcontrib"_n, &system_contract::cfgcontrib>;
+         #endif //APOS_ENABLED
          using cfgpowerup_action = eosio::action_wrapper<"cfgpowerup"_n, &system_contract::cfgpowerup>;
          using powerupexec_action = eosio::action_wrapper<"powerupexec"_n, &system_contract::powerupexec>;
          using powerup_action = eosio::action_wrapper<"powerup"_n, &system_contract::powerup>;
@@ -1647,10 +1657,17 @@ namespace eosiosystem {
          void register_producer( const name& producer, const eosio::block_signing_authority& producer_authority,
                                  const std::string& url, uint16_t location, optional<uint32_t> reward_shared_ratio );
          void update_elected_producers( const block_timestamp& timestamp );
+         #ifdef APOS_ENABLED
          void update_elected_producer_changes( const block_timestamp& timestamp );
+         #endif//APOS_ENABLED
          void update_vote_weight_old( const name& voter, const name& proxy, const std::vector<name>& producers, bool voting );
+         #ifdef APOS_ENABLED
          void update_producer_elected_votes( const std::vector<name>& producers, const asset& votes_delta,
                                              bool is_adding, proposed_producer_changes &changes);
+         #else
+         void update_producer_elected_votes( const std::vector<name>& producers, const asset& votes_delta,
+                                             bool is_adding);
+         #endif//APOS_ENABLED
          void propagate_weight_change( const voter_info& voter, const name& payer );
 
          template <auto system_contract::*...Ptrs>
@@ -1692,12 +1709,13 @@ namespace eosiosystem {
             powerup_order_table& orders, uint32_t max_items, int64_t& net_delta_available,
             int64_t& cpu_delta_available);
 
+         #ifdef APOS_ENABLED
          template<typename elect_index_type>
          bool reinit_elected_producers( const elect_index_type& elect_idx,
                                         proposed_producer_changes& changes );
          void process_elected_producer( const producer_elected_info& prod_old, const producer_elected_info& prod_new,
                                         proposed_producer_changes &changes );
-
+         #endif//APOS_ENABLED
          void save_producer_changes(proposed_producer_changes &changes, const name& payer );
 
          inline asset vote_to_core_asset(const asset& votes);

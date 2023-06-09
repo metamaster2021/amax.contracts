@@ -95,11 +95,15 @@ namespace eosiosystem {
 
       /// only check and update block producers once every minute
       if( timestamp.slot > _gstate.last_producer_schedule_update.slot + blocks_per_minute ) {
+         #ifdef APOS_ENABLED
          if (_elect_gstate.is_init()) {
             update_elected_producer_changes( timestamp );
          } else {
             update_elected_producers( timestamp );
          }
+         #else
+            update_elected_producers( timestamp );
+         #endif//APOS_ENABLED
          _gstate.last_producer_schedule_update = timestamp;
 
          /// only process name bid once every day
@@ -162,7 +166,7 @@ namespace eosiosystem {
       update_reward_info(_elect_gstate.backup_reward_info, asset(total_backup_producer_rewards, core_symb), backup_rewards_per_block );
    }
 
-
+#ifdef APOS_ENABLED
    void system_contract::cfgcontrib( uint32_t min_backup_reward_contribution )
    {
       require_auth(get_self());
@@ -171,6 +175,8 @@ namespace eosiosystem {
          "min_backup_reward_contribution out of range");
       _elect_gstate.min_backup_reward_contribution = min_backup_reward_contribution;
    }
+
+#endif//APOS_ENABLED
 
    void system_contract::inc_producer_rewards(const name& producer, producer_reward_info& reward_info) {
       if (reward_info.rewards_per_block.amount <= 0) {

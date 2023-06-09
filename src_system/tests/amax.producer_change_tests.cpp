@@ -1,3 +1,4 @@
+#ifdef APOS_ENABLED
 #include <Runtime/Runtime.h>
 #include <boost/test/unit_test.hpp>
 #include <cstdlib>
@@ -1122,3 +1123,4 @@ BOOST_FIXTURE_TEST_CASE(producer_elects_test, producer_change_tester) try {
 FC_LOG_AND_RETHROW()
 
 BOOST_AUTO_TEST_SUITE_END()
+#endif//APOS_ENABLED

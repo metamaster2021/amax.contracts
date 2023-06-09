@@ -213,6 +213,7 @@ namespace eosiosystem {
 
    }
 
+#ifdef APOS_ENABLED
    void system_contract::initelects( uint32_t max_backup_producer_count ) {
       require_auth( get_self() );
       check(max_backup_producer_count >= min_backup_producer_count,
@@ -304,6 +305,8 @@ namespace eosiosystem {
       return true;
    }
 
+#endif//APOS_ENABLED
+
    void system_contract::register_producer(  const name& producer,
                                              const block_signing_authority& producer_authority,
                                              const string& url,
@@ -355,6 +358,7 @@ namespace eosiosystem {
                elect_idx.emplace_index(info, producer);
             }
          });
+         #ifdef APOS_ENABLED
          if (_elect_gstate.is_init()) {
             ASSERT(prod->ext && elect_idx.iterator_to(*prod) != elect_idx.end());
             proposed_producer_changes changes;
@@ -362,6 +366,7 @@ namespace eosiosystem {
 
             save_producer_changes(changes, producer);
          }
+         #endif//APOS_ENABLED
       } else {
          _producers.emplace( producer, [&]( producer_info& info ){
             info.owner              = producer;
@@ -464,6 +469,7 @@ namespace eosiosystem {
       }
    }
 
+#ifdef APOS_ENABLED
    void system_contract::update_elected_producer_changes( const block_timestamp& block_time ) {
 
       static const uint32_t max_flush_elected_rows = 10;
@@ -490,6 +496,7 @@ namespace eosiosystem {
          }
       }
    }
+#endif//APOS_ENABLED
 
    double stake2vote( int64_t staked ) {
       /// TODO subtract 2080 brings the large numbers closer to this decade
@@ -635,11 +642,16 @@ namespace eosiosystem {
       });
    }
 
+#ifdef APOS_ENABLED
    void system_contract::update_producer_elected_votes(  const std::vector<name>& producers,
                                                          const asset& votes_delta,
                                                          bool is_adding,
                                                          proposed_producer_changes& changes ) {
-
+#else
+   void system_contract::update_producer_elected_votes(  const std::vector<name>& producers,
+                                                         const asset& votes_delta,
+                                                         bool is_adding) {
+#endif//APOS_ENABLED
       for( const auto& p : producers ) {
          auto pitr = _producers.find( p.value );
 
@@ -657,8 +669,9 @@ namespace eosiosystem {
             _elect_gstate.total_producer_elected_votes += votes_delta.amount;
             check(_elect_gstate.total_producer_elected_votes >= 0, "total_producer_elected_votes can not be negative");
          });
-
+#ifdef APOS_ENABLED
          process_elected_producer(elected_info_old, pitr->get_elected_info(), changes);
+#endif//APOS_ENABLED
       }
    }
 
@@ -675,11 +688,14 @@ namespace eosiosystem {
       auto now = current_time_point();
       auto voter_itr = _voters.find( voter.value );
       if( voter_itr != _voters.end() ) {
-
          if (voter_itr->producers.size() > 0) {
-            proposed_producer_changes changes;
-            update_producer_elected_votes(voter_itr->producers, votes, false, changes);
-            save_producer_changes(changes, voter);
+            #ifdef APOS_ENABLED
+               proposed_producer_changes changes;
+               update_producer_elected_votes(voter_itr->producers, votes, false, changes);
+               save_producer_changes(changes, voter);
+            #else
+               update_producer_elected_votes(voter_itr->producers, votes, false);
+            #endif//APOS_ENABLED
          }
 
          _voters.modify( voter_itr, same_payer, [&]( auto& v ) {
@@ -718,9 +734,13 @@ namespace eosiosystem {
       CHECK( vote_refund_tbl.find( voter.value ) == vote_refund_tbl.end(), "This account already has a vote refund" );
 
       auto votes_delta = -votes;
-      proposed_producer_changes changes;
-      update_producer_elected_votes(voter_itr->producers, votes_delta, false, changes);
-      save_producer_changes(changes, voter);
+      #ifdef APOS_ENABLED
+         proposed_producer_changes changes;
+         update_producer_elected_votes(voter_itr->producers, votes_delta, false, changes);
+         save_producer_changes(changes, voter);
+      #else
+         update_producer_elected_votes(voter_itr->producers, votes_delta, false);
+      #endif//APOS_ENABLED
 
       _voters.modify( voter_itr, same_payer, [&]( auto& v ) {
          if (v.votes.symbol != vote_symbol) {
@@ -796,12 +816,18 @@ namespace eosiosystem {
          }
       }
 
-      proposed_producer_changes changes;
       auto unvotes = -voter_itr->votes;
-      update_producer_elected_votes(removed_prods, unvotes, false, changes);
-      update_producer_elected_votes(modified_prods, vote_asset_0, false, changes);
-      update_producer_elected_votes(added_prods, voter_itr->votes, false, changes);
-      save_producer_changes(changes, voter);
+      #ifdef APOS_ENABLED
+         proposed_producer_changes changes;
+         update_producer_elected_votes(removed_prods, unvotes, false, changes);
+         update_producer_elected_votes(modified_prods, vote_asset_0, false, changes);
+         update_producer_elected_votes(added_prods, voter_itr->votes, false, changes);
+         save_producer_changes(changes, voter);
+      #else
+         update_producer_elected_votes(removed_prods, unvotes, false);
+         update_producer_elected_votes(modified_prods, vote_asset_0, false);
+         update_producer_elected_votes(added_prods, voter_itr->votes, false);
+      #endif//APOS_ENABLED
 
       amax_reward::voteproducer_action voteproducer_act{ reward_account, { {get_self(), active_permission}, {voter, active_permission} } };
       voteproducer_act.send( voter, producers );
@@ -898,6 +924,7 @@ namespace eosiosystem {
       );
    }
 
+#ifdef APOS_ENABLED
    void system_contract::process_elected_producer(const producer_elected_info& prod_old,
                            const producer_elected_info& prod_new, proposed_producer_changes &changes) {
 
@@ -1288,6 +1315,8 @@ namespace eosiosystem {
       }
 
    }
+
+#endif//APOS_ENABLED
 
    inline asset system_contract::vote_to_core_asset(const asset& votes) {
       int128_t amount = votes.amount * vote_to_core_asset_factor;
