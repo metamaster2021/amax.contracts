@@ -213,6 +213,19 @@ namespace eosiosystem {
 
    }
 
+   void system_contract::upgradevote() {
+
+      require_auth( get_self() );
+
+      check(_elect_gstate.elected_version > 0, "new voting strategy has been enabled");
+      auto ct = time_point();
+
+      _elect_gstate.elected_version = 1;
+
+      check(update_elected_producers(ct), "update elected producers failed");
+      _gstate.last_producer_schedule_update = ct;
+   }
+
 #ifdef APOS_ENABLED
    void system_contract::initelects( uint32_t max_backup_producer_count ) {
       require_auth( get_self() );
@@ -431,26 +444,38 @@ namespace eosiosystem {
       });
    }
 
-   void system_contract::update_elected_producers( const block_timestamp& block_time ) {
+   bool system_contract::update_elected_producers( const block_timestamp& block_time ) {
 
-      auto idx = _producers.get_index<"prototalvote"_n>();
 
       using value_type = std::pair<eosio::producer_authority, uint16_t>;
+
+      auto fetch_top_producers = [&](std::vector< value_type > &top_producers, const auto& idx, const auto& is_valid) {
+
+         for( auto it = idx.cbegin(); it != idx.cend() && top_producers.size() < 21 && it->active() && is_valid(*it); ++it ) {
+            top_producers.emplace_back(
+               eosio::producer_authority{
+                  .producer_name = it->owner,
+                  .authority     = it->producer_authority
+               },
+               it->location
+            );
+         }
+      };
+
       std::vector< value_type > top_producers;
       top_producers.reserve(21);
-
-      for( auto it = idx.cbegin(); it != idx.cend() && top_producers.size() < 21 && 0 < it->total_votes && it->active(); ++it ) {
-         top_producers.emplace_back(
-            eosio::producer_authority{
-               .producer_name = it->owner,
-               .authority     = it->producer_authority
-            },
-            it->location
-         );
+      if(_elect_gstate.is_init()) {
+         fetch_top_producers(top_producers, _producers.get_index<"electedprod"_n>(), [&](const auto& prod)->bool {
+            return is_prod_votes_valid(prod.get_elected_votes());
+         });
+      } else {
+         fetch_top_producers(top_producers, _producers.get_index<"prototalvote"_n>(), [](const auto& prod)->bool {
+            return prod.total_votes > 0;
+         });
       }
 
-      if( top_producers.size() == 0 || top_producers.size() < _gstate.last_producer_schedule_size ) {
-         return;
+      if ( top_producers.size() == 0 || top_producers.size() < _gstate.last_producer_schedule_size ) {
+         return false;
       }
 
       std::sort( top_producers.begin(), top_producers.end(), []( const value_type& lhs, const value_type& rhs ) {
@@ -466,7 +491,10 @@ namespace eosiosystem {
 
       if( set_proposed_producers( producers ) >= 0 ) {
          _gstate.last_producer_schedule_size = static_cast<decltype(_gstate.last_producer_schedule_size)>( top_producers.size() );
+         return true;
       }
+
+      return false;
    }
 
 #ifdef APOS_ENABLED

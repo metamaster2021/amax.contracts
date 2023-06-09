@@ -1520,6 +1520,12 @@ namespace eosiosystem {
          #endif //APOS_ENABLE
 
          /**
+          * enable new voting strategy
+          */
+         [[eosio::action]]
+         void upgradevote();
+
+         /**
           * Configure the `power` market. The market becomes available the first time this
           * action is invoked.
           */
@@ -1656,7 +1662,7 @@ namespace eosiosystem {
          // defined in voting.cpp
          void register_producer( const name& producer, const eosio::block_signing_authority& producer_authority,
                                  const std::string& url, uint16_t location, optional<uint32_t> reward_shared_ratio );
-         void update_elected_producers( const block_timestamp& timestamp );
+         bool update_elected_producers( const block_timestamp& timestamp );
          #ifdef APOS_ENABLED
          void update_elected_producer_changes( const block_timestamp& timestamp );
          #endif//APOS_ENABLED
