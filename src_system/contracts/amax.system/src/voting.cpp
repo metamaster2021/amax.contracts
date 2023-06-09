@@ -223,7 +223,7 @@ namespace eosiosystem {
 
       require_auth( get_self() );
 
-      check(_elect_gstate.elected_version > 0, "new voting strategy has been enabled");
+      check(_elect_gstate.elected_version == 0, "new voting strategy has been enabled");
       auto ct = time_point();
 
       _elect_gstate.elected_version = 1;
