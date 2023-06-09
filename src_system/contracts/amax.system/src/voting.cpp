@@ -41,10 +41,12 @@ namespace eosiosystem {
    using eosio::microseconds;
    using eosio::seconds;
    using eosio::singleton;
+   #ifdef APOS_ENABLED
    using eosio::producer_authority_add;
    using eosio::producer_authority_modify;
    using eosio::producer_authority_del;
    using eosio::producer_change_map;
+   #endif//APOS_ENABLED
    using eosio::print;
    using std::to_string;
    using std::string;
@@ -54,6 +56,8 @@ namespace eosiosystem {
    inline bool operator == ( const eosio::key_weight& lhs, const eosio::key_weight& rhs ) {
       return tie( lhs.key, lhs.weight ) == tie( rhs.key, rhs.weight );
    }
+
+#ifdef APOS_ENABLED
 
    namespace producer_change_helper {
 
@@ -212,6 +216,8 @@ namespace eosiosystem {
       }
 
    }
+
+#endif//APOS_ENABLED
 
    void system_contract::upgradevote() {
 

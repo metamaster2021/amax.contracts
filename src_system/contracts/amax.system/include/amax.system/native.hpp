@@ -81,6 +81,7 @@ namespace eosiosystem {
       EOSLIB_SERIALIZE( authority, (threshold)(keys)(accounts)(waits) )
    };
 
+   #ifdef APOS_ENABLED
    /**
     *  Extentions are prefixed with type and are a buffer that can be
     *  interpreted by code that is aware and ignored by unaware code.
@@ -102,6 +103,8 @@ namespace eosiosystem {
 
       EOSLIB_SERIALIZE( backup_block_extension, (is_backup)(previous_backup) )
    };
+
+   #endif//APOS_ENABLED
 
    /**
     * Blockchain block header.
@@ -125,11 +128,17 @@ namespace eosiosystem {
       checksum256                               action_mroot;
       uint32_t                                  schedule_version = 0;
       std::optional<eosio::producer_schedule>   new_producers;
+      #ifdef APOS_ENABLED
       extensions_type                           header_extensions;
+      #endif//APOS_ENABLED
 
       // explicit serialization macro is not necessary, used here only to improve compilation time
       EOSLIB_SERIALIZE(block_header, (timestamp)(producer)(confirmed)(previous)(transaction_mroot)(action_mroot)
-                                     (schedule_version)(new_producers)(header_extensions))
+                                     (schedule_version)(new_producers)
+                                     #ifdef APOS_ENABLED
+                                     (header_extensions)
+                                     #endif//APOS_ENABLED
+      )
    };
 
    /**

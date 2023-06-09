@@ -10,7 +10,10 @@
 
 #include <amax.system/exchange_state.hpp>
 #include <amax.system/native.hpp>
+
+#ifdef APOS_ENABLED
 #include <amax.system/producer_change.hpp>
+#endif//APOS_ENABLED
 
 #include <deque>
 #include <optional>
@@ -61,7 +64,9 @@ namespace eosiosystem {
    using eosio::time_point;
    using eosio::time_point_sec;
    using eosio::unsigned_int;
+   #ifdef APOS_ENABLED
    using eosio::proposed_producer_changes;
+   #endif//APOS_ENABLED
    using eosio::block_signing_authority;
 
    inline constexpr int64_t powerup_frac = 1'000'000'000'000'000ll;  // 1.0 = 10^15
@@ -759,6 +764,7 @@ namespace eosiosystem {
                                > powerup_order_table;
 
 
+   #ifdef APOS_ENABLED
    struct [[eosio::table,eosio::contract("amax.system")]] elected_change {
       uint64_t                      id;             // pk, auto increasement
       proposed_producer_changes     changes;
@@ -770,6 +776,8 @@ namespace eosiosystem {
    };
 
    typedef eosio::multi_index< "electchange"_n, elected_change> elected_change_table;
+
+   #endif//APOS_ENABLED
 
    /**
     * The `amax.system` smart contract is provided by `Armoniax` as a sample system contract, and it defines the structures and actions needed for blockchain's core functionality.
@@ -801,7 +809,9 @@ namespace eosiosystem {
          rex_fund_table                _rexfunds;
          rex_balance_table             _rexbalance;
          rex_order_table               _rexorders;
+         #ifdef APOS_ENABLED
          elected_change_table          _elected_changes;
+         #endif//APOS_ENABLED
 
       public:
          static constexpr eosio::name active_permission{"active"_n};
@@ -1721,8 +1731,9 @@ namespace eosiosystem {
                                         proposed_producer_changes& changes );
          void process_elected_producer( const producer_elected_info& prod_old, const producer_elected_info& prod_new,
                                         proposed_producer_changes &changes );
-         #endif//APOS_ENABLED
+
          void save_producer_changes(proposed_producer_changes &changes, const name& payer );
+         #endif//APOS_ENABLED
 
          inline asset vote_to_core_asset(const asset& votes);
 

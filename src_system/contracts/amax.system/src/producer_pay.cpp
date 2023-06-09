@@ -41,13 +41,16 @@ namespace eosiosystem {
 
       require_auth(get_self());
 
-      // block_timestamp timestamp;
-      // name producer;
-      // _ds >> timestamp >> producer;
-      block_header bh;
-      _ds >> bh;
-      block_timestamp& timestamp = bh.timestamp;
-      name& producer = bh.producer;
+      #ifdef APOS_ENABLED
+         block_header bh;
+         _ds >> bh;
+         block_timestamp& timestamp = bh.timestamp;
+         name& producer = bh.producer;
+      #else
+         block_timestamp timestamp;
+         name producer;
+         _ds >> timestamp >> producer;
+      #endif//APOS_ENABLED
 
       /** until activation, no new rewards are paid */
       if( _gstate.thresh_activated_stake_time == time_point() && !_elect_gstate.is_init())
@@ -60,21 +63,28 @@ namespace eosiosystem {
       const auto ct = current_time_point();
       if ( _elect_gstate.is_init() && _gstate.init_reward_start_time != time_point() && ct >= _gstate.init_reward_start_time ) {
          int64_t main_rewards_per_block    = 0;
+         auto& main_reward_info              = _elect_gstate.main_reward_info;
+
+         #ifdef APOS_ENABLED
          int64_t backup_rewards_per_block  = 0;
-         auto& main_reward_info           = _elect_gstate.main_reward_info;
          auto& backup_reward_info         = _elect_gstate.backup_reward_info;
+         #endif//APOS_ENABLED
+
          if (ct >= _gstate.init_reward_end_time) {
             int64_t cur_period_num = 1 + (ct - _gstate.init_reward_end_time).to_seconds() / reward_halving_period_seconds;
             ASSERT(cur_period_num >= _elect_gstate.having_period_num)
             if (cur_period_num > _elect_gstate.having_period_num) {
                _elect_gstate.having_period_num = cur_period_num;
                main_reward_info.rewards_per_block = calc_having_rewards_per_block(main_reward_info);
+               #ifdef APOS_ENABLED
                backup_reward_info.rewards_per_block = calc_having_rewards_per_block(backup_reward_info);
+               #endif //APOS_ENABLED
             }
          }
 
          inc_producer_rewards(producer, main_reward_info);
 
+         #ifdef APOS_ENABLED
          if (backup_reward_info.rewards_per_block.amount > 0 ) {
             backup_block_extension bbe;
             for( size_t i = 0; i < bh.header_extensions.size(); ++i ) {
@@ -91,6 +101,7 @@ namespace eosiosystem {
                inc_producer_rewards(bbe.previous_backup->producer, backup_reward_info);
             }
          }
+         #endif//APOS_ENABLED
       }
 
       /// only check and update block producers once every minute

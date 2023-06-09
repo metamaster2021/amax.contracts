@@ -23,8 +23,11 @@ namespace eosiosystem {
     _rexretbuckets(get_self(), get_self().value),
     _rexfunds(get_self(), get_self().value),
     _rexbalance(get_self(), get_self().value),
-    _rexorders(get_self(), get_self().value),
+    _rexorders(get_self(), get_self().value)
+    #ifdef APOS_ENABLED
+    ,
     _elected_changes(get_self(), get_self().value)
+    #endif
    {
       _gstate  = _global.exists() ? _global.get() : get_default_parameters();
       _elect_gstate  = _elect_global.exists() ? _elect_global.get() : elect_global_state();
