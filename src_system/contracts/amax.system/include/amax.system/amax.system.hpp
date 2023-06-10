@@ -329,7 +329,7 @@ namespace eosiosystem {
       bool                                                     is_active = true;
       std::string                                              url;
       uint16_t                                                 location = 0;
-      time_point_sec                                               last_claimed_time;
+      time_point                                               last_claimed_time;
       asset                                                    unclaimed_rewards;
       eosio::block_signing_authority                           producer_authority;
       eosio::binary_extension<producer_info_ext, false>        ext;
