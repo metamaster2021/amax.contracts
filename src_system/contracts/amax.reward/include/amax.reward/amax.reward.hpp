@@ -165,11 +165,11 @@ namespace amax {
             typedef eosio::multi_index< "producers"_n, producer > table;
          };
 
-         struct voted_produer_info {
+         struct voted_producer_info {
             int128_t           last_rewards_per_vote         = 0;
          };
 
-         using voted_produer_map = std::map<name, voted_produer_info>;
+         using voted_producer_map = std::map<name, voted_producer_info>;
 
          /**
           * voter table.
@@ -178,7 +178,7 @@ namespace amax {
          struct [[eosio::table]] voter {
             name                       owner;
             asset                      votes             = vote_asset_0;
-            voted_produer_map          producers;
+            voted_producer_map          producers;
             asset                      unclaimed_rewards = CORE_ASSET(0);
             asset                      claimed_rewards   = CORE_ASSET(0);
             block_timestamp            update_at;
@@ -204,7 +204,7 @@ namespace amax {
       producer::table         _producer_tbl;
 
 
-      void allocate_producer_rewards(voted_produer_map& producers, const asset& votes_old, const asset& votes_delta, const name& new_payer, asset &allocated_rewards_out);
+      void allocate_producer_rewards(voted_producer_map& producers, const asset& votes_old, const asset& votes_delta, const name& new_payer, asset &allocated_rewards_out);
       void change_vote(const name& voter, const asset& votes, bool is_adding);
    };
 

@@ -245,17 +245,17 @@ struct producer_shared_reward {
 FC_REFLECT( producer_shared_reward, (owner)(is_registered)(total_rewards)(allocating_rewards)(allocated_rewards)
                                     (votes)(rewards_per_vote)(update_at) )
 
-struct voted_produer_info {
+struct voted_producer_info {
    int128_t                last_rewards_per_vote = 0;
 };
-FC_REFLECT( voted_produer_info, (last_rewards_per_vote) )
+FC_REFLECT( voted_producer_info, (last_rewards_per_vote) )
 
-using voted_produer_map = std::map<name, voted_produer_info>;
+using voted_producer_map = std::map<name, voted_producer_info>;
 
 struct voter_reward {
    name                       owner;
    asset                      votes             = vote_asset_0;
-   voted_produer_map          producers;
+   voted_producer_map          producers;
    asset                      unclaimed_rewards = CORE_ASSET(0);
    asset                      claimed_rewards   = CORE_ASSET(0);
    block_timestamp_type       update_at;

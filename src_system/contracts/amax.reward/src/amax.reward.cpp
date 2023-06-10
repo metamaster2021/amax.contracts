@@ -107,8 +107,8 @@ void amax_reward::voteproducer( const name& voter, const std::vector<name>& prod
          v.owner = voter;
       }
 
-      voted_produer_map added_prods;
-      voted_produer_map removed_prods;
+      voted_producer_map added_prods;
+      voted_producer_map removed_prods;
 
       auto new_prod_itr = producers.begin();
       auto old_prod_itr = v.producers.begin();
@@ -219,7 +219,7 @@ void amax_reward::change_vote(const name& voter, const asset& votes, bool is_add
    });
 }
 
-void amax_reward::allocate_producer_rewards(voted_produer_map& producers, const asset& votes_old,
+void amax_reward::allocate_producer_rewards(voted_producer_map& producers, const asset& votes_old,
          const asset& votes_delta, const name& new_payer, asset &allocated_rewards_out) {
 
    auto now = eosio::current_time_point();
