@@ -408,9 +408,7 @@ namespace eosiosystem {
 
       uint32_t            flags1                = 0;                       /// resource managed flags
       asset               votes                 = asset(0, vote_symbol);   /// elected votes
-      int32_t reserved = 0;
       block_timestamp     last_unvoted_time;                               /// vote updated time
-
 
       uint64_t primary_key()const { return owner.value; }
 
