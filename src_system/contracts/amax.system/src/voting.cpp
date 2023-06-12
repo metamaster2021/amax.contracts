@@ -228,7 +228,7 @@ namespace eosiosystem {
 
       _elect_gstate.elected_version = 1;
 
-      check(update_elected_producers(ct), "update elected producers failed");
+      update_elected_producers(ct);
       _gstate.last_producer_schedule_update = ct;
    }
 
