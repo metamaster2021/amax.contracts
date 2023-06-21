@@ -30,5 +30,5 @@ add_subdirectory(amax.custody)
  add_subdirectory(amax.recover)
  add_subdirectory(amax.auth)
  add_subdirectory(amax.proxy)
-# 
+ add_subdirectory(amax.applybp)
 
