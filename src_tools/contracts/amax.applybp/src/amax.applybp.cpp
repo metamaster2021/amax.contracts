@@ -139,7 +139,7 @@ using namespace mdao;
       CHECKC( logo_uri.size() <= MAX_LOGO_SIZE ,err::OVERSIZED ,"logo size must be <= " + to_string(MAX_LOGO_SIZE))
       CHECKC( org_name.size() <= MAX_TITLE_SIZE ,err::OVERSIZED ,"org_name size must be <= " + to_string(MAX_TITLE_SIZE))
       CHECKC( org_info.size() <= MAX_TITLE_SIZE ,err::OVERSIZED ,"org_info size must be <= " + to_string(MAX_TITLE_SIZE))
-      CHECKC( manifesto.size() <= MAX_TITLE_SIZE ,err::OVERSIZED ,"manifesto size must be <= " + to_string(MAX_TITLE_SIZE))
+      // CHECKC( manifesto.size() <= MAX_TITLE_SIZE ,err::OVERSIZED ,"manifesto size must be <= " + to_string(MAX_TITLE_SIZE))
       CHECKC( issuance_plan.size() <= MAX_TITLE_SIZE ,err::OVERSIZED ,"issuance_plan size must be <= " + to_string(MAX_TITLE_SIZE))
       CHECKC( reward_shared_plan.size() <= MAX_TITLE_SIZE, err::OVERSIZED, "reward_shared_ratio is too large than 10000");
 
