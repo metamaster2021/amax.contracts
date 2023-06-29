@@ -762,10 +762,10 @@ namespace eosiosystem {
 
       auto now = current_time_point();
 
-      CHECK( time_point(voter_itr->last_unvoted_time) + seconds(vote_interval_sec) < now, "Voter can only vote or subvote once a day" )
+      CHECKC( time_point(voter_itr->last_unvoted_time) + seconds(vote_interval_sec) < now, err::VOTE_ERROR, "Voter can only vote or subvote once a day" )
 
       vote_refund_table vote_refund_tbl( get_self(), voter.value );
-      CHECK( vote_refund_tbl.find( voter.value ) == vote_refund_tbl.end(), "This account already has a vote refund" );
+      CHECKC( vote_refund_tbl.find( voter.value ) == vote_refund_tbl.end(), err::VOTE_REFUND_ERROR, "This account already has a vote refund" );
 
       auto votes_delta = -votes;
       #ifdef APOS_ENABLED
@@ -816,7 +816,7 @@ namespace eosiosystem {
       check( voter_itr != _voters.end(), "voter not found" ); /// addvote creates voter object
 
       ASSERT( voter_itr->votes.amount >= 0 )
-      CHECK( voter_itr->producers != producers, "producers no change" )
+      CHECKC( voter_itr->producers != producers, err::VOTE_CHANGES_ERROR, "producers no change" )
 
       auto now = current_time_point();
       CHECK( time_point(voter_itr->last_unvoted_time) + seconds(vote_interval_sec) < now, "Voter can only vote or subvote once a day" )

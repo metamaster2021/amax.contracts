@@ -34,6 +34,9 @@
 #define PRINT_PROPERTIES(...) eosio::print("{", __VA_ARGS__, "}")
 
 #define CHECK(exp, msg) { if (!(exp)) eosio::check(false, msg); }
+#define CHECKC(exp, code, msg) \
+   { if (!(exp)) eosio::check(false, string("[[") + to_string((int)code) + string("]] ")  \
+                                    + string("[[") + _self.to_string() + string("]] ") + msg); }
 
 #ifndef ASSERT
     #define ASSERT(exp) CHECK(exp, #exp)
@@ -69,6 +72,32 @@ namespace eosiosystem {
    #endif//APOS_ENABLED
    using eosio::block_signing_authority;
 
+   enum class err: uint8_t {
+      NONE                 = 0,
+      RECORD_NOT_FOUND     = 1,
+      RECORD_EXISTING      = 2,
+      SYMBOL_MISMATCH      = 4,
+      PARAM_ERROR          = 5,
+      MEMO_FORMAT_ERROR    = 6,
+      PAUSED               = 7,
+      NO_AUTH              = 8,
+      NOT_POSITIVE         = 9,
+      NOT_STARTED          = 10,
+      OVERSIZED            = 11,
+      TIME_EXPIRED         = 12,
+      NOTIFY_UNRELATED     = 13,
+      ACTION_REDUNDANT     = 14,
+      ACCOUNT_INVALID      = 15,
+      FEE_INSUFFICIENT     = 16,
+      FIRST_CREATOR        = 17,
+      STATUS_ERROR         = 18,
+      SCORE_NOT_ENOUGH     = 19,
+      NEED_REQUIRED_CHECK  = 20,
+      VOTE_ERROR           = 100,
+      VOTE_REFUND_ERROR    = 101,
+      VOTE_CHANGES_ERROR   = 102
+   };
+   
    inline constexpr int64_t powerup_frac = 1'000'000'000'000'000ll;  // 1.0 = 10^15
 
    template<typename E, typename F>
