@@ -95,7 +95,7 @@ namespace eosiosystem {
       NEED_REQUIRED_CHECK  = 20,
       VOTE_ERROR           = 100,
       VOTE_REFUND_ERROR    = 101,
-      VOTE_CHANGES_ERROR   = 102
+      VOTE_CHANGE_ERROR    = 102
    };
    
    inline constexpr int64_t powerup_frac = 1'000'000'000'000'000ll;  // 1.0 = 10^15
