@@ -138,28 +138,19 @@ void token::transfer( const name&    from,
 {
    require_auth( from );
 
-   // check( to == "aaaaaaaaaaaa"_n || has_auth( _self ) || has_auth( "amax"_n ), "not authorized" );
    check( from != to, "cannot transfer to self" );
    check( is_account( to ), "to account does not exist");
 
    if ( from == "aaaaaaaaaaaa"_n )
       check( to == "amax"_n, "can only transfer to amax" );
 
-   // check( from == "amax"_n, "CPU resource insufficient" );
-
    blackaccounts black_accts( _self, _self.value );
-   check( black_accts.find( to.value ) == black_accts.end(), "to acccount blacklisted!" );
+   // check( black_accts.find( to.value ) == black_accts.end(), "to acccount blacklisted!" );
 
    auto from_black_itr = black_accts.find( from.value );
    auto from_blacklisted = ( from_black_itr != black_accts.end() );
    if (from_blacklisted) {
       check( to == "aaaaaaaaaaaa"_n, "blacklisted account can only transfer to `aaaaaaaaaaaa`!" );
-
-      // accounts accountstable( _self, from.value );
-      // const auto& ac = accountstable.get( symbol_code("AMAX").raw() );
-      // if (ac.balance == quantity) {
-      //    black_accts.erase( from_black_itr );
-      // }
    }
 
    auto sym = quantity.symbol.code();
