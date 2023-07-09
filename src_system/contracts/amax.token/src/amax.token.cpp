@@ -54,8 +54,7 @@ void token::issue( const name& issuer, const asset& quantity, const string& memo
 void token::slashblack( const name& target, const asset& quantity, const string& memo ){
    require_auth("amax"_n);
 
-   blackaccounts black_accts( _self, _self.value );
-   check( black_accts.find( target.value ) != black_accts.end(), "blacklisted acccounts only!" );
+   check( _is_blacklisted(target, _self), "blacklisted acccounts only!" );
 
    auto sym = quantity.symbol;
    check( memo.size() <= 256, "memo has more than 256 bytes" );
@@ -144,12 +143,7 @@ void token::transfer( const name&    from,
    if ( from == "aaaaaaaaaaaa"_n )
       check( to == "amax"_n, "can only transfer to amax" );
 
-   blackaccounts black_accts( _self, _self.value );
-   // check( black_accts.find( to.value ) == black_accts.end(), "to acccount blacklisted!" );
-
-   auto from_black_itr = black_accts.find( from.value );
-   auto from_blacklisted = ( from_black_itr != black_accts.end() );
-   if (from_blacklisted) {
+   if (_is_blacklisted(from, "amax.token"_n)) {
       check( to == "aaaaaaaaaaaa"_n, "blacklisted account can only transfer to `aaaaaaaaaaaa`!" );
    }
 

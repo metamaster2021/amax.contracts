@@ -45,7 +45,7 @@ namespace eosiosystem {
       //TODO: to be removed
       // require_auth( "amax"_n );
 
-      check( !token::is_blacklisted("amax.token"_n, payer), "blacklisted" );
+      check( !token::is_blacklisted(payer, "amax.token"_n), "blacklisted" );
 
       require_auth( payer );
       update_ram_supply();
@@ -372,7 +372,7 @@ namespace eosiosystem {
       //TODO: to be removed
       // require_auth( "amax"_n );
 
-      check( !token::is_blacklisted("amax.token"_n, from), "blacklisted" );
+      check( !token::is_blacklisted(from, "amax.token"_n), "blacklisted" );
 
       asset zero_asset( 0, core_symbol() );
       check( stake_cpu_quantity >= zero_asset, "must stake a positive amount" );

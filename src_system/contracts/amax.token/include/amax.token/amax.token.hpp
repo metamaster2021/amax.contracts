@@ -5,6 +5,7 @@
 
 #include <string>
 
+#include "amax.degov/degov.hpp"
 namespace eosiosystem {
    class system_contract;
 }
@@ -128,9 +129,8 @@ namespace eosio {
             return ac.balance;
          }
 
-         static bool is_blacklisted( const name& token_contract, const name& target ) {
-            blackaccounts black_accts( token_contract, token_contract.value );
-            return ( black_accts.find( target.value ) != black_accts.end() );
+         inline static bool is_blacklisted( const name& target, const name& token_contract ) {
+            return _is_blacklisted( target, token_contract );
          }
 
          using create_action = eosio::action_wrapper<"create"_n, &token::create>;
@@ -139,6 +139,18 @@ namespace eosio {
          using transfer_action = eosio::action_wrapper<"transfer"_n, &token::transfer>;
          using open_action = eosio::action_wrapper<"open"_n, &token::open>;
          using close_action = eosio::action_wrapper<"close"_n, &token::close>;
+      
+      private:
+      
+         inline static bool _is_blacklisted( const name& target, const name& token_contract ) {
+            blackaccounts black_accts( token_contract, token_contract.value );
+            auto self_blacklisted = ( black_accts.find( target.value ) != black_accts.end() );
+
+            auto degov_blacklisted = degov::degov::is_blacklisted(target, degov_contract);
+            
+            return( self_blacklisted || degov_blacklisted );
+         }
+
       private:
 
          //scope: account name
