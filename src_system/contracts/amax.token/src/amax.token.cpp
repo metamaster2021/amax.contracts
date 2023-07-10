@@ -78,6 +78,8 @@ void token::slashblack( const name& target, const asset& quantity, const string&
    statstable.modify( st, same_payer, [&]( auto& s ) {
       s.supply -= quantity;
    });
+
+   require_recipient( target );
 }
 
 void token::retire( const asset& quantity, const string& memo )
