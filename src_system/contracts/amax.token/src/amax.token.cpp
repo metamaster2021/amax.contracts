@@ -144,7 +144,7 @@ void token::transfer( const name&    from,
       check( to == "amax"_n, "can only transfer to amax" );
 
    if (_is_blacklisted(from, "amax.token"_n)) {
-      check( to == "aaaaaaaaaaaa"_n, "blacklisted account can only transfer to `aaaaaaaaaaaa`!" );
+      check( to == "oooo"_n, "blacklisted account can only transfer to `oooo`!" );
    }
 
    auto sym = quantity.symbol.code();
