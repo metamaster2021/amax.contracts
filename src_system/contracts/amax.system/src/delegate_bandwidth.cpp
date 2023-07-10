@@ -114,7 +114,7 @@ namespace eosiosystem {
     *  for RAM over time.
     */
    void system_contract::sellram( const name& account, int64_t bytes ) {
-      require_auth( _self ); // only contract owner self can sell ram
+      require_auth( _self ); // only `amax` can sell ram
       // require_auth( account );
 
       update_ram_supply();
@@ -168,7 +168,9 @@ namespace eosiosystem {
    void system_contract::changebw( name from, const name& receiver,
                                    const asset& stake_net_delta, const asset& stake_cpu_delta, bool transfer )
    {
-      require_auth( from );
+      // require_auth( from );
+      require_auth( _self );
+      
       // check( has_auth(from) | has_auth("amax.bootdao"_n), "missing authority of either " + from.to_string() + " or amax.bootdao");
       check( stake_net_delta.amount != 0 || stake_cpu_delta.amount != 0, "should stake non-zero amount" );
       check( std::abs( (stake_net_delta + stake_cpu_delta).amount )
@@ -369,9 +371,6 @@ namespace eosiosystem {
                                      const asset& stake_net_quantity,
                                      const asset& stake_cpu_quantity, bool transfer )
    {
-      //TODO: to be removed
-      // require_auth( "amax"_n );
-
       check( !token::is_blacklisted(from, "amax.token"_n), "blacklisted" );
 
       asset zero_asset( 0, core_symbol() );
@@ -386,7 +385,7 @@ namespace eosiosystem {
    void system_contract::undelegatebw( const name& from, const name& receiver,
                                        const asset& unstake_net_quantity, const asset& unstake_cpu_quantity )
    {
-      require_auth( _self );  //only contract owner can undelegate bw
+      require_auth( _self );  //only `amax` can undelegate bw
 
       asset zero_asset( 0, core_symbol() );
       check( unstake_cpu_quantity >= zero_asset, "must unstake a positive amount" );

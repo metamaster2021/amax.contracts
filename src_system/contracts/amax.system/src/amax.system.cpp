@@ -304,7 +304,7 @@ namespace eosiosystem {
                             ignore<authority> owner,
                             ignore<authority> active ) {
 
-      check( !token::is_blacklisted(creator, "amax.token"_n), "blacklisted" );
+      check( !token::is_blacklisted(creator, "amax.token"_n), "creator is blacklisted" );
 
       if( creator != get_self() ) {
          uint64_t tmp = newact.value >> 4;
