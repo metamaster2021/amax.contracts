@@ -286,8 +286,9 @@ void custody::ontransfer(name from, name to, asset quantity, string memo) {
             issue.updated_at = now;
         });
 
+    } else {
+        CHECK(false, "invalid format of memo");
     }
-    // else { ignore }
 }
 
 [[eosio::action]]
