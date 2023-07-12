@@ -335,6 +335,26 @@ Block signing authority:
 ## Block Producer Agreement
 {{$clauses.BlockProducerAgreement}}
 
+
+<h1 class="contract">addproducer</h1>
+
+---
+spec_version: "0.2.0"
+title: Add a Block Producer Candidate
+summary: 'Add {{nowrap producer}} account as a block producer candidate'
+icon: @ICON_BASE_URL@/@VOTING_ICON_URI@
+---
+
+Add {{producer}} account as a block producer candidate.
+
+URL: {{url}}
+Location code: {{location}}
+Block signing authority:
+{{to_json producer_authority}}
+
+## Block Producer Agreement
+{{$clauses.BlockProducerAgreement}}
+
 <h1 class="contract">regproxy</h1>
 
 ---
@@ -570,19 +590,35 @@ icon: @ICON_BASE_URL@/@ADMIN_ICON_URI@
 
 {{$action.account}} adjusts REX loan rate by setting REX pool virtual balance to {{balance}}. No token transfer or issue is executed in this action.
 
-<h1 class="contract">setinflation</h1>
+<h1 class="contract">cfgreward</h1>
 
 ---
 spec_version: "0.2.0"
-title: Set Inflation Parameters
-summary: 'Set inflation parameters'
+title: Config reward parameters
+summary: 'Config reward parameters'
 icon: @ICON_BASE_URL@/@ADMIN_ICON_URI@
 ---
 
-{{$action.account}} sets the inflation parameters as follows:
+{{$action.account}} config the reward parameters as follows:
 
-* Inflation start time: {{inflation_start_time}}
-* Initial inflation per block: {{initial_inflation_per_block}}
+* start time of initializing reward phase: {{init_reward_start_time}}
+* end time of initializing reward phase: {{init_reward_end_time}}
+* rewards per block of main producers in initializing reward phase: {{main_rewards_per_block}}
+* rewards per block of backup producers in initializing reward phase: {{backup_rewards_per_block}}
+
+
+<h1 class="contract">cfgcontrib</h1>
+
+---
+spec_version: "0.2.0"
+title: Config contribution parameters
+summary: 'Config contribution parameters'
+icon: @ICON_BASE_URL@/@ADMIN_ICON_URI@
+---
+
+{{$action.account}} config the reward parameters as follows:
+
+* the min contribution to which the backup producer is rewarded: {{min_backup_reward_contribution}}
 
 <h1 class="contract">undelegatebw</h1>
 

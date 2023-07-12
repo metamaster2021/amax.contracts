@@ -1030,6 +1030,7 @@ BOOST_FIXTURE_TEST_CASE( producer_register_unregister, eosio_system_tester ) try
                                                ("producer_key", key )
                                                ("url", "https://armoniax.com/")
                                                ("location", 1)
+                                               ("reward_shared_ratio", 0)
                         )
    );
 
@@ -1045,6 +1046,7 @@ BOOST_FIXTURE_TEST_CASE( producer_register_unregister, eosio_system_tester ) try
                                                ("producer_key", key )
                                                ("url", "http://block.two")
                                                ("location", 1)
+                                               ("reward_shared_ratio", 0)
                         )
    );
    info = get_producer_info( "alice1111111" );
@@ -1059,6 +1061,7 @@ BOOST_FIXTURE_TEST_CASE( producer_register_unregister, eosio_system_tester ) try
                                                ("producer_key", key2 )
                                                ("url", "http://block.two")
                                                ("location", 2)
+                                               ("reward_shared_ratio", 0)
                         )
    );
    info = get_producer_info( "alice1111111" );
@@ -1106,6 +1109,7 @@ BOOST_FIXTURE_TEST_CASE( producer_wtmsig, eosio_system_tester ) try {
                                                ("producer_authority", alice_producer_authority.get_abi_variant()["authority"])
                                                ("url", "https://armoniax.com/")
                                                ("location", 0 )
+                                               ("reward_shared_ratio", 0)
                         )
    );
    BOOST_REQUIRE_EQUAL( success(), stake( N(alice1111111), core_sym::from_string("100000000.0000"), core_sym::from_string("100000000.0000") ) );
@@ -1135,6 +1139,7 @@ BOOST_FIXTURE_TEST_CASE( producer_wtmsig, eosio_system_tester ) try {
                                        ("producer_authority", alice_producer_authority.get_abi_variant()["authority"])
                                        ("url", "https://armoniax.com/")
                                        ("location", 0 )
+                                       ("reward_shared_ratio", 0)
                         )
    );
 
@@ -1147,6 +1152,7 @@ BOOST_FIXTURE_TEST_CASE( producer_wtmsig, eosio_system_tester ) try {
                                        ("producer_authority", alice_producer_authority.get_abi_variant()["authority"])
                                        ("url", "https://armoniax.com/")
                                        ("location", 0 )
+                                       ("reward_shared_ratio", 0)
                         )
    );
 
@@ -1160,6 +1166,7 @@ BOOST_FIXTURE_TEST_CASE( producer_wtmsig, eosio_system_tester ) try {
                                        ("producer_authority", alice_producer_authority.get_abi_variant()["authority"])
                                        ("url", "https://armoniax.com/")
                                        ("location", 0 )
+                                       ("reward_shared_ratio", 0)
                         )
    );
 
@@ -1172,6 +1179,7 @@ BOOST_FIXTURE_TEST_CASE( producer_wtmsig, eosio_system_tester ) try {
                                        ("producer_authority", alice_producer_authority.get_abi_variant()["authority"])
                                        ("url", "https://armoniax.com/")
                                        ("location", 0 )
+                                       ("reward_shared_ratio", 0)
                         )
    );
 
@@ -1199,6 +1207,7 @@ BOOST_FIXTURE_TEST_CASE( producer_wtmsig, eosio_system_tester ) try {
    //                                             ("producer_key", get_public_key( N(alice1111111), "active") )
    //                                             ("url","")
    //                                             ("location", 0)
+   //                                             ("reward_shared_ratio", 0)
    //                      )
    // );
    // BOOST_REQUIRE_EQUAL( success(), stake( N(alice1111111), core_sym::from_string("100000000.0000"), core_sym::from_string("100000000.0000") ) );
@@ -1269,6 +1278,7 @@ BOOST_FIXTURE_TEST_CASE( producer_wtmsig, eosio_system_tester ) try {
 //                                                ("producer_key", get_public_key( N(alice1111111), "active") )
 //                                                ("url","")
 //                                                ("location", 0)
+//                                                ("reward_shared_ratio", 0)
 //                         )
 //    );
 
@@ -1292,6 +1302,7 @@ BOOST_FIXTURE_TEST_CASE( vote_for_producer, eosio_system_tester, * boost::unit_t
                                                ("producer_key", get_public_key( N(alice1111111), "active") )
                                                ("url", "https://armoniax.com/")
                                                ("location", 0 )
+                                               ("reward_shared_ratio", 0)
                         )
    );
    auto prod = get_producer_info( "alice1111111" );
@@ -1383,6 +1394,7 @@ BOOST_FIXTURE_TEST_CASE( unregistered_producer_voting, eosio_system_tester, * bo
                                                ("producer_key", get_public_key( N(alice1111111), "active") )
                                                ("url", "")
                                                ("location", 0)
+                                               ("reward_shared_ratio", 0)
                         )
    );
    //and then unregisters
@@ -1426,6 +1438,7 @@ BOOST_FIXTURE_TEST_CASE( vote_same_producer_30_times, eosio_system_tester ) try 
                                                ("producer_key", get_public_key(N(alice1111111), "active") )
                                                ("url", "")
                                                ("location", 0)
+                                               ("reward_shared_ratio", 0)
                         )
    );
 
@@ -1448,6 +1461,7 @@ BOOST_FIXTURE_TEST_CASE( producer_keep_votes, eosio_system_tester, * boost::unit
                                                ("producer_key", get_public_key( N(alice1111111), "active") )
                                                ("url", "")
                                                ("location", 0)
+                                               ("reward_shared_ratio", 0)
                         )
    );
 
@@ -1482,6 +1496,7 @@ BOOST_FIXTURE_TEST_CASE( producer_keep_votes, eosio_system_tester, * boost::unit
                                                ("producer_key", get_public_key( N(alice1111111), "active") )
                                                ("url", "")
                                                ("location", 0)
+                                               ("reward_shared_ratio", 0)
                         )
    );
    prod = get_producer_info( "alice1111111" );
@@ -1495,6 +1510,7 @@ BOOST_FIXTURE_TEST_CASE( producer_keep_votes, eosio_system_tester, * boost::unit
                                                ("producer_key", get_public_key( N(alice1111111), "active") )
                                                ("url","")
                                                ("location", 0)
+                                               ("reward_shared_ratio", 0)
                         )
    );
    prod = get_producer_info( "alice1111111" );
@@ -1515,6 +1531,7 @@ BOOST_FIXTURE_TEST_CASE( vote_for_two_producers, eosio_system_tester, * boost::u
                                                ("producer_key", get_public_key( N(alice1111111), "active") )
                                                ("url","")
                                                ("location", 0)
+                                               ("reward_shared_ratio", 0)
                         )
    );
    //bob111111111 becomes a producer
@@ -1525,6 +1542,7 @@ BOOST_FIXTURE_TEST_CASE( vote_for_two_producers, eosio_system_tester, * boost::u
                                                ("producer_key", get_public_key( N(alice1111111), "active") )
                                                ("url","")
                                                ("location", 0)
+                                               ("reward_shared_ratio", 0)
                         )
    );
 
@@ -2385,7 +2403,7 @@ BOOST_FIXTURE_TEST_CASE(producer_onblock_check, eosio_system_tester) try {
    transfer(config::system_account_name, "producvotera", core_sym::from_string("300000000000.0000"), config::system_account_name);
    BOOST_REQUIRE_EQUAL(success(), stake("producvotera", core_sym::from_string("150000000000.0000"), core_sym::from_string("150000000000.0000") ));
    BOOST_REQUIRE_EQUAL(success(), vote( N(producvotera), vector<account_name>(producer_names.begin(), producer_names.begin()+10)));
-   BOOST_CHECK_EQUAL( wasm_assert_msg( "cannot undelegate bandwidth until the chain is activated (at least 15% of all tokens participate in voting)" ),
+   BOOST_CHECK_EQUAL( wasm_assert_msg( "cannot undelegate bandwidth until the chain is activated (at least 5% of all tokens participate in voting or electing is initialized)" ),
                       unstake( "producvotera", core_sym::from_string("50.0000"), core_sym::from_string("50.0000") ) );
 
 #if 0
@@ -5213,5 +5231,149 @@ BOOST_FIXTURE_TEST_CASE( ontransfer_ram_payer_test, eosio_system_tester ) try {
       fc_exception_message_starts_with("unprivileged contract cannot increase RAM usage of another account within a notify context: alice1111111")
    );
 } FC_LOG_AND_RETHROW()
+
+BOOST_FIXTURE_TEST_CASE( update_auth_ex_test, eosio_system_tester ) try {
+
+   create_account_with_resources( N(systemtest11), config::system_account_name, core_sym::from_string("10000.0000"), false );
+   set_code( N(systemtest11), contracts::util::system_test_wasm() );
+   set_abi( N(systemtest11), contracts::util::system_test_abi().data() );
+   produce_blocks();
+
+   auto sys_updateauth = [&](const name& account,
+                            const name& permission,
+                            const name& parent,
+                            const authority& auth) {
+      TESTER::push_action(config::system_account_name, updateauth::get_name(),
+      // TESTER::push_action(config::system_account_name, N(updateauthex),
+            { permission_level{account, permission}}, mvo()
+               ("account", account)
+               ("permission", permission)
+               ("parent", parent)
+               ("auth",  auth) );
+   };
+
+   auto get_auth = [&]( const name& account, const name& permission) {
+      const auto& permission_by_owner = control->db().get_index<eosio::chain::permission_index>().indices().get<eosio::chain::by_owner>();
+      auto perm_itr = permission_by_owner.find(std::make_tuple(account, permission));
+      BOOST_REQUIRE(perm_itr != permission_by_owner.end());
+      return perm_itr->auth;
+   };
+
+   auto contract_auth = get_auth(N(systemtest11), N(active));
+   contract_auth.accounts.push_back(permission_level_weight{ {N(systemtest11), config::eosio_code_name}, 1});
+   sys_updateauth( N(systemtest11), N(active), N(owner), contract_auth );
+
+
+   auto new_owner_auth = authority(1, {},
+                     {
+                        permission_level_weight{ {N(systemtest11), N(active)}, 1}
+                     },
+                     {}
+   );
+   sys_updateauth( N(alice1111111), N(owner), name(), new_owner_auth );
+   produce_block();
+   BOOST_REQUIRE(get_auth(N(alice1111111), N(owner)) == new_owner_auth);
+
+   wdump((N(alice1111111)) (new_owner_auth));
+
+
+   auto transfer_by_proxy = [&] (   const name& from,
+                                    const name& to,
+                                    const asset& amount,
+                                    const string& memo,
+                                    const name& required_permission,
+                                    const name& proxy,
+                                    const name& proxy_permission)
+   {
+      account_name code = N(amax.token);
+      action_name acttype = N(transfer);
+      permission_level auth = {from, required_permission};
+      variant_object data = mutable_variant_object()
+                              ("from",    from)
+                              ("to",      to )
+                              ("quantity", amount)
+                              ("memo", memo);
+
+      uint32_t expiration = DEFAULT_EXPIRATION_DELTA;
+      uint32_t delay_sec = 0;
+
+      try {
+
+         signed_transaction trx;
+         trx.actions.emplace_back( get_action( code, acttype, {auth}, data ) );
+         set_transaction_headers( trx, expiration, delay_sec );
+
+         auto required_pubkey = get_public_key( from, required_permission.to_string() );
+         auto proxy_pubkey = get_public_key( proxy, proxy_permission.to_string() );
+
+         wdump( (from) (required_pubkey) );
+         wdump((proxy)(proxy_pubkey) );
+         auto required_keys_set = control->get_authorization_manager().get_required_keys(
+               trx, {required_pubkey, proxy_pubkey}, fc::seconds( trx.delay_sec ));
+         wdump((required_keys_set));
+
+         trx.sign( get_private_key( proxy, proxy_permission.to_string() ), control->get_chain_id() );
+
+         return push_transaction( trx );
+      } FC_CAPTURE_AND_RETHROW( (code)(acttype)(auth)(data)(expiration)(delay_sec) )
+   };
+
+   auto transferex = [&] ( const name& actor,
+                           const name& required_permission,
+                           const name& from,
+                           const name& to,
+                           const asset& amount,
+                           const string& memo)
+   {
+      return base_tester::push_action( N(systemtest11), N(transferex), actor, mutable_variant_object()
+                           ("actor",                actor)
+                           ("required_permission",  required_permission)
+                           ("from",                 from)
+                           ("to",                   to )
+                           ("quantity",             amount)
+                           ("memo",                 memo)
+      );
+   };
+
+   // wdump(("init alice1111111 balance"));
+   transfer(config::system_account_name, N(alice1111111), core_sym::from_string("1000000.0000") );
+   produce_block();
+
+   // wdump(("transfer from alice1111111 by systemtest11 account"));
+   transfer_by_proxy(N(alice1111111), N(bob111111111), core_sym::from_string("0.1000"), "proxy by contract account",
+      N(owner), N(systemtest11), N(active) );
+   produce_block();
+
+   // wdump(("trans from alice1111111 by systemtest11 contract"));
+   transferex(N(carol1111111), N(owner), N(alice1111111), N(bob111111111), core_sym::from_string("0.1000"), "by contract code");
+   produce_block();
+
+   auto test_updateauthex = [&]( const name& actor,
+                                 const name& required_permission,
+                                 const name& account,
+                                 const name& permission,
+                                 const name& parent,
+                                 const authority& auth) {
+      TESTER::push_action(N(systemtest11), N(updateauthex),
+            { permission_level{actor, N(active)}}, mvo()
+               ("actor", actor)
+               ("required_permission", required_permission)
+               ("account", account)
+               ("permission", permission)
+               ("parent", parent)
+               ("auth",  auth) );
+   };
+
+   auto new_active_auth = authority(1, {},
+                     { permission_level_weight{{N(bob111111111), N(active)}, 1} },
+                     {}
+   );
+   test_updateauthex(N(bob111111111), N(owner), N(alice1111111), N(active), N(owner), new_active_auth );
+
+   BOOST_REQUIRE(get_auth(N(alice1111111), N(active)) == new_active_auth);
+
+
+} FC_LOG_AND_RETHROW()
+
 
 BOOST_AUTO_TEST_SUITE_END()

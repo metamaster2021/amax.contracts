@@ -16,13 +16,15 @@ using namespace fc;
 
 using mvo = fc::mutable_variant_object;
 
-#ifndef TESTER
-#ifdef NON_VALIDATING_TEST
-#define TESTER tester
-#else
-#define TESTER validating_tester
-#endif
-#endif
+// #ifndef TESTER
+// #ifdef NON_VALIDATING_TEST
+// #define TESTER tester
+// #else
+// #define TESTER validating_tester
+// #endif
+// #endif
+
+#define TESTER backup_block_tester
 
 namespace eosio_system {
 
@@ -34,7 +36,7 @@ public:
       produce_blocks( 2 );
 
       create_accounts({ N(amax.token), N(amax.ram), N(amax.ramfee), N(amax.stake),
-               N(amax.bpay), N(amax.vpay), N(amax.saving), N(amax.names), N(amax.rex) });
+               N(amax.bpay), N(amax.vpay), N(amax.saving), N(amax.names), N(amax.rex), N(amax.reward), N(amax.vote) });
 
 
       produce_blocks( 100 );
@@ -46,6 +48,10 @@ public:
          BOOST_REQUIRE_EQUAL(abi_serializer::to_abi(accnt.abi, abi), true);
          token_abi_ser.set_abi(abi, abi_serializer::create_yield_function(abi_serializer_max_time));
       }
+      produce_block();
+
+      set_code( N(amax.reward), contracts::reward_wasm());
+      set_abi( N(amax.reward), contracts::reward_abi().data() );
    }
 
    void create_core_token( symbol core_symbol = symbol{CORE_SYM} ) {
@@ -789,6 +795,8 @@ public:
                           ("producer_key", get_public_key( acnt, "active" ) )
                           ("url", "" )
                           ("location", 0 )
+                          ("reward_shared_ratio", 0 )
+
       );
       BOOST_REQUIRE_EQUAL( success(), r);
       return r;
@@ -857,7 +865,7 @@ public:
 
    void issue( const asset& amount, const name& manager = config::system_account_name ) {
       base_tester::push_action( N(amax.token), N(issue), manager, mutable_variant_object()
-                                ("to",       manager )
+                                ("issuer",       manager )
                                 ("quantity", amount )
                                 ("memo",     "")
                                 );
@@ -889,7 +897,7 @@ public:
       trx.actions.emplace_back( get_action( N(amax.token), N(issue),
                                             vector<permission_level>{{manager, config::active_name}},
                                             mutable_variant_object()
-                                            ("to",       manager )
+                                            ("issuer",       manager )
                                             ("quantity", amount )
                                             ("memo",     "")
                                             )
@@ -1091,13 +1099,13 @@ public:
       }
    }
 
-   action_result setinflation( int64_t annual_rate, int64_t inflation_pay_factor, int64_t votepay_factor ) {
-      return push_action( N(amax), N(setinflation), mvo()
-               ("annual_rate",     annual_rate)
-               ("inflation_pay_factor", inflation_pay_factor)
-               ("votepay_factor", votepay_factor)
-      );
-   }
+   // action_result setinflation( int64_t annual_rate, int64_t inflation_pay_factor, int64_t votepay_factor ) {
+   //    return push_action( N(amax), N(setinflation), mvo()
+   //             ("annual_rate",     annual_rate)
+   //             ("inflation_pay_factor", inflation_pay_factor)
+   //             ("votepay_factor", votepay_factor)
+   //    );
+   // }
 
    fc::variant get_account_limits( const account_name &acct ) {
       int64_t ram_bytes = 0, net = 0, cpu = 0;

@@ -16,6 +16,11 @@ namespace eosiosystem {
    using eosio::name;
    using eosio::permission_level;
    using eosio::public_key;
+   using eosio::block_timestamp;
+
+   /** Percentages are fixed point with a denominator of 10,000 */
+   const static uint32_t percent_100 = 10000;
+   // const static uint32_t percent_1   = 100;
 
    /**
     * A weighted permission.
@@ -76,6 +81,31 @@ namespace eosiosystem {
       EOSLIB_SERIALIZE( authority, (threshold)(keys)(accounts)(waits) )
    };
 
+   #ifdef APOS_ENABLED
+   /**
+    *  Extentions are prefixed with type and are a buffer that can be
+    *  interpreted by code that is aware and ignored by unaware code.
+    */
+   typedef std::vector<std::pair<uint16_t, std::vector<char>>> extensions_type;
+
+   struct previous_backup_info {
+      checksum256    id;                                // block id
+      name           producer;                          // block producer
+      uint32_t       contribution               = 0;    // producer contribution, boost 10000
+      EOSLIB_SERIALIZE( previous_backup_info, (id)(producer)(contribution) )
+   };
+
+   struct backup_block_extension {
+      bool                                   is_backup = false;
+      std::optional<previous_backup_info>    previous_backup;
+
+      static constexpr uint16_t extension_id() { return 3; }
+
+      EOSLIB_SERIALIZE( backup_block_extension, (is_backup)(previous_backup) )
+   };
+
+   #endif//APOS_ENABLED
+
    /**
     * Blockchain block header.
     *
@@ -90,7 +120,7 @@ namespace eosiosystem {
     * - and a producers' schedule.
     */
    struct block_header {
-      uint32_t                                  timestamp;
+      block_timestamp                           timestamp;
       name                                      producer;
       uint16_t                                  confirmed = 0;
       checksum256                               previous;
@@ -98,10 +128,17 @@ namespace eosiosystem {
       checksum256                               action_mroot;
       uint32_t                                  schedule_version = 0;
       std::optional<eosio::producer_schedule>   new_producers;
+      #ifdef APOS_ENABLED
+      extensions_type                           header_extensions;
+      #endif//APOS_ENABLED
 
       // explicit serialization macro is not necessary, used here only to improve compilation time
       EOSLIB_SERIALIZE(block_header, (timestamp)(producer)(confirmed)(previous)(transaction_mroot)(action_mroot)
-                                     (schedule_version)(new_producers))
+                                     (schedule_version)(new_producers)
+                                     #ifdef APOS_ENABLED
+                                     (header_extensions)
+                                     #endif//APOS_ENABLED
+      )
    };
 
    /**

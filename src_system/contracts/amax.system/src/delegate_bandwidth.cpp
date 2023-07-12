@@ -363,7 +363,7 @@ namespace eosiosystem {
       check( 0 <= voter_itr->staked, "stake for voting cannot be negative" );
 
       if( voter_itr->producers.size() || voter_itr->proxy ) {
-         update_votes( voter, voter_itr->proxy, voter_itr->producers, false );
+         update_vote_weight_old( voter, voter_itr->proxy, voter_itr->producers, false );
       }
    }
 
@@ -391,8 +391,8 @@ namespace eosiosystem {
       check( unstake_cpu_quantity >= zero_asset, "must unstake a positive amount" );
       check( unstake_net_quantity >= zero_asset, "must unstake a positive amount" );
       check( unstake_cpu_quantity.amount + unstake_net_quantity.amount > 0, "must unstake a positive amount" );
-      check( _gstate.thresh_activated_stake_time != time_point(),
-             "cannot undelegate bandwidth until the chain is activated (at least 15% of all tokens participate in voting)" );
+      check( _gstate.thresh_activated_stake_time != time_point() || _elect_gstate.is_init(),
+             "cannot undelegate bandwidth until the chain is activated (at least 5% of all tokens participate in voting or electing is initialized)" );
 
       changebw( from, receiver, -unstake_net_quantity, -unstake_cpu_quantity, false);
    } // undelegatebw
