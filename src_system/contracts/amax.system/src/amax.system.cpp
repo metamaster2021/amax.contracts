@@ -16,6 +16,7 @@ namespace eosiosystem {
     _voters(get_self(), get_self().value),
     _producers(get_self(), get_self().value),
     _global(get_self(), get_self().value),
+    _elect_global(get_self(), get_self().value),
     _rammarket(get_self(), get_self().value),
     _rexpool(get_self(), get_self().value),
     _rexretpool(get_self(), get_self().value),
@@ -23,8 +24,13 @@ namespace eosiosystem {
     _rexfunds(get_self(), get_self().value),
     _rexbalance(get_self(), get_self().value),
     _rexorders(get_self(), get_self().value)
+    #ifdef APOS_ENABLED
+    ,
+    _elected_changes(get_self(), get_self().value)
+    #endif
    {
       _gstate  = _global.exists() ? _global.get() : get_default_parameters();
+      _elect_gstate  = _elect_global.exists() ? _elect_global.get() : elect_global_state();
    }
 
    symbol system_contract::get_core_symbol(const name& self) {
@@ -48,6 +54,7 @@ namespace eosiosystem {
 
    system_contract::~system_contract() {
       _global.set( _gstate, get_self() );
+      _elect_global.set( _elect_gstate, get_self() );
    }
 
    void system_contract::setram( uint64_t max_ram_size ) {
@@ -276,20 +283,6 @@ namespace eosiosystem {
       _gstate.revision = revision;
    }
 
-   void system_contract::setinflation(  time_point inflation_start_time, const asset& initial_inflation_per_block ) {
-      require_auth(get_self());
-      check(initial_inflation_per_block.symbol == core_symbol(), "inflation symbol mismatch with core symbol");
-      
-      const auto& ct = eosio::current_time_point();
-      if (_gstate.inflation_start_time != time_point() ) {
-         check( ct < _gstate.inflation_start_time, "inflation has been started");
-      }
-      check(inflation_start_time > ct, "inflation start time must larger then current time");
-
-      _gstate.inflation_start_time = inflation_start_time;
-      _gstate.initial_inflation_per_block = initial_inflation_per_block;
-   }
-
    /**
     *  Called after a new account is created. This code enforces resource-limits rules
     *  for new accounts as well as new account naming conventions.
@@ -367,7 +360,7 @@ namespace eosiosystem {
       auto system_token_supply   = eosio::token::get_supply(token_account, core.code() );
       check( system_token_supply.symbol == core, "specified core symbol does not exist (precision mismatch)" );
       check( system_token_supply.amount > 0, "system token supply must be greater than 0" );
-      
+
       _gstate.core_symbol = core;
 
       _rammarket.emplace( get_self(), [&]( auto& m ) {

@@ -74,7 +74,7 @@ public:
 
    action_result issue( account_name issuer, asset quantity, string memo ) {
       return push_action( issuer, N(issue), mvo()
-           ( "to", issuer)
+           ( "issuer", issuer)
            ( "quantity", quantity)
            ( "memo", memo)
       );
@@ -354,7 +354,7 @@ BOOST_FIXTURE_TEST_CASE( open_tests, eosio_token_tester ) try {
    BOOST_REQUIRE_EQUAL(true, alice_balance.is_null() );
    BOOST_REQUIRE_EQUAL( wasm_assert_msg("tokens can only be issued to issuer account"),
                         push_action( N(alice), N(issue), mvo()
-                                     ( "to",       "bob")
+                                     ( "issuer",       "bob")
                                      ( "quantity", asset::from_string("1000 CERO") )
                                      ( "memo",     "") ) );
    BOOST_REQUIRE_EQUAL( success(), issue( N(alice), asset::from_string("1000 CERO"), "issue" ) );

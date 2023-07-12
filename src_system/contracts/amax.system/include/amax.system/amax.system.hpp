@@ -11,10 +11,15 @@
 #include <amax.system/exchange_state.hpp>
 #include <amax.system/native.hpp>
 
+#ifdef APOS_ENABLED
+#include <amax.system/producer_change.hpp>
+#endif//APOS_ENABLED
+
 #include <deque>
 #include <optional>
 #include <string>
 #include <type_traits>
+#include <cmath>
 
 #ifdef CHANNEL_RAM_AND_NAMEBID_FEES_TO_REX
 #undef CHANNEL_RAM_AND_NAMEBID_FEES_TO_REX
@@ -24,8 +29,31 @@
 // be set to 0.
 #define CHANNEL_RAM_AND_NAMEBID_FEES_TO_REX 1
 
+#define PP(prop) "," #prop ":", prop
+#define PP0(prop) #prop ":", prop
+#define PRINT_PROPERTIES(...) eosio::print("{", __VA_ARGS__, "}")
+
+#define CHECK(exp, msg) { if (!(exp)) eosio::check(false, msg); }
+#define CHECKC(exp, code, msg) \
+   { if (!(exp)) eosio::check(false, string("[[") + to_string((int)code) + string("]] ")  \
+                                    + string("[[") + _self.to_string() + string("]] ") + msg); }
+
+#ifndef ASSERT
+    #define ASSERT(exp) CHECK(exp, #exp)
+#endif
+
+#define LESS(a, b)                     (a) < (b) ? true : false
+#define LARGER(a, b)                   (a) > (b) ? true : false
+#define LESS_OR(a, b, other_compare)   (a) < (b) ? true : (a) > (b) ? false : ( other_compare )
+#define LARGER_OR(a, b, other_compare) (a) > (b) ? true : (a) < (b) ? false : ( other_compare )
+
+template<class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
+template<class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
+
 namespace eosiosystem {
 
+   using std::string;
+   using std::optional;
    using eosio::asset;
    using eosio::block_timestamp;
    using eosio::check;
@@ -39,7 +67,37 @@ namespace eosiosystem {
    using eosio::time_point;
    using eosio::time_point_sec;
    using eosio::unsigned_int;
+   #ifdef APOS_ENABLED
+   using eosio::proposed_producer_changes;
+   #endif//APOS_ENABLED
+   using eosio::block_signing_authority;
 
+   enum class err: uint8_t {
+      NONE                 = 0,
+      RECORD_NOT_FOUND     = 1,
+      RECORD_EXISTING      = 2,
+      SYMBOL_MISMATCH      = 4,
+      PARAM_ERROR          = 5,
+      MEMO_FORMAT_ERROR    = 6,
+      PAUSED               = 7,
+      NO_AUTH              = 8,
+      NOT_POSITIVE         = 9,
+      NOT_STARTED          = 10,
+      OVERSIZED            = 11,
+      TIME_EXPIRED         = 12,
+      NOTIFY_UNRELATED     = 13,
+      ACTION_REDUNDANT     = 14,
+      ACCOUNT_INVALID      = 15,
+      FEE_INSUFFICIENT     = 16,
+      FIRST_CREATOR        = 17,
+      STATUS_ERROR         = 18,
+      SCORE_NOT_ENOUGH     = 19,
+      NEED_REQUIRED_CHECK  = 20,
+      VOTE_ERROR           = 100,
+      VOTE_REFUND_ERROR    = 101,
+      VOTE_CHANGE_ERROR    = 102
+   };
+   
    inline constexpr int64_t powerup_frac = 1'000'000'000'000'000ll;  // 1.0 = 10^15
 
    template<typename E, typename F>
@@ -61,7 +119,18 @@ namespace eosiosystem {
          return ( flags & ~static_cast<F>(field) );
    }
 
-   static constexpr uint32_t seconds_per_year      = 52 * 7 * 24 * 3600;
+   template<typename T>
+   int128_t multiply_decimal(int128_t a, int128_t b, int128_t precision) {
+      // with rounding-off method
+      int128_t tmp = 10 * a * b / precision;
+      CHECK(tmp >= std::numeric_limits<T>::min() && tmp <= std::numeric_limits<T>::max(),
+            "overflow exception of multiply_decimal");
+      return (tmp + 5) / 10;
+   }
+
+   #define multiply_decimal64(a, b, precision) multiply_decimal<int64_t>(a, b, precision)
+
+   static constexpr uint32_t seconds_per_year      = 365 * 24 * 3600;
    static constexpr uint32_t seconds_per_day       = 24 * 3600;
    static constexpr uint32_t seconds_per_hour      = 3600;
    static constexpr int64_t  useconds_per_year     = int64_t(seconds_per_year) * 1000'000ll;
@@ -70,17 +139,37 @@ namespace eosiosystem {
    static constexpr uint32_t blocks_per_minute     = 60 * 1000 / block_timestamp::block_interval_ms;
    static constexpr uint32_t blocks_per_day        = seconds_per_day * 1000 / block_timestamp::block_interval_ms;
 
-   static constexpr int64_t  min_activated_stake   = 50'000'000'0000'0000;
+   static constexpr int64_t  min_activated_stake            = 50'000'000'0000'0000;
+   static constexpr int64_t  total_main_producer_rewards    = 50'000'000'0000'0000;
+   static constexpr int64_t  total_backup_producer_rewards  = 50'000'000'0000'0000;
+   static constexpr int64_t  reward_halving_period_seconds  = 5 * seconds_per_year;
+   static constexpr int64_t  reward_halving_period_blocks   = reward_halving_period_seconds * 1000 / block_timestamp::block_interval_ms;
+
    static constexpr int64_t  ram_gift_bytes        = 1400;
 
    static constexpr uint32_t refund_delay_sec      = 3 * seconds_per_day;
 
+   static constexpr uint32_t ratio_boost           = 10000;
+
+   #ifdef APOS_ENABLED
+   static constexpr uint32_t min_backup_producer_count = 3;
+   #endif
+
+   static constexpr symbol   vote_symbol                 = symbol("VOTE", 4);
+   static constexpr uint32_t max_vote_producer_count     = 30;
+   static constexpr uint32_t vote_interval_sec           = 1 * seconds_per_day;
+   static constexpr int64_t  vote_to_core_asset_factor   = 10000;
+
+
+   static const asset        vote_asset_0                = asset(0, vote_symbol);
+
+   #define VOTE_ASSET(amount) asset(amount, vote_symbol)
 
   /**
    * The `amax.system` smart contract is provided by `Armoniax` as a sample system contract, and it defines the structures and actions needed for blockchain's core functionality.
-   * 
+   *
    * Just like in the `amax.bios` sample contract implementation, there are a few actions which are not implemented at the contract level (`newaccount`, `updateauth`, `deleteauth`, `linkauth`, `unlinkauth`, `canceldelay`, `onerror`, `setabi`, `setcode`), they are just declared in the contract so they will show in the contract's ABI and users will be able to push those actions to the chain via the account holding the `amax.system` contract, but the implementation is at the AMAX core level. They are referred to as AMAX native actions.
-   * 
+   *
    * - Users can stake tokens for CPU and Network bandwidth, and then vote for producers or
    *    delegate their vote to a proxy.
    * - Producers register in order to be voted for, and can claim per-block and per-vote rewards.
@@ -89,7 +178,7 @@ namespace eosiosystem {
    * - A resource exchange system (REX) allows token holders to lend their tokens,
    *    and users to rent CPU and Network resources in return for a market-determined fee.
    */
-  
+
    // A name bid, which consists of:
    // - a `newname` name that the bid is for
    // - a `high_bidder` account name that is the one with the highest bid so far
@@ -120,6 +209,47 @@ namespace eosiosystem {
 
    typedef eosio::multi_index< "bidrefunds"_n, bid_refund > bid_refund_table;
 
+   struct producer_elected_info {
+      eosio::name             name;
+      bool                    is_active         = true;
+      asset                   elected_votes     = asset(0, vote_symbol);
+      eosio::block_signing_authority authority;
+
+      void clear() {
+         name.value = 0;
+         is_active = true;
+         elected_votes.amount = 0;
+         authority = eosio::block_signing_authority{};
+      }
+
+      bool empty() const {
+         return !bool(name);
+      }
+
+      inline friend bool operator<(const producer_elected_info& a, const producer_elected_info& b)  {
+         return LESS_OR(a.is_active, b.is_active, LESS_OR(a.elected_votes, b.elected_votes, LARGER(a.name, b.name)));
+      }
+
+      inline friend bool operator>(const producer_elected_info& a, const producer_elected_info& b)  {
+         return LARGER_OR(a.is_active, b.is_active, LARGER_OR(a.elected_votes, b.elected_votes, LESS(a.name, b.name)));
+      }
+
+      inline friend bool operator<=(const producer_elected_info& a, const producer_elected_info& b)  {
+          return !(a > b);
+      }
+      inline friend bool operator>=(const producer_elected_info& a, const producer_elected_info& b)  {
+         return !(a < b);
+      }
+      inline friend bool operator==(const producer_elected_info& a, const producer_elected_info& b)  {
+         return a.is_active == b.is_active && a.elected_votes == b.elected_votes && a.name == b.name;
+      }
+      inline friend bool operator!=(const producer_elected_info& a, const producer_elected_info& b)  {
+         return !(a == b);
+      }
+
+      EOSLIB_SERIALIZE( producer_elected_info, (name)(is_active)(elected_votes)(authority) )
+   };
+
    // Defines new global state parameters.
    struct [[eosio::table("global"), eosio::contract("amax.system")]] amax_global_state : eosio::blockchain_parameters {
       uint64_t free_ram()const { return max_ram_size - total_ram_bytes_reserved; }
@@ -136,28 +266,89 @@ namespace eosiosystem {
       double               total_producer_vote_weight = 0; /// the sum of all producer votes
       block_timestamp      last_name_close;
 
-      uint16_t          new_ram_per_block = 0;
-      block_timestamp   last_ram_increase;
-      time_point        inflation_start_time;         // inflation start time
-      asset             initial_inflation_per_block;  // initial inflation per block
-      name              reward_dispatcher;            // block inflation reward dispatcher
-      uint8_t           revision = 0; ///< used to track version updates in the future.
+      uint16_t             new_ram_per_block = 0;
+      block_timestamp      last_ram_increase;
+      time_point           init_reward_start_time;    /// start time of initializing reward phase
+      time_point           init_reward_end_time;      /// end time of initializing reward phase
+      uint64_t             reserved0 = 0;             // reserved0
+      uint64_t             reserved1 = 0;             // reserved1
+      uint8_t              revision = 0; ///< used to track version updates in the future.
 
       // explicit serialization macro is not necessary, used here only to improve compilation time
       EOSLIB_SERIALIZE_DERIVED( amax_global_state, eosio::blockchain_parameters,
                                 (core_symbol)(max_ram_size)(total_ram_bytes_reserved)(total_ram_stake)
                                 (last_producer_schedule_update)
                                 (total_activated_stake)(thresh_activated_stake_time)
-                                (last_producer_schedule_size)(total_producer_vote_weight)(last_name_close) 
+                                (last_producer_schedule_size)(total_producer_vote_weight)(last_name_close)
                                 (new_ram_per_block)(last_ram_increase)
-                                (inflation_start_time)(initial_inflation_per_block)(reward_dispatcher)
+                                (init_reward_start_time)(init_reward_end_time)(reserved0)(reserved1)
                                 (revision)
       )
    };
+   typedef eosio::singleton< "global"_n, amax_global_state >   global_state_singleton;
+
+   struct producer_elected_queue {
+      uint32_t                  last_producer_count = 0;
+      producer_elected_info     tail;
+      producer_elected_info     tail_prev;
+      producer_elected_info     tail_next;
+      EOSLIB_SERIALIZE( producer_elected_queue, (last_producer_count)(tail)(tail_prev)(tail_next) )
+   };
+
+
+   struct producer_reward_info {
+      asset                     total_rewards;              /// total rewards
+      asset                     rewards_per_block;          /// rewards per block
+      asset                     produced_rewards;           /// produced rewards
+   };
+
+
+   // Defines elect global state parameters.
+   struct [[eosio::table("electglobal"), eosio::contract("amax.system")]] elect_global_state {
+      uint8_t                    elected_version               = 0;
+      int128_t                   total_producer_elected_votes  = 0; /// the sum of all producer elected votes
+      uint32_t                   max_main_producer_count       = 21;
+      uint32_t                   max_backup_producer_count     = 10000;
+      asset                      min_producer_votes            = VOTE_ASSET(1'000'0000);
+
+      uint64_t                   last_producer_change_id       = 0;
+      bool                       producer_change_interrupted   = false;
+      producer_elected_queue     main_elected_queue;
+      producer_elected_queue     backup_elected_queue;
+
+      int64_t                    having_period_num = 0;     /// having period number
+      producer_reward_info       main_reward_info;          /// reward info of main producers
+      producer_reward_info       backup_reward_info;        /// reward info of backup producers
+
+      uint32_t                   min_backup_reward_contribution    = 3000; // the min contribution to which the backup producer is rewarded, boost 10000
+
+      EOSLIB_SERIALIZE( elect_global_state, (elected_version)(total_producer_elected_votes)
+                                            (max_main_producer_count)(max_backup_producer_count)
+                                            (min_producer_votes)(last_producer_change_id)
+                                            (producer_change_interrupted)
+                                            (main_elected_queue)(backup_elected_queue)(having_period_num)
+                                            (main_reward_info)(backup_reward_info)(min_backup_reward_contribution))
+
+      bool is_init() const  { return elected_version > 0; }
+
+      #ifdef APOS_ENABLED
+      inline uint32_t min_producer_count() const {
+         return max_main_producer_count + min_backup_producer_count;
+      }
+      #endif//APOS_ENABLED
+
+   };
+
+   typedef eosio::singleton< "electglobal"_n, elect_global_state >   elect_global_state_singleton;
 
    inline eosio::block_signing_authority convert_to_block_signing_authority( const eosio::public_key& producer_key ) {
       return eosio::block_signing_authority_v0{ .threshold = 1, .keys = {{producer_key, 1}} };
    }
+
+   struct producer_info_ext {
+      asset          elected_votes        = vote_asset_0;
+      uint32_t       reward_shared_ratio  = 0;
+   };
 
    // Defines `producer_info` structure to be stored in `producer_info` table, added after version 1.0
    struct [[eosio::table, eosio::contract("amax.system")]] producer_info {
@@ -170,21 +361,57 @@ namespace eosiosystem {
       time_point                                               last_claimed_time;
       asset                                                    unclaimed_rewards;
       eosio::block_signing_authority                           producer_authority;
+      eosio::binary_extension<producer_info_ext, false>        ext;
 
       uint64_t primary_key()const { return owner.value;                             }
       double   by_votes()const    { return is_active ? -total_votes : total_votes;  }
+
+      inline static uint128_t by_elected_prod(const name& owner, bool is_active, const asset& votes) {
+         static constexpr int64_t int64_max = std::numeric_limits<int64_t>::max();
+         static constexpr uint64_t uint64_max = std::numeric_limits<uint64_t>::max();
+         static_assert( uint64_max - (uint64_t)int64_max == (uint64_t)int64_max + 1 );
+         uint64_t amount = votes.amount;
+         ASSERT(amount < int64_max);
+         uint64_t hi = is_active ? (uint64_t)int64_max - amount : uint64_max - amount;
+         return uint128_t(hi) << 64 | owner.value;
+      }
+
+      inline uint128_t by_elected_prod() const {
+         return ext ? by_elected_prod(owner, is_active, ext->elected_votes)
+                    : by_elected_prod(owner, is_active, vote_asset_0);
+      }
+
       bool     active()const      { return is_active;                               }
       void     deactivate()       {
-         producer_key = public_key(); 
+         producer_key = public_key();
          std::visit( [](auto&& auth ) -> void {
-               auth.threshold = 0; 
+               auth.threshold = 0;
                auth.keys.clear();
             }, producer_authority );
-         is_active = false; 
-      }      
+         is_active = false;
+      }
+
+      inline const asset& get_elected_votes() const {
+         return ext ? ext->elected_votes : vote_asset_0;
+      }
+
+      inline producer_elected_info get_elected_info() const {
+         return producer_elected_info{
+            .name = owner,
+            .elected_votes = get_elected_votes(),
+            .authority = producer_authority
+         };
+      }
+
+      inline void get_elected_info(producer_elected_info& info) const {
+         info.name = owner;
+         info.elected_votes = get_elected_votes();
+         info.authority = producer_authority;
+      }
+
       // explicit serialization macro is not necessary, used here only to improve compilation time
       EOSLIB_SERIALIZE( producer_info, (owner)(total_votes)(producer_key)(is_active)(url)(location)
-                                       (last_claimed_time)(unclaimed_rewards)(producer_authority) )
+                                       (last_claimed_time)(unclaimed_rewards)(producer_authority) (ext) )
    };
 
    // Voter info. Voter info stores information about the voter:
@@ -194,23 +421,23 @@ namespace eosiosystem {
    // - `staked` the amount staked
    struct [[eosio::table, eosio::contract("amax.system")]] voter_info {
       name                owner;     /// the voter
-      name                proxy;     /// the proxy set by the voter, if any
+      name                proxy;     /// [deprecated] the proxy set by the voter, if any
       std::vector<name>   producers; /// the producers approved by this voter if no proxy set
-      int64_t             staked = 0;
+      int64_t             staked = 0; /// [deprecated] staked of CPU and NET
 
       //  Every time a vote is cast we must first "undo" the last vote weight, before casting the
       //  new vote weight.  Vote weight is calculated as:
       //  stated.amount * 2 ^ ( weeks_since_launch/weeks_per_year)
-      double              last_vote_weight = 0; /// the vote weight cast the last time the vote was updated
+      double              last_vote_weight = 0; /// [deprecated] the vote weight cast the last time the vote was updated
 
       // Total vote weight delegated to this voter.
-      double              proxied_vote_weight= 0; /// the total vote weight delegated to this voter as a proxy
-      bool                is_proxy = 0; /// whether the voter is a proxy for others
+      double              proxied_vote_weight= 0; /// [deprecated] the total vote weight delegated to this voter as a proxy
+      bool                is_proxy = 0; /// [deprecated] whether the voter is a proxy for others
 
 
-      uint32_t            flags1 = 0;
-      uint32_t            reserved2 = 0;
-      eosio::asset        reserved3;
+      uint32_t            flags1                = 0;                       /// resource managed flags
+      asset               votes                 = asset(0, vote_symbol);   /// elected votes
+      block_timestamp     last_unvoted_time;                               /// vote updated time
 
       uint64_t primary_key()const { return owner.value; }
 
@@ -221,7 +448,8 @@ namespace eosiosystem {
       };
 
       // explicit serialization macro is not necessary, used here only to improve compilation time
-      EOSLIB_SERIALIZE( voter_info, (owner)(proxy)(producers)(staked)(last_vote_weight)(proxied_vote_weight)(is_proxy)(flags1)(reserved2)(reserved3) )
+      EOSLIB_SERIALIZE( voter_info, (owner)(proxy)(producers)(staked)(last_vote_weight)
+                                    (proxied_vote_weight)(is_proxy)(flags1)(votes)(last_unvoted_time) )
    };
 
 
@@ -229,10 +457,9 @@ namespace eosiosystem {
 
 
    typedef eosio::multi_index< "producers"_n, producer_info,
-                               indexed_by<"prototalvote"_n, const_mem_fun<producer_info, double, &producer_info::by_votes>  >
+                               indexed_by<"prototalvote"_n, const_mem_fun<producer_info, double, &producer_info::by_votes>  >,
+                               indexed_by<"electedprod"_n, const_mem_fun<producer_info, uint128_t, &producer_info::by_elected_prod>, /*Nullable*/ true >
                              > producers_table;
-
-   typedef eosio::singleton< "global"_n, amax_global_state >   global_state_singleton;
 
    struct [[eosio::table, eosio::contract("amax.system")]] user_resources {
       name          owner;
@@ -275,10 +502,22 @@ namespace eosiosystem {
       EOSLIB_SERIALIZE( refund_request, (owner)(request_time)(net_amount)(cpu_amount) )
    };
 
+   struct [[eosio::table, eosio::contract("amax.system")]] vote_refund {
+      name            owner;
+      time_point_sec  request_time;
+      eosio::asset    votes;
+
+      uint64_t  primary_key()const { return owner.value; }
+
+      // explicit serialization macro is not necessary, used here only to improve compilation time
+      EOSLIB_SERIALIZE( vote_refund, (owner)(request_time)(votes) )
+   };
+
 
    typedef eosio::multi_index< "userres"_n, user_resources >      user_resources_table;
    typedef eosio::multi_index< "delband"_n, delegated_bandwidth > del_bandwidth_table;
    typedef eosio::multi_index< "refunds"_n, refund_request >      refunds_table;
+   typedef eosio::multi_index< "voterefund"_n, vote_refund >      vote_refund_table;
 
    // `rex_pool` structure underlying the rex pool table. A rex pool table entry is defined by:
    // - `version` defaulted to zero,
@@ -551,6 +790,22 @@ namespace eosiosystem {
                                indexed_by<"byexpires"_n, const_mem_fun<powerup_order, uint64_t, &powerup_order::by_expires>>
                                > powerup_order_table;
 
+
+   #ifdef APOS_ENABLED
+   struct [[eosio::table,eosio::contract("amax.system")]] elected_change {
+      uint64_t                      id;             // pk, auto increasement
+      proposed_producer_changes     changes;
+      block_timestamp               created_at;
+
+      uint64_t primary_key()const { return id; }
+
+      EOSLIB_SERIALIZE( elected_change, (id)(changes)(created_at) )
+   };
+
+   typedef eosio::multi_index< "electchange"_n, elected_change> elected_change_table;
+
+   #endif//APOS_ENABLED
+
    /**
     * The `amax.system` smart contract is provided by `Armoniax` as a sample system contract, and it defines the structures and actions needed for blockchain's core functionality.
     *
@@ -568,17 +823,22 @@ namespace eosiosystem {
    class [[eosio::contract("amax.system")]] system_contract : public native {
 
       private:
-         voters_table             _voters;
-         producers_table          _producers;
-         global_state_singleton   _global;
-         amax_global_state       _gstate;
-         rammarket                _rammarket;
-         rex_pool_table           _rexpool;
-         rex_return_pool_table    _rexretpool;
-         rex_return_buckets_table _rexretbuckets;
-         rex_fund_table           _rexfunds;
-         rex_balance_table        _rexbalance;
-         rex_order_table          _rexorders;
+         voters_table                  _voters;
+         producers_table               _producers;
+         global_state_singleton        _global;
+         amax_global_state             _gstate;
+         elect_global_state_singleton  _elect_global;
+         elect_global_state            _elect_gstate;
+         rammarket                     _rammarket;
+         rex_pool_table                _rexpool;
+         rex_return_pool_table         _rexretpool;
+         rex_return_buckets_table      _rexretbuckets;
+         rex_fund_table                _rexfunds;
+         rex_balance_table             _rexbalance;
+         rex_order_table               _rexorders;
+         #ifdef APOS_ENABLED
+         elected_change_table          _elected_changes;
+         #endif//APOS_ENABLED
 
       public:
          static constexpr eosio::name active_permission{"active"_n};
@@ -586,9 +846,11 @@ namespace eosiosystem {
          static constexpr eosio::name ram_account{"amax.ram"_n};
          static constexpr eosio::name ramfee_account{"amax.ramfee"_n};
          static constexpr eosio::name stake_account{"amax.stake"_n};
+         static constexpr eosio::name vote_account{"amax.vote"_n};
          static constexpr eosio::name names_account{"amax.names"_n};
          static constexpr eosio::name rex_account{"amax.rex"_n};
          static constexpr eosio::name reserv_account{"amax.reserv"_n};
+         static constexpr eosio::name reward_account{"amax.reward"_n};
          static constexpr eosio::name null_account{"amax.null"_n};
          static constexpr symbol ramcore_symbol = symbol(symbol_code("RAMCORE"), 4);
          static constexpr symbol ram_symbol     = symbol(symbol_code("RAM"), 0);
@@ -1003,6 +1265,15 @@ namespace eosiosystem {
          [[eosio::action]]
          void refund( const name& owner );
 
+         /**
+          * Vote refund action, this action is called after the subvote-period to claim all pending
+          * staked AMAX of substracted votes belonging to owner.
+          *
+          * @param owner - the owner of the tokens claimed.
+          */
+         [[eosio::action]]
+         void voterefund( const name& owner );
+
          // functions defined in voting.cpp
 
          /**
@@ -1014,12 +1285,14 @@ namespace eosiosystem {
           * @param producer_key - the public key of the block producer, this is the key used by block producer to sign blocks,
           * @param url - the url of the block producer, normally the url of the block producer presentation website,
           * @param location - is the country code as defined in the ISO 3166, https://en.wikipedia.org/wiki/List_of_ISO_3166_country_codes
+          * @param reward_shared_ratio - reward shared ratio
           *
           * @pre Producer to register is an account
           * @pre Authority of producer to register
           */
          [[eosio::action]]
-         void regproducer( const name& producer, const public_key& producer_key, const std::string& url, uint16_t location );
+         void regproducer( const name& producer, const public_key& producer_key, const string& url,
+                           uint16_t location, optional<uint32_t> reward_shared_ratio );
 
          /**
           * Register producer action, indicates that a particular account wishes to become a producer,
@@ -1030,12 +1303,33 @@ namespace eosiosystem {
           * @param producer_authority - the weighted threshold multisig block signing authority of the block producer used to sign blocks,
           * @param url - the url of the block producer, normally the url of the block producer presentation website,
           * @param location - is the country code as defined in the ISO 3166, https://en.wikipedia.org/wiki/List_of_ISO_3166_country_codes
+          * @param reward_shared_ratio - reward shared ratio
           *
           * @pre Producer to register is an account
           * @pre Authority of producer to register
           */
          [[eosio::action]]
-         void regproducer2( const name& producer, const eosio::block_signing_authority& producer_authority, const std::string& url, uint16_t location );
+         void regproducer2(   const name& producer, const block_signing_authority& producer_authority,
+                              const string& url, uint16_t location, optional<uint32_t> reward_shared_ratio );
+
+
+         /**
+          * Add producer action, indicates that a particular account wishes to become a producer,
+          * this action will create a `producer_config` and a `producer_info` object for `producer` scope
+          * in producers tables.
+          *
+          * @param producer - account registering to be a producer candidate,
+          * @param producer_authority - the weighted threshold multisig block signing authority of the block producer used to sign blocks,
+          * @param url - the url of the block producer, normally the url of the block producer presentation website,
+          * @param location - is the country code as defined in the ISO 3166, https://en.wikipedia.org/wiki/List_of_ISO_3166_country_codes
+          * @param reward_shared_ratio - reward shared ratio
+          *
+          * @pre Producer to register is an account
+          * @pre Authority of contract self
+          */
+         [[eosio::action]]
+         void addproducer(   const name& producer, const block_signing_authority& producer_authority,
+                              const string& url, uint16_t location, optional<uint32_t> reward_shared_ratio );
 
          /**
           * Unregister producer action, deactivates the block producer with account name `producer`.
@@ -1088,6 +1382,64 @@ namespace eosiosystem {
           */
          [[eosio::action]]
          void voteproducer( const name& voter, const name& proxy, const std::vector<name>& producers );
+
+
+         /**
+          * Vote producer action, new version, votes for a set of producers. This action updates the list of `producers` voted for,
+          * for `voter` account. Voter can vote for a list of at most 30 producers.
+          * Storage change is billed to `voter`.
+          *
+          * @param voter - the account to change the voted producers for,
+          * @param producers - the list of producers to vote for, a maximum of 30 producers is allowed.
+          *
+          * @pre Producers must be sorted from lowest to highest and must be registered and active
+          * @pre Every listed producer must have been previously registered
+          * @pre Voter must authorize this action
+          * @pre Voter must have previously staked some EOS for voting
+          * @pre Voter->votes must be positive
+          * @pre Voter can only update votes once a day, restricted actions: (addvote, subvote, vote)
+          *
+          * @post Every producer previously voted for will have vote reduced by previous vote amount
+          * @post Every producer newly voted for will have vote increased by new vote amount
+          */
+         [[eosio::action]]
+         void vote( const name& voter, const std::vector<name>& producers );
+
+         /**
+          * Add vote action. This action add voter's `votes` for voting,
+          * Storage change is billed to `voter`.
+          *
+          * @param voter - the voter account,
+          * @param votes - the votes to add. symbol must be `VOTE`, amount must be positive
+          *
+          * @pre Voter must authorize this action
+          * @pre Voter must have enough AMAX to stake to add votes
+          * @pre Voter can only update votes once a day, restricted actions: (addvote, subvote, vote)
+          *
+          * @post All producers `voter` account has voted for will have their votes updated immediately.
+          */
+         [[eosio::action]]
+         void addvote( const name& voter, const asset& votes );
+
+         /**
+          * Sub vote action. This action substract voter's `votes` for voting,
+          * Storage change is billed to `voter`.
+          *
+          * @param voter - the voter account,
+          * @param votes - the votes to substract. symbol must be `VOTE` and amount must be positive
+          *
+          * @pre Voter must authorize this action
+          * @pre Voter must have enough votes to substract
+          * @pre Voter can only have one substracted votes at a time (including processing of delayed refunds)
+          * @pre Voter can only update votes once a day, restricted actions: (addvote, subvote, vote)
+          *
+          * @post The staked AMAX of substracted votes are transferred to `voter` liquid balance via a
+          *    deferred `voterefund` transaction with a delay of 3 days.
+          * @post All producers `voter` account has voted for will have their votes updated immediately.
+          * @post Bandwidth and storage for the deferred transaction are billed to `voter`.
+          */
+         [[eosio::action]]
+         void subvote( const name& voter, const asset& votes );
 
          /**
           * Register proxy action, sets `proxy` account as proxy.
@@ -1174,14 +1526,41 @@ namespace eosiosystem {
          void bidrefund( const name& bidder, const name& newname );
 
          /**
-          * Set inflation Parameters
-          * Only be set after contract init() and before inflation start.
+          * Config reward parameters
+          * Only be set after contract init() and before reward start.
           *
-          * @param inflation_start_time - inflation start time
-          * @param initial_inflation_per_block initial inflation per block.
+          * @param init_reward_start_time - start time of initializing reward phase.
+          * @param init_reward_end_time - end time of initializing reward phase.
+          * @param main_rewards_per_block - rewards per block of main producers in initializing reward phase.
+          * @param backup_rewards_per_block - rewards per block of backup producers in initializing reward phase.
           */
          [[eosio::action]]
-         void setinflation( time_point inflation_start_time, const asset& initial_inflation_per_block );
+         void cfgreward( const time_point& init_reward_start_time, const time_point& init_reward_end_time,
+                         const asset& main_rewards_per_block, const asset& backup_rewards_per_block );
+
+         #ifdef APOS_ENABLED
+         /**
+          * Config contribution of producers
+          *
+          * @param min_backup_reward_contribution -  the min contribution to which the backup producer is rewarded, boost 10000.
+          */
+         [[eosio::action]]
+         void cfgcontrib( uint32_t min_backup_reward_contribution );
+
+         /**
+          * initialize elect producers
+          *
+          * @param payer - the resource buyer
+          */
+         [[eosio::action]]
+         void initelects( uint32_t max_backup_producer_count );
+         #endif //APOS_ENABLE
+
+         /**
+          * enable new voting strategy
+          */
+         [[eosio::action]]
+         void upgradevote();
 
          /**
           * Configure the `power` market. The market becomes available the first time this
@@ -1245,6 +1624,7 @@ namespace eosiosystem {
          using refund_action = eosio::action_wrapper<"refund"_n, &system_contract::refund>;
          using regproducer_action = eosio::action_wrapper<"regproducer"_n, &system_contract::regproducer>;
          using regproducer2_action = eosio::action_wrapper<"regproducer2"_n, &system_contract::regproducer2>;
+         using addproducer_action = eosio::action_wrapper<"addproducer"_n, &system_contract::addproducer>;
          using unregprod_action = eosio::action_wrapper<"unregprod"_n, &system_contract::unregprod>;
          using setram_action = eosio::action_wrapper<"setram"_n, &system_contract::setram>;
          using setramrate_action = eosio::action_wrapper<"setramrate"_n, &system_contract::setramrate>;
@@ -1258,7 +1638,10 @@ namespace eosiosystem {
          using setpriv_action = eosio::action_wrapper<"setpriv"_n, &system_contract::setpriv>;
          using setalimits_action = eosio::action_wrapper<"setalimits"_n, &system_contract::setalimits>;
          using setparams_action = eosio::action_wrapper<"setparams"_n, &system_contract::setparams>;
-         using setinflation_action = eosio::action_wrapper<"setinflation"_n, &system_contract::setinflation>;
+         using cfgreward_action = eosio::action_wrapper<"cfgreward"_n, &system_contract::cfgreward>;
+         #ifdef APOS_ENABLED
+         using cfgcontrib_action = eosio::action_wrapper<"cfgcontrib"_n, &system_contract::cfgcontrib>;
+         #endif //APOS_ENABLED
          using cfgpowerup_action = eosio::action_wrapper<"cfgpowerup"_n, &system_contract::cfgpowerup>;
          using powerupexec_action = eosio::action_wrapper<"powerupexec"_n, &system_contract::powerupexec>;
          using powerup_action = eosio::action_wrapper<"powerup"_n, &system_contract::powerup>;
@@ -1314,10 +1697,21 @@ namespace eosiosystem {
          void update_voting_power( const name& voter, const asset& total_update );
 
          // defined in voting.cpp
-         void register_producer( const name& producer, const eosio::block_signing_authority& producer_authority, const std::string& url, uint16_t location );
-         void update_elected_producers( const block_timestamp& timestamp );
-         void update_votes( const name& voter, const name& proxy, const std::vector<name>& producers, bool voting );
-         void propagate_weight_change( const voter_info& voter );
+         void register_producer( const name& producer, const eosio::block_signing_authority& producer_authority,
+                                 const std::string& url, uint16_t location, optional<uint32_t> reward_shared_ratio );
+         bool update_elected_producers( const block_timestamp& timestamp );
+         #ifdef APOS_ENABLED
+         void update_elected_producer_changes( const block_timestamp& timestamp );
+         #endif//APOS_ENABLED
+         void update_vote_weight_old( const name& voter, const name& proxy, const std::vector<name>& producers, bool voting );
+         #ifdef APOS_ENABLED
+         void update_producer_elected_votes( const std::vector<name>& producers, const asset& votes_delta,
+                                             bool is_adding, proposed_producer_changes &changes);
+         #else
+         void update_producer_elected_votes( const std::vector<name>& producers, const asset& votes_delta,
+                                             bool is_adding);
+         #endif//APOS_ENABLED
+         void propagate_weight_change( const voter_info& voter, const name& payer );
 
          template <auto system_contract::*...Ptrs>
          class registration {
@@ -1357,6 +1751,29 @@ namespace eosiosystem {
             time_point_sec now, symbol core_symbol, powerup_state& state,
             powerup_order_table& orders, uint32_t max_items, int64_t& net_delta_available,
             int64_t& cpu_delta_available);
+
+         #ifdef APOS_ENABLED
+         template<typename elect_index_type>
+         bool reinit_elected_producers( const elect_index_type& elect_idx,
+                                        proposed_producer_changes& changes );
+         void process_elected_producer( const producer_elected_info& prod_old, const producer_elected_info& prod_new,
+                                        proposed_producer_changes &changes );
+
+         void save_producer_changes(proposed_producer_changes &changes, const name& payer );
+         #endif//APOS_ENABLED
+
+         inline asset vote_to_core_asset(const asset& votes);
+
+         inline bool is_prod_votes_valid(const asset& votes) {
+            return votes.amount > 0 && votes >= _elect_gstate.min_producer_votes;
+         }
+
+         inline bool is_prod_votes_valid(const producer_elected_info &elected_info) {
+            return is_prod_votes_valid(elected_info.elected_votes);
+         }
+
+         void inc_producer_rewards(const name& producer, producer_reward_info& reward_info);
    };
+
 
 }
