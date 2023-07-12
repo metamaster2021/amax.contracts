@@ -408,7 +408,8 @@ namespace eosiosystem {
    void system_contract::regproducer(  const name& producer, const eosio::public_key& producer_key,
                                        const string& url, uint16_t location,
                                        optional<uint32_t> reward_shared_ratio ) {
-      require_auth( producer );
+      // require_auth( producer );
+      check( has_auth(producer) || has_auth(get_self()), "missing authority producer" );
       check( url.size() < 512, "url too long" );
 
       register_producer( producer, convert_to_block_signing_authority( producer_key ), url, location, reward_shared_ratio );
@@ -419,7 +420,8 @@ namespace eosiosystem {
                                        const string& url,
                                        uint16_t location,
                                        optional<uint32_t> reward_shared_ratio) {
-      require_auth( producer );
+      // require_auth( producer );
+      check( has_auth(producer) || has_auth(get_self()), "missing authority producer" );
       check( url.size() < 512, "url too long" );
 
       std::visit( [&](auto&& auth ) {
