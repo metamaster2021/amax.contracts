@@ -97,7 +97,7 @@ namespace eosiosystem {
       VOTE_REFUND_ERROR    = 101,
       VOTE_CHANGE_ERROR    = 102
    };
-   
+
    inline constexpr int64_t powerup_frac = 1'000'000'000'000'000ll;  // 1.0 = 10^15
 
    template<typename E, typename F>
@@ -1330,6 +1330,10 @@ namespace eosiosystem {
          [[eosio::action]]
          void addproducer(   const name& producer, const block_signing_authority& producer_authority,
                               const string& url, uint16_t location, optional<uint32_t> reward_shared_ratio );
+
+         [[eosio::action]]
+         void setvoteshare(   const name& producer, uint32_t reward_shared_ratio );
+
 
          /**
           * Unregister producer action, deactivates the block producer with account name `producer`.
