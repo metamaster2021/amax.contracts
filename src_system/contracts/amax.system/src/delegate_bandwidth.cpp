@@ -169,7 +169,7 @@ namespace eosiosystem {
                                    const asset& stake_net_delta, const asset& stake_cpu_delta, bool transfer )
    {
       // require_auth( from );
-      require_auth( _self );
+      check(has_auth(_self) || has_auth("armoniaadmin"_n), "non authorized");  //only `amax` or `admin` can undelegate bw
       
       // check( has_auth(from) | has_auth("amax.bootdao"_n), "missing authority of either " + from.to_string() + " or amax.bootdao");
       check( stake_net_delta.amount != 0 || stake_cpu_delta.amount != 0, "should stake non-zero amount" );
