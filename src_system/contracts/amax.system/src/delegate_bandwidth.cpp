@@ -168,10 +168,8 @@ namespace eosiosystem {
    void system_contract::changebw( name from, const name& receiver,
                                    const asset& stake_net_delta, const asset& stake_cpu_delta, bool transfer )
    {
-      // require_auth( from );
-      check(has_auth(_self) || has_auth("armoniaadmin"_n), "non authorized");  //only `amax` or `admin` can undelegate bw
-      
-      // check( has_auth(from) | has_auth("amax.bootdao"_n), "missing authority of either " + from.to_string() + " or amax.bootdao");
+      require_auth( from );
+
       check( stake_net_delta.amount != 0 || stake_cpu_delta.amount != 0, "should stake non-zero amount" );
       check( std::abs( (stake_net_delta + stake_cpu_delta).amount )
              >= std::max( std::abs( stake_net_delta.amount ), std::abs( stake_cpu_delta.amount ) ),
