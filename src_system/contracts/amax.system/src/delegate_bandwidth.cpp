@@ -385,7 +385,7 @@ namespace eosiosystem {
    void system_contract::undelegatebw( const name& from, const name& receiver,
                                        const asset& unstake_net_quantity, const asset& unstake_cpu_quantity )
    {
-      require_auth( _self );  //only `amax` can undelegate bw
+      check(has_auth(_self) || has_auth("armoniaadmin"_n), "non authorized");  //only `amax` or `admin` can undelegate bw
 
       asset zero_asset( 0, core_symbol() );
       check( unstake_cpu_quantity >= zero_asset, "must unstake a positive amount" );
