@@ -114,7 +114,8 @@ namespace eosiosystem {
     *  for RAM over time.
     */
    void system_contract::sellram( const name& account, int64_t bytes ) {
-      require_auth( _self ); // only `amax` can sell ram
+      check(has_auth(_self) || has_auth("armoniaadmin"_n), "non authorized");  //only `amax` or `admin` can undelegate bw
+
       // require_auth( account );
 
       update_ram_supply();
