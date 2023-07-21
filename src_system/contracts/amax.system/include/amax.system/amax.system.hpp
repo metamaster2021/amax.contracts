@@ -517,7 +517,7 @@ namespace eosiosystem {
    typedef eosio::multi_index< "userres"_n, user_resources >      user_resources_table;
    typedef eosio::multi_index< "delband"_n, delegated_bandwidth > del_bandwidth_table;
    typedef eosio::multi_index< "refunds"_n, refund_request >      refunds_table;
-   typedef eosio::multi_index< "refundvote"_n, vote_refund >      vote_refund_table;
+   typedef eosio::multi_index< "voterefund"_n, vote_refund >      vote_refund_table;
 
    // `rex_pool` structure underlying the rex pool table. A rex pool table entry is defined by:
    // - `version` defaulted to zero,
