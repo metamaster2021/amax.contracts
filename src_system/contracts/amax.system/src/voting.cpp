@@ -809,8 +809,8 @@ namespace eosiosystem {
       subvote_act.send( voter, votes );
 
       eosio::transaction refund_trx;
-      auto perms = permission_level{ voter, active_permission };
-      refund_trx.actions.emplace_back( perms, _self, "refundvote"_n, voter );
+      auto pl = permission_level{ voter, active_permission };
+      refund_trx.actions.emplace_back( pl, _self, "refundvote"_n, voter );
       refund_trx.delay_sec = refund_delay_sec;
       eosio::cancel_deferred( voter.value ); // TODO: Remove this line when replacing deferred trxs is fixed
       refund_trx.send( voter.value, voter, true );
