@@ -810,7 +810,7 @@ namespace eosiosystem {
 
       eosio::transaction refund_trx;
       refund_trx.actions.emplace_back( permission_level{voter, active_permission},
-                                 get_self(), "voterefund"_n,
+                                 get_self(), "refundvote"_n,
                                  voter
       );
       refund_trx.delay_sec = refund_delay_sec;
@@ -890,18 +890,15 @@ namespace eosiosystem {
       });
    }
 
-   void system_contract::voterefund( const name& owner ) {
-      require_auth( owner );
-
+   void system_contract::refundvote( const name& owner ) {
       vote_refund_table vote_refund_tbl( get_self(), owner.value );
       auto itr = vote_refund_tbl.find( owner.value );
       check( itr != vote_refund_tbl.end(), "no vote refund found" );
-      check( itr->request_time + seconds(refund_delay_sec) <= current_time_point(),
-             "refund is not available yet" );
+      check( itr->request_time + seconds(refund_delay_sec) <= current_time_point(), "refund period not mature yet" );
 
       auto vote_staked = vote_to_core_asset(itr->votes);
       token::transfer_action transfer_act{ token_account, { {vote_account, active_permission} } };
-      transfer_act.send( vote_account, itr->owner, vote_staked, "voterefund" );
+      transfer_act.send( vote_account, itr->owner, vote_staked, "refundvote" );
       vote_refund_tbl.erase( itr );
    }
 

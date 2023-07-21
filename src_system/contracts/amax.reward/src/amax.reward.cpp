@@ -92,9 +92,9 @@ void amax_reward::subvote( const name& voter, const asset& votes ) {
 }
 
 void amax_reward::voteproducer( const name& voter, const std::vector<name>& producers ) {
-
    require_auth( SYSTEM_CONTRACT );
    require_auth( voter );
+
    for( size_t i = 1; i < producers.size(); ++i ) {
       check( producers[i - 1] < producers[i], "producer votes must be uniqued and sorted" );
    }

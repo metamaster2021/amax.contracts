@@ -517,7 +517,7 @@ namespace eosiosystem {
    typedef eosio::multi_index< "userres"_n, user_resources >      user_resources_table;
    typedef eosio::multi_index< "delband"_n, delegated_bandwidth > del_bandwidth_table;
    typedef eosio::multi_index< "refunds"_n, refund_request >      refunds_table;
-   typedef eosio::multi_index< "voterefund"_n, vote_refund >      vote_refund_table;
+   typedef eosio::multi_index< "refundvote"_n, vote_refund >      vote_refund_table;
 
    // `rex_pool` structure underlying the rex pool table. A rex pool table entry is defined by:
    // - `version` defaulted to zero,
@@ -1272,7 +1272,9 @@ namespace eosiosystem {
           * @param owner - the owner of the tokens claimed.
           */
          [[eosio::action]]
-         void voterefund( const name& owner );
+         void refundvote( const name& owner );
+
+         ACTION voterefund( const name& owner ) { refundvote( owner ); }
 
          // functions defined in voting.cpp
 
@@ -1438,7 +1440,7 @@ namespace eosiosystem {
           * @pre Voter can only update votes once a day, restricted actions: (addvote, subvote, vote)
           *
           * @post The staked AMAX of substracted votes are transferred to `voter` liquid balance via a
-          *    deferred `voterefund` transaction with a delay of 3 days.
+          *    deferred `refundvote` transaction with a delay of 3 days.
           * @post All producers `voter` account has voted for will have their votes updated immediately.
           * @post Bandwidth and storage for the deferred transaction are billed to `voter`.
           */
