@@ -809,12 +809,11 @@ namespace eosiosystem {
       subvote_act.send( voter, votes );
 
       static const name act_name = "refundvote"_n;
-      uint128_t trx_send_id = uint128_t(act_name.value) << 64 || voter.value;
+      uint128_t trx_send_id = uint128_t(act_name.value) << 64 | voter.value;
       eosio::transaction refund_trx;
       auto pl = permission_level{ voter, active_permission };
       refund_trx.actions.emplace_back( pl, _self, act_name, voter );
       refund_trx.delay_sec = refund_delay_sec;
-      eosio::cancel_deferred( trx_send_id ); // TODO: Remove this line when replacing deferred trxs is fixed
       refund_trx.send( trx_send_id, voter, true );
 
    }
