@@ -1478,6 +1478,14 @@ namespace eosiosystem {
          [[eosio::action]]
          void claimrewards( const name& submitter, const name& owner );
 
+
+         /**
+          * Undo rewards action, undo the produced block rewards.
+          * @param owner - producer account.
+          */
+         [[eosio::action]]
+         void undoreward( const name& owner, const asset& rewards );
+
          /**
           * Set privilege status for an account. Allows to set privilege status for an account (turn it on/off).
           * @param account - the account to set the privileged status for.

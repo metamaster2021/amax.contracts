@@ -214,7 +214,7 @@ namespace eosiosystem {
       const auto& prod = _producers.get( owner.value );
       check( prod.active(), "producer does not have an active key" );
 
-      check(_elect_gstate.is_init(), "election does not initialized");
+      check(_elect_gstate.is_init(), "election is not initialized");
 
       const auto ct = current_time_point();
 
@@ -246,4 +246,26 @@ namespace eosiosystem {
             p.last_claimed_time = ct;
       });
    }
+
+   void system_contract::undoreward( const name& owner, const asset& rewards ) {
+      require_auth( owner );
+
+      const auto& prod = _producers.get( owner.value );
+      CHECK( prod.active(), "producer does not have an active key" )
+
+      CHECK(_elect_gstate.is_init(), "election is not initialized")
+
+      const auto ct = current_time_point();
+
+      CHECK(prod.ext, "producer is not updated by regproducer")
+
+      CHECK(rewards.amount > 0, "rewards must be positive")
+      CHECK(prod.unclaimed_rewards >= rewards, "insufficient unclaimed rewards")
+
+      _producers.modify( prod, owner, [&](auto& p ) {
+            p.unclaimed_rewards -= rewards;
+            p.last_claimed_time = ct;
+      });
+   }
+
 } //namespace eosiosystem
