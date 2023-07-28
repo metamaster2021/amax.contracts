@@ -208,9 +208,9 @@ namespace eosiosystem {
       reward_info.produced_rewards = produced_rewards;
    }
 
-   void system_contract::claimrewards( const name& owner ) {
-      require_auth( owner );
-
+   void system_contract::claimrewards( const name& submitter, const name& owner ) {
+      require_auth( submitter );
+      
       const auto& prod = _producers.get( owner.value );
       check( prod.active(), "producer does not have an active key" );
 

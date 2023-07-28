@@ -1476,7 +1476,7 @@ namespace eosiosystem {
           * @param owner - producer account claiming per-block and per-vote rewards.
           */
          [[eosio::action]]
-         void claimrewards( const name& owner );
+         void claimrewards( const name& submitter, const name& owner );
 
          /**
           * Set privilege status for an account. Allows to set privilege status for an account (turn it on/off).

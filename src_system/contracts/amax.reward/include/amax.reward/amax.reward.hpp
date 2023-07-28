@@ -118,7 +118,7 @@ namespace amax {
           * @param voter_name - the account of voter
           */
          [[eosio::action]]
-         void claimrewards(const name& voter_name);
+         void claimrewards( const name& voter_name );
 
         /**
          * Notify by transfer() of xtoken contract
