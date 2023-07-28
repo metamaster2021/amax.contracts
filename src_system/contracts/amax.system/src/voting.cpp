@@ -232,6 +232,16 @@ namespace eosiosystem {
       _gstate.last_producer_schedule_update = ct;
    }
 
+   void system_contract::setmprodvote(const asset& min_producer_votes) {
+
+      require_auth( get_self() );
+
+      CHECK(min_producer_votes.symbol == vote_symbol, "min_producer_votes symbol mismatch")
+      CHECK(min_producer_votes.amount > 0, "min_producer_votes must be positive")
+      CHECK( min_producer_votes != _elect_gstate.min_producer_votes, "min_producer_votes no change")
+      _elect_gstate.min_producer_votes = min_producer_votes;
+   }
+
 #ifdef APOS_ENABLED
    void system_contract::initelects( uint32_t max_backup_producer_count ) {
       require_auth( get_self() );

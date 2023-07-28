@@ -1569,6 +1569,13 @@ namespace eosiosystem {
          void upgradevote();
 
          /**
+          * set min producer votes
+          */
+         [[eosio::action]]
+         void setmprodvote(const asset& min_producer_votes);
+
+
+         /**
           * Configure the `power` market. The market becomes available the first time this
           * action is invoked.
           */
