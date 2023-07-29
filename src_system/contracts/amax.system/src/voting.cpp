@@ -841,8 +841,6 @@ namespace eosiosystem {
       check( voter_itr != _voters.end(), "voter not found" ); /// addvote creates voter object
 
       ASSERT( voter_itr->votes.amount >= 0 )
-      CHECKC( voter_itr->producers != producers, err::VOTE_CHANGE_ERROR, "producers no change" )
-      
       // CHECKC( voter_itr->producers != producers, err::VOTE_CHANGE_ERROR, "producers no change" )
       if( voter_itr->producers == producers ) return;
 
