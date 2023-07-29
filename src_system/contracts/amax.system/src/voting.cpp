@@ -828,6 +828,7 @@ namespace eosiosystem {
 
    }
 
+   //  void system_contract::addproducers( const name& voter, const std::vector<name>& producers );
    void system_contract::vote( const name& voter, const std::vector<name>& producers ) {
       require_auth(voter);
 
@@ -841,6 +842,9 @@ namespace eosiosystem {
 
       ASSERT( voter_itr->votes.amount >= 0 )
       CHECKC( voter_itr->producers != producers, err::VOTE_CHANGE_ERROR, "producers no change" )
+      
+      // CHECKC( voter_itr->producers != producers, err::VOTE_CHANGE_ERROR, "producers no change" )
+      if( voter_itr->producers == producers ) return;
 
       auto now = current_time_point();
       CHECK( time_point(voter_itr->last_unvoted_time) + seconds(vote_interval_sec) < now, "Voter can only vote or subvote once a day" )
