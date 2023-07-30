@@ -221,7 +221,7 @@ namespace eosiosystem {
       const auto curr_hours = ( ct.sec_since_epoch() % seconds_per_day ) / 3600;
       CHECK( curr_hours >= 1, "must claim only after 1 AM UTC time" )
 
-      CHECK(prod.ext, "producer is not updated by regproducer")
+      CHECK( prod.ext, "producer hasnot been set via regproducer" )
       ASSERT(prod.ext->reward_shared_ratio <= ratio_boost);
 
       check(prod.unclaimed_rewards.amount > 0, "There are no more rewards to claim");
