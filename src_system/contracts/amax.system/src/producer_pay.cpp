@@ -219,7 +219,7 @@ namespace eosiosystem {
       const auto ct = current_time_point();
 
       const auto curr_hours = ( ct.sec_since_epoch() % seconds_per_day ) / 3600;
-      CHECK( curr_hours >= 1, "must claim only after 1 AM UTC time" )
+      CHECK( curr_hours >= 1 && curr_hours < 2, "must claim only between 1-2 AM UTC time" )
 
       CHECK( prod.ext, "producer hasnot been set via regproducer" )
       ASSERT(prod.ext->reward_shared_ratio <= ratio_boost);
