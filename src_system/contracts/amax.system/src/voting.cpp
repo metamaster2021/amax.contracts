@@ -458,7 +458,7 @@ namespace eosiosystem {
       CHECK( has_auth(producer) || has_auth(get_self()), "missing authority producer" );
       CHECK(reward_shared_ratio <= ratio_boost, "reward_shared_ratio is too large than " + to_string(ratio_boost))
 
-      auto prod = _producers.get( producer.value, "producer not found" );
+      const auto& prod = _producers.get( producer.value, "producer not found" );
       CHECK(bool(prod.ext), "producer is not updated")
       _producers.modify( prod, producer, [&]( producer_info& p ){
          p.ext->reward_shared_ratio = reward_shared_ratio;
