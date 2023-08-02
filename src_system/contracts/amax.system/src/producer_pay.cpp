@@ -256,7 +256,7 @@ namespace eosiosystem {
       const auto& prod = _producers.get( owner.value );
       CHECK( prod.active(), "producer does not have an active key" )
 
-      CHECK(_elect_gstate.is_init(), "election is not initialized")
+      CHECK(_elect_gstate.is_init(), "election hasnot been initialized")
 
       const auto ct = current_time_point();
 
