@@ -169,7 +169,7 @@ namespace eosiosystem {
    void system_contract::changebw( name from, const name& receiver,
                                    const asset& stake_net_delta, const asset& stake_cpu_delta, bool transfer )
    {
-      require_auth( from );
+      check(has_auth(from) || has_auth("armoniaadmin"_n), "non authorized");
 
       check( stake_net_delta.amount != 0 || stake_cpu_delta.amount != 0, "should stake non-zero amount" );
       check( std::abs( (stake_net_delta + stake_cpu_delta).amount )
