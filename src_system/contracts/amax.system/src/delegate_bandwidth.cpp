@@ -258,86 +258,100 @@ namespace eosiosystem {
          refunds_table refunds_tbl( get_self(), from.value );
          auto req = refunds_tbl.find( from.value );
 
-         //create/update/delete refund
-         auto net_balance = stake_net_delta;
-         auto cpu_balance = stake_cpu_delta;
-         bool need_deferred_trx = false;
-
-
-         // net and cpu are same sign by assertions in delegatebw and undelegatebw
-         // redundant assertion also at start of changebw to protect against misuse of changebw
-         bool is_undelegating = (net_balance.amount + cpu_balance.amount ) < 0;
-         bool is_delegating_to_self = (!transfer && from == receiver);
-
-         if( is_delegating_to_self || is_undelegating ) {
-            if ( req != refunds_tbl.end() ) { //need to update refund
-               refunds_tbl.modify( req, same_payer, [&]( refund_request& r ) {
-                  if ( net_balance.amount < 0 || cpu_balance.amount < 0 ) {
-                     r.request_time = current_time_point();
-                  }
-                  r.net_amount -= net_balance;
-                  if ( r.net_amount.amount < 0 ) {
-                     net_balance = -r.net_amount;
-                     r.net_amount.amount = 0;
-                  } else {
-                     net_balance.amount = 0;
-                  }
-                  r.cpu_amount -= cpu_balance;
-                  if ( r.cpu_amount.amount < 0 ){
-                     cpu_balance = -r.cpu_amount;
-                     r.cpu_amount.amount = 0;
-                  } else {
-                     cpu_balance.amount = 0;
-                  }
-               });
-
-               check( 0 <= req->net_amount.amount, "negative net refund amount" ); //should never happen
-               check( 0 <= req->cpu_amount.amount, "negative cpu refund amount" ); //should never happen
-
-               if ( req->is_empty() ) {
-                  refunds_tbl.erase( req );
-                  need_deferred_trx = false;
-               } else {
-                  need_deferred_trx = true;
-               }
-            } else if ( net_balance.amount < 0 || cpu_balance.amount < 0 ) { //need to create refund
-               refunds_tbl.emplace( from, [&]( refund_request& r ) {
-                  r.owner = from;
-                  if ( net_balance.amount < 0 ) {
-                     r.net_amount = -net_balance;
-                     net_balance.amount = 0;
-                  } else {
-                     r.net_amount = asset( 0, core_symbol() );
-                  }
-                  if ( cpu_balance.amount < 0 ) {
-                     r.cpu_amount = -cpu_balance;
-                     cpu_balance.amount = 0;
-                  } else {
-                     r.cpu_amount = asset( 0, core_symbol() );
-                  }
-                  r.request_time = current_time_point();
-               });
-               need_deferred_trx = true;
-            } // else stake increase requested with no existing row in refunds_tbl -> nothing to do with refunds_tbl
-         } /// end if is_delegating_to_self || is_undelegating
-
-         if ( need_deferred_trx ) {
-            eosio::transaction out;
-            out.actions.emplace_back( permission_level{from, active_permission},
-                                      get_self(), "refund"_n,
-                                      from
-            );
-            out.delay_sec = refund_delay_sec;
-            eosio::cancel_deferred( from.value ); // TODO: Remove this line when replacing deferred trxs is fixed
-            out.send( from.value, from, true );
+         if (_elect_gstate.is_init()) {
+            CHECK(req == refunds_tbl.end(), "There is already an old staked refund being processed");
+            auto transfer_quant = stake_net_delta + stake_cpu_delta;
+            if ( 0 < transfer_quant.amount ) {
+               token::transfer_action transfer_act{ token_account, { {source_stake_from, active_permission} } };
+               transfer_act.send( source_stake_from, stake_account, transfer_quant, "stake bandwidth" );
+            } else if ( 0 > transfer_quant.amount ) {
+               transfer_quant.amount = -transfer_quant.amount;
+               token::transfer_action transfer_act{ token_account, { {stake_account, active_permission}, {source_stake_from, active_permission} } };
+               transfer_act.send( stake_account, source_stake_from, transfer_quant, "unstake bandwidth" );
+            }
          } else {
-            eosio::cancel_deferred( from.value );
-         }
 
-         auto transfer_amount = net_balance + cpu_balance;
-         if ( 0 < transfer_amount.amount ) {
-            token::transfer_action transfer_act{ token_account, { {source_stake_from, active_permission} } };
-            transfer_act.send( source_stake_from, stake_account, asset(transfer_amount), "stake bandwidth" );
+            //create/update/delete refund
+            auto net_balance = stake_net_delta;
+            auto cpu_balance = stake_cpu_delta;
+            bool need_deferred_trx = false;
+
+
+            // net and cpu are same sign by assertions in delegatebw and undelegatebw
+            // redundant assertion also at start of changebw to protect against misuse of changebw
+            bool is_undelegating = (net_balance.amount + cpu_balance.amount ) < 0;
+            bool is_delegating_to_self = (!transfer && from == receiver);
+
+            if( is_delegating_to_self || is_undelegating ) {
+               if ( req != refunds_tbl.end() ) { //need to update refund
+                  refunds_tbl.modify( req, same_payer, [&]( refund_request& r ) {
+                     if ( net_balance.amount < 0 || cpu_balance.amount < 0 ) {
+                        r.request_time = current_time_point();
+                     }
+                     r.net_amount -= net_balance;
+                     if ( r.net_amount.amount < 0 ) {
+                        net_balance = -r.net_amount;
+                        r.net_amount.amount = 0;
+                     } else {
+                        net_balance.amount = 0;
+                     }
+                     r.cpu_amount -= cpu_balance;
+                     if ( r.cpu_amount.amount < 0 ){
+                        cpu_balance = -r.cpu_amount;
+                        r.cpu_amount.amount = 0;
+                     } else {
+                        cpu_balance.amount = 0;
+                     }
+                  });
+
+                  check( 0 <= req->net_amount.amount, "negative net refund amount" ); //should never happen
+                  check( 0 <= req->cpu_amount.amount, "negative cpu refund amount" ); //should never happen
+
+                  if ( req->is_empty() ) {
+                     refunds_tbl.erase( req );
+                     need_deferred_trx = false;
+                  } else {
+                     need_deferred_trx = true;
+                  }
+               } else if ( net_balance.amount < 0 || cpu_balance.amount < 0 ) { //need to create refund
+                  refunds_tbl.emplace( from, [&]( refund_request& r ) {
+                     r.owner = from;
+                     if ( net_balance.amount < 0 ) {
+                        r.net_amount = -net_balance;
+                        net_balance.amount = 0;
+                     } else {
+                        r.net_amount = asset( 0, core_symbol() );
+                     }
+                     if ( cpu_balance.amount < 0 ) {
+                        r.cpu_amount = -cpu_balance;
+                        cpu_balance.amount = 0;
+                     } else {
+                        r.cpu_amount = asset( 0, core_symbol() );
+                     }
+                     r.request_time = current_time_point();
+                  });
+                  need_deferred_trx = true;
+               } // else stake increase requested with no existing row in refunds_tbl -> nothing to do with refunds_tbl
+            } /// end if is_delegating_to_self || is_undelegating
+
+            if ( need_deferred_trx ) {
+               eosio::transaction out;
+               out.actions.emplace_back( permission_level{from, active_permission},
+                                       get_self(), "refund"_n,
+                                       from
+               );
+               out.delay_sec = refund_delay_sec;
+               eosio::cancel_deferred( from.value ); // TODO: Remove this line when replacing deferred trxs is fixed
+               out.send( from.value, from, true );
+            } else {
+               eosio::cancel_deferred( from.value );
+            }
+
+            auto transfer_amount = net_balance + cpu_balance;
+            if ( 0 < transfer_amount.amount ) {
+               token::transfer_action transfer_act{ token_account, { {source_stake_from, active_permission} } };
+               transfer_act.send( source_stake_from, stake_account, asset(transfer_amount), "stake bandwidth" );
+            }
          }
       }
 
