@@ -210,21 +210,22 @@ namespace eosiosystem {
 
    void system_contract::claimrewards( const name& submitter, const name& owner ) {
       require_auth( submitter );
-      
-      const auto& prod = _producers.get( owner.value );
-      check( prod.active(), "producer does not have an active key" );
+      CHECK( submitter == owner, "only BP can claim inflated tokens for self" );
 
-      check(_elect_gstate.is_init(), "election is not initialized");
+      const auto& prod = _producers.get( owner.value );
+      CHECK( prod.active(), "producer does not have an active key" )
+      CHECK( prod.ext, "producer not set yet thru regproducer" )
+      CHECK(_elect_gstate.is_init(), "election is not initialized" )
+      CHECK(prod.unclaimed_rewards.amount > 0, "There are no more rewards to claim" )
 
       const auto ct = current_time_point();
-
-      const auto curr_hours = ( ct.sec_since_epoch() % seconds_per_day ) / 3600;
-      CHECK( curr_hours >= 1 && curr_hours < 2, "must claim only between 1-2 AM UTC time" )
-
-      CHECK( prod.ext, "producer hasnot been set via regproducer" )
-      ASSERT(prod.ext->reward_shared_ratio <= ratio_boost);
-
-      check(prod.unclaimed_rewards.amount > 0, "There are no more rewards to claim");
+      // const auto curr_hours = ( ct.sec_since_epoch() % seconds_per_day ) / 3600;
+      // CHECK( curr_hours >= 1 && curr_hours < 2, "must claim only between 1-2 AM UTC time" )
+      const auto elapsed = ct.sec_since_epoch() - prod.last_claimed_time.sec_since_epoch();
+      CHECK( elapsed >= seconds_per_day, "Can only reclaim after 24 hours since last claim time" )
+      
+      ASSERT( prod.ext->reward_shared_ratio <= ratio_boost );
+      
       int64_t shared_amount = multiply_decimal64(prod.unclaimed_rewards.amount, prod.ext->reward_shared_ratio, ratio_boost);
       ASSERT(shared_amount >= 0 && prod.unclaimed_rewards.amount >= shared_amount);
 
