@@ -222,7 +222,7 @@ namespace eosiosystem {
       // const auto curr_hours = ( ct.sec_since_epoch() % seconds_per_day ) / 3600;
       // CHECK( curr_hours >= 1 && curr_hours < 2, "must claim only between 1-2 AM UTC time" )
       const auto elapsed = ct.sec_since_epoch() - prod.last_claimed_time.sec_since_epoch();
-      CHECK( elapsed >= seconds_per_day, "Can only reclaim after 24 hours since last claim time" )
+      CHECK( elapsed >= seconds_per_day, "Claim after " + to_string( seconds_per_day - elapsed) + " sec" )
       
       ASSERT( prod.ext->reward_shared_ratio <= ratio_boost );
       
