@@ -210,7 +210,7 @@ namespace eosiosystem {
 
    void system_contract::claimrewards( const name& submitter, const name& owner ) {
       require_auth( submitter );
-      CHECK( submitter == owner, "only BP can claim inflated tokens for self" );
+      // CHECK( submitter == owner, "only BP can claim inflated tokens for self" );
 
       const auto& prod = _producers.get( owner.value );
       CHECK( prod.active(), "producer does not have an active key" )
