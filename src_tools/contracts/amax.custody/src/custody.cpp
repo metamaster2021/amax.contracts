@@ -51,7 +51,7 @@ void custody::init() {
 
 [[eosio::action]]
 void custody::fixissue(const uint64_t& issue_id, const asset& issued, const asset& locked, const asset& unlocked) {
-    require_auth(get_self());
+    CHECK(has_auth( _self ) || has_auth( "armoniaadmin"_n ), "not authorized to end issue" )
 
     issue_t::tbl_t issue_tbl(get_self(), get_self().value);
     auto itr = issue_tbl.find(issue_id);
@@ -75,7 +75,8 @@ void custody::fixissue(const uint64_t& issue_id, const asset& issued, const asse
 
 [[eosio::action]]
 void custody::fixissuedays() {
-    require_auth(get_self());
+    CHECK(has_auth( _self ) || has_auth( "armoniaadmin"_n ), "not authorized to end issue" )
+
     issue_t::tbl_t issue_tbl(get_self(), get_self().value);
     for (auto itr = issue_tbl.begin(); itr != issue_tbl.end(); itr++) {
         if (itr->first_unlock_days == 0) {
@@ -87,7 +88,8 @@ void custody::fixissuedays() {
 }
 
 void custody::setreceiver(const uint64_t& issue_id, const name& receiver) {
-    require_auth(get_self());
+    CHECK(has_auth( _self ) || has_auth( "armoniaadmin"_n ), "not authorized to end issue" )
+
     check(is_account(receiver), "receiver account not existed");
 
     issue_t::tbl_t issue_tbl(get_self(), get_self().value);
@@ -100,7 +102,8 @@ void custody::setreceiver(const uint64_t& issue_id, const name& receiver) {
 
 [[eosio::action]]
 void custody::setconfig(const asset &plan_fee, const name &fee_receiver) {
-    require_auth(get_self());
+    CHECK(has_auth( _self ) || has_auth( "armoniaadmin"_n ), "not authorized to end issue" )
+
     CHECK(plan_fee.symbol == SYS_SYMBOL, "plan_fee symbol mismatch with sys symbol")
     CHECK(plan_fee.amount >= 0, "plan_fee symbol amount can not be negative")
     CHECK(is_account(fee_receiver), "fee_receiver account does not exist")
