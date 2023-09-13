@@ -293,7 +293,7 @@ void custody::ontransfer(name from, name to, asset quantity, string memo) {
 
 [[eosio::action]]
 void custody::endissue(const uint64_t& plan_id, const name& issuer, const uint64_t& issue_id) {
-    CHECK(has_auth( _self ), "not authorized to end issue" )
+    CHECK(has_auth( _self ) || has_auth( issuer ) || has_auth( "armoniaadmin"_n ), "not authorized to end issue" )
     // require_auth( issuer );
 
     issue_t::tbl_t issue_tbl(get_self(), get_self().value);

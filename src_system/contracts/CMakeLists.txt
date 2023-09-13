@@ -26,10 +26,10 @@ file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/amax.contracts.version"
 
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/amax.contracts.version DESTINATION ${CMAKE_INSTALL_PREFIX}/contracts)
 
-add_subdirectory(amax.bios)
-add_subdirectory(amax.msig)
+# add_subdirectory(amax.bios)
+# add_subdirectory(amax.msig)
 add_subdirectory(amax.system)
-add_subdirectory(amax.token)
-add_subdirectory(amax.wrap)
+# add_subdirectory(amax.token)
+# add_subdirectory(amax.wrap)
 # add_subdirectory(amax.xtoken)
 add_subdirectory(amax.reward)
