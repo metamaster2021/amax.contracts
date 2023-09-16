@@ -36,3 +36,5 @@ build
 .vscode
 .build*
 .history/*
+
+src_mining/contracts/amgenesisdao/

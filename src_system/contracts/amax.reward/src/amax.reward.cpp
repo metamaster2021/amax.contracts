@@ -153,7 +153,24 @@ void amax_reward::voteproducer( const name& voter, const std::vector<name>& prod
 void amax_reward::claimrewards(const name& voter) {
    require_auth( voter );
 
-   auto now = eosio::current_time_point();
+   auto voter_itr = _voter_tbl.find(voter.value);
+   check(voter_itr != _voter_tbl.end(), "voter info not found");
+   check(voter_itr->votes.amount > 0, "voter's votes must be positive");
+
+   _voter_tbl.modify(voter_itr, voter, [&]( auto& v) {
+
+      allocate_producer_rewards(v.producers, v.votes, vote_asset_0, voter, v.unclaimed_rewards);
+      check(v.unclaimed_rewards.amount > 0, "no rewards to claim");
+      TRANSFER_OUT(CORE_TOKEN, voter, v.unclaimed_rewards, "voted rewards");
+
+      v.claimed_rewards += v.unclaimed_rewards;
+      v.unclaimed_rewards.amount = 0;
+      v.update_at = current_time_point();
+   });
+}
+
+void amax_reward::claimfor(const name& submitter, const name& voter) {
+   require_auth( submitter );
 
    auto voter_itr = _voter_tbl.find(voter.value);
    check(voter_itr != _voter_tbl.end(), "voter info not found");
@@ -167,7 +184,7 @@ void amax_reward::claimrewards(const name& voter) {
 
       v.claimed_rewards += v.unclaimed_rewards;
       v.unclaimed_rewards.amount = 0;
-      v.update_at = now;
+      v.update_at = current_time_point();
    });
 }
 

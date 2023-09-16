@@ -120,6 +120,7 @@ namespace amax {
          [[eosio::action]]
          void claimrewards( const name& voter_name );
 
+         ACTION claimfor(const name& submitter, const name& voter );
         /**
          * Notify by transfer() of xtoken contract
          *
