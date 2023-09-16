@@ -88,9 +88,9 @@ TBL register_auth_t {
 
 //Scope: _self
 TBL recover_auth_t {
-    name                        account;    
-    map<name, bool>             auth_requirements;     // contract -> bool: required | optional
-    uint32_t                    recover_threshold;        // >= global.recover_threshold, can be set by user
+    name                        account;                //PK
+    map<name, bool>             auth_requirements;      // contract -> bool: required | optional
+    uint32_t                    recover_threshold;      // >= global.recover_threshold, can be set by user
     time_point_sec              created_at;
     time_point_sec              updated_at;
     time_point_sec              last_recovered_at;     

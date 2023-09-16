@@ -37,7 +37,7 @@ using namespace std;
    void realme_dao::newaccount(const name& auth_contract, const name& creator, const name& account,  const authority& active ) {
       // check(is_account(account), "account invalid: " + account.to_string());
       recover_auth_t recoverauth(account);
-      CHECKC( !_dbc.get(recoverauth), err::RECORD_EXISTING, "account already exist. ");
+      CHECKC( !_dbc.get(recoverauth), err::RECORD_EXISTING, "realme account already created" )
       auto now           = current_time_point();
 
       auto auditconf = _audit_item(auth_contract);

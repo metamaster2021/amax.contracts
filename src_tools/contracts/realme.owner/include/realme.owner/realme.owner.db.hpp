@@ -31,7 +31,7 @@ static constexpr eosio::name ACTIVE_PERM        = "active"_n;
 #define NTBL(name) struct [[eosio::table(name), eosio::contract("realme.owner")]]
 
 NTBL("global") global_t {
-    name        amax_dao_contract   = RECOVER_ACCOUNT;
+    name        amax_dao_contract       = RECOVER_ACCOUNT;
     uint64_t    ram_bytes               = 5000;
     asset       stake_net_quantity      = asset(10000, SYS_SYMB); //TODO: set params in global table
     asset       stake_cpu_quantity      = asset(40000, SYS_SYMB);
