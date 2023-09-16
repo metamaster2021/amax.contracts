@@ -5,14 +5,14 @@ namespace eosio { namespace testing {
 
 struct contracts {
    
-   static std::vector<uint8_t> recover_wasm() { return read_wasm("${CMAKE_BINARY_DIR}/../contracts/amax.recover/amax.recover.wasm"); }
-   static std::vector<char>    recover_abi() { return read_abi("${CMAKE_BINARY_DIR}/../contracts/amax.recover/amax.recover.abi"); }
+   static std::vector<uint8_t> recover_wasm() { return read_wasm("${CMAKE_BINARY_DIR}/../contracts/realme.dao/realme.dao.wasm"); }
+   static std::vector<char>    recover_abi() { return read_abi("${CMAKE_BINARY_DIR}/../contracts/realme.dao/realme.dao.abi"); }
 
-   static std::vector<uint8_t> proxy_wasm() { return read_wasm("${CMAKE_BINARY_DIR}/../contracts/amax.proxy/amax.proxy.wasm"); }
-   static std::vector<char>    proxy_abi() { return read_abi("${CMAKE_BINARY_DIR}/../contracts/amax.proxy/amax.proxy.abi"); }
+   static std::vector<uint8_t> proxy_wasm() { return read_wasm("${CMAKE_BINARY_DIR}/../contracts/realme.owner/realme.owner.wasm"); }
+   static std::vector<char>    proxy_abi() { return read_abi("${CMAKE_BINARY_DIR}/../contracts/realme.owner/realme.owner.abi"); }
 
-   static std::vector<uint8_t> auth_wasm() { return read_wasm("${CMAKE_BINARY_DIR}/../contracts/amax.auth/amax.auth.wasm"); }
-   static std::vector<char>    auth_abi() { return read_abi("${CMAKE_BINARY_DIR}/../contracts/amax.auth/amax.auth.abi"); }
+   static std::vector<uint8_t> auth_wasm() { return read_wasm("${CMAKE_BINARY_DIR}/../contracts/realme.auth/realme.auth.wasm"); }
+   static std::vector<char>    auth_abi() { return read_abi("${CMAKE_BINARY_DIR}/../contracts/realme.auth/realme.auth.abi"); }
 
 };
 }} //ns eosio::testing

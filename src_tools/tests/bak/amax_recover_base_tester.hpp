@@ -19,23 +19,23 @@ using namespace std;
 using mvo = fc::mutable_variant_object;
 using recover_target_type = static_variant<public_key_type, string>;
 
-class amax_recover_base_tester : public tester {
+class realme_dao_base_tester : public tester {
 public:
 
-   amax_recover_base_tester() {
+   realme_dao_base_tester() {
       produce_blocks( 2 );
 
       // create_accounts( { N(alice), N(bob), N(carol) }, false, false );
-      create_accounts( { N(amax.recover) } , false, true);
+      create_accounts( { N(realme.dao) } , false, true);
       produce_blocks( 2 );
 
-      set_code( N(amax.recover), contracts::recover_wasm() );
+      set_code( N(realme.dao), contracts::recover_wasm() );
 
-      set_abi( N(amax.recover), contracts::recover_abi().data() );
+      set_abi( N(realme.dao), contracts::recover_abi().data() );
 
       produce_blocks();
 
-      const auto& accnt = control->db().get<account_object,by_name>( N(amax.recover) );
+      const auto& accnt = control->db().get<account_object,by_name>( N(realme.dao) );
       abi_def abi;
       // BOOST_REQUIRE_EQUAL(abi_serializer::to_abi(accnt.abi, abi), true);
       abi_ser.set_abi(abi, abi_serializer::create_yield_function(abi_serializer_max_time));
@@ -49,7 +49,7 @@ public:
       string action_type_name = abi_ser.get_action_type(name);
 
       action act;
-      act.account = N(amax.recover);
+      act.account = N(realme.dao);
       act.name    = name;
       act.data    = abi_ser.variant_to_binary( action_type_name, data, abi_serializer::create_yield_function(abi_serializer_max_time) );
 
@@ -58,7 +58,7 @@ public:
 
    fc::variant get_table_auth( const name& auth )
    {
-      vector<char> data = get_row_by_account( N(amax.recover), N(amax.recover), N(auths), auth );
+      vector<char> data = get_row_by_account( N(realme.dao), N(realme.dao), N(auths), auth );
       return data.empty() ? fc::variant() : abi_ser.binary_to_variant( "auth_t", data, abi_serializer::create_yield_function(abi_serializer_max_time) );
    }
 
@@ -84,7 +84,7 @@ public:
 
    fc::variant get_table_common(const string& table_def, const name& table_name, const name& pk )
    {
-      vector<char> data = get_row_by_account( N(amax.recover), N(amax.recover), table_name, pk);
+      vector<char> data = get_row_by_account( N(realme.dao), N(realme.dao), table_name, pk);
       return data.empty() ? fc::variant() : abi_ser.binary_to_variant( table_def, data, abi_serializer::create_yield_function(abi_serializer_max_time) );
    }
 
@@ -92,31 +92,31 @@ public:
    // {
    //    auto symb = eosio::chain::symbol::from_string(symbolname);
    //    auto symbol_code = symb.to_symbol_code().value;
-   //    vector<char> data = get_row_by_account( N(amax.recover), acc, N(accounts), account_name(symbol_code) );
+   //    vector<char> data = get_row_by_account( N(realme.dao), acc, N(accounts), account_name(symbol_code) );
    //    return data.empty() ? fc::variant() : abi_ser.binary_to_variant( "account", data, abi_serializer::create_yield_function(abi_serializer_max_time) );
    // }
 
    action_result action_init( uint8_t recover_threshold ) {
-      return push_action( N(amax.recover), N(init), mvo()
+      return push_action( N(realme.dao), N(init), mvo()
            ( "recover_threshold", recover_threshold)
       );
    }
 
    action_result action_setscore( name audit_type, int8_t score ) {
-      return push_action(  N(amax.recover), N(setscore), mvo()
+      return push_action(  N(realme.dao), N(setscore), mvo()
            ( "audit_type", audit_type)
            ( "score", score)
       );
    }
    action_result action_setauth( const name& account, const set<name>& actions  ) {
-      return push_action(  N(amax.recover), N(setauth), mvo()
+      return push_action(  N(realme.dao), N(setauth), mvo()
            ( "account", account)
            ( "actions", actions)
       );
    }
 
    action_result action_bindaccount(  const name& admin, const name& account, const string& number_hash ) {
-      return push_action(  N(amax.recover), N(bindaccount), mvo()
+      return push_action(  N(realme.dao), N(bindaccount), mvo()
            ( "admin",         admin)
            ( "account",       account)
            ( "number_hash",   number_hash)
@@ -125,7 +125,7 @@ public:
 
 
    action_result action_bindanswer( const name& admin, const name& account, map<uint8_t, string>& answers ) {
-      return push_action(  N(amax.recover), N(bindanswer), mvo()
+      return push_action(  N(realme.dao), N(bindanswer), mvo()
            ( "admin",      admin)
            ( "account",    account)
            ( "answers",    answers)
@@ -137,7 +137,7 @@ public:
                                        const string&        mobile_hash,
                                        const fc::variants&  recover_target,
                                        const bool&          manual_check_required) {
-      return push_action(  N(amax.recover), N(createorder), mvo()
+      return push_action(  N(realme.dao), N(createorder), mvo()
            ( "admin",            admin)
            ( "account",          account)
            ( "mobile_hash",      mobile_hash)
@@ -150,7 +150,7 @@ public:
                         const uint64_t&         order_id,
                         const name&             account,
                         const int8_t&           score) {
-      return push_action(  N(amax.recover), N(chkanswer), mvo()
+      return push_action(  N(realme.dao), N(chkanswer), mvo()
            ( "admin",      admin)
            ( "order_id",   order_id)
            ( "account",    account)
@@ -163,7 +163,7 @@ public:
                         const uint64_t& order_id,
                         const name& account,
                         const bool& passed) {
-      return push_action(  N(amax.recover), N(chkdid), mvo()
+      return push_action(  N(realme.dao), N(chkdid), mvo()
            ( "admin",      admin)
            ( "order_id",   order_id)
            ( "account",    account)
@@ -177,7 +177,7 @@ public:
                         const name& account,
                         const bool& passed) {
 
-      return push_action(  N(amax.recover), N(chkmanual), mvo()
+      return push_action(  N(realme.dao), N(chkmanual), mvo()
            ( "admin",      admin)
            ( "order_id",   order_id)
            ( "account",    account)
@@ -193,7 +193,7 @@ public:
    }
 
    action_result action_delorder( const name& submitter, const uint64_t& order_id ) {
-      return push_action(  N(amax.recover), N(delorder), mvo()
+      return push_action(  N(realme.dao), N(delorder), mvo()
            ( "submitter",  submitter)
            ( "order_id",   order_id)
       );

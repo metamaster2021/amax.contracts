@@ -23,11 +23,11 @@ tnew $r
 
 
 
-tset $p amax.proxy
-tset $c amax.auth
-tset $c2 amax.auth
-tset $c3 amax.auth
-tset $r amax.recover
+tset $p realme.owner
+tset $c realme.auth
+tset $c2 realme.auth
+tset $c3 realme.auth
+tset $r realme.dao
 
 
 tcli push action $p init '["'$r'"]' -p $p

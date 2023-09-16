@@ -7,7 +7,7 @@
 #include "Runtime/Runtime.h"
 
 #include <fc/variant_object.hpp>
-#include "amax_recover_base_tester.hpp"
+#include "realme_dao_base_tester.hpp"
 
 using namespace eosio::testing;
 using namespace eosio;
@@ -19,10 +19,10 @@ using namespace std;
 using mvo = fc::mutable_variant_object;
 
 
-class amax_recover_tester : public amax_recover_base_tester {
+class realme_dao_tester : public realme_dao_base_tester {
 public:
 
-   amax_recover_tester() {
+   realme_dao_tester() {
       init_contract();
    }
    
@@ -46,19 +46,19 @@ public:
    }
 };
 
-// BOOST_AUTO_TEST_SUITE(amax_recover)
+// BOOST_AUTO_TEST_SUITE(realme_dao)
 
-// BOOST_FIXTURE_TEST_CASE( amax_recover_tests, amax_recover_tester ) try {
+// BOOST_FIXTURE_TEST_CASE( realme_dao_tests, realme_dao_tester ) try {
 
 //    // get_table_auditscore("mobileno");
 //    // wdump(("accaudit:")(accaudit));
 
-//    //set account owner to amax.recover
+//    //set account owner to realme.dao
 
 //    std::cout<<"add code authority begin.\n";
 //    auto account_owner_auth = get_auth(N(account), N(owner));
 //    wdump(("---account owner auth: ---")(account_owner_auth));
-//    // account_owner_auth.accounts.push_back(permission_level_weight{ {N(amax.recover), N(active)}, 1});
+//    // account_owner_auth.accounts.push_back(permission_level_weight{ {N(realme.dao), N(active)}, 1});
 //    // sys_updateauth( N(account), N(owner), {}, account_owner_auth );
 //    // std::cout<<"add code authority end.\n";
 //    // produce_blocks(1);
@@ -107,8 +107,8 @@ public:
 //    // produce_blocks(1);
 
 //    // std::cout<<"add code authority begin.\n";
-//    // auto contract_auth3 = get_auth(N(amax.recover), N(owner));
-//    // wdump(("amax.recover ---new account auth3: ---")(contract_auth3));
+//    // auto contract_auth3 = get_auth(N(realme.dao), N(owner));
+//    // wdump(("realme.dao ---new account auth3: ---")(contract_auth3));
    
 
 //    std::cout<<"add code authority end.\n";
