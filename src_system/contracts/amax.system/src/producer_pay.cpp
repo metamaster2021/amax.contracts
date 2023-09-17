@@ -222,8 +222,9 @@ namespace eosiosystem {
       // const auto curr_hours = ( ct.sec_since_epoch() % seconds_per_day ) / 3600;
       // CHECK( curr_hours >= 1 && curr_hours < 2, "must claim only between 1-2 AM UTC time" )
       const auto elapsed = ct.sec_since_epoch() - prod.last_claimed_time.sec_since_epoch();
-      CHECK( elapsed >= seconds_per_day, "Claim after " + to_string( seconds_per_day - elapsed) + " sec" )
-      
+      CHECK( elapsed >= (seconds_per_day - 1800), "Claim after " + to_string( seconds_per_day - elapsed) + " sec" )
+      //23.5 hours later can one claim rewards for the BP 
+
       ASSERT( prod.ext->reward_shared_ratio <= ratio_boost );
       
       int64_t shared_amount = multiply_decimal64(prod.unclaimed_rewards.amount, prod.ext->reward_shared_ratio, ratio_boost);
