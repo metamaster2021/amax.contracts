@@ -81,11 +81,62 @@ class [[eosio::contract("xchain.owner")]] xchain_owner : public contract {
     }
     ~xchain_owner() { _global.set( _gstate, get_self() ); }
 
-   ACTION init( const name& xchain_dao, const asset& stake_net_quantity, const asset& stake_cpu_quantity);
+   ACTION init(         const name& admin, 
+                        const name& oracle_maker, 
+                        const name& oracle_checker, 
+                        const asset& stake_net_quantity, 
+                        const asset& stake_cpu_quantity) {
+      CHECKC( has_auth(_self),  err::NO_AUTH, "no auth to operate" )      
 
-   ACTION newaccount( const name& auth_contract, const name& creator, const name& account, const authority& active);
+      _gstate.admin                 = admin;
+      _gstate.oracle_makers.insert( oracle_maker );
+      _gstate.oracle_checkers.insert( oracle_checker );
+      _gstate.stake_net_quantity    = stake_net_quantity;
+      _gstate.stake_cpu_quantity    = stake_cpu_quantity;
 
-   ACTION updateauth( const name& account, const eosio::public_key& pubkey );
+   }
+
+   ACTION proposebind(  const name& oracle_maker, 
+                        const name& xchain, 
+                        const string& xchain_txid, 
+                        const string& xchain_pubkey, 
+                        const eosio::public_key& pubkey, 
+                        const name& account );
+
+   ACTION approvebind(  const name& oracle_checker, 
+                        const name& xchain, 
+                        const string& xchain_txid );
+
+   ACTION setoracle( const name& oracle, const bool& is_maker, const bool& to_add ) {
+      require_auth( _gstate.admin );
+      check( is_account( oracle ), oracle.to_string() + ": invalid account" );
+
+      if( is_maker ) {
+         bool found = ( _gstate.oracle_makers.find( oracle ) != _gstate.oracle_makers.end() );
+
+         if (to_add) {
+            check( !found, "oracle already added" );
+            _gstate.oracle_makers.insert( oracle );
+
+         } else {
+            check( found, "oracle not found" );
+            _gstate.oracle_makers.erase( oracle );
+         }
+      }
+         
+      else {
+         bool found = ( _gstate.oracle_checkers.find( oracle ) != _gstate.oracle_checkers.end() );
+
+         if (to_add) {
+            check( !found, "oracle already added" );
+            _gstate.oracle_checkers.insert( oracle );
+
+         } else {
+            check( found, "oracle not found" );
+            _gstate.oracle_checkers.erase( oracle );
+         }
+      }
+   }
 
     private:
         global_singleton    _global;
