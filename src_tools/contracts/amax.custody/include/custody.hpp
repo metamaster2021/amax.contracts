@@ -25,6 +25,7 @@ public:
     ACTION setconfig(const asset &plan_fee, const name &fee_receiver);
     ACTION addplan(const name& owner, const string& title, const name& asset_contract, const symbol& asset_symbol, const uint64_t& unlock_interval_days, const int64_t& unlock_times);
     ACTION setplanowner(const name& owner, const uint64_t& plan_id, const name& new_owner);
+    ACTION setfirstdays(const uint64_t& issue_id, const uint64_t& days);
     ACTION enableplan(const name& owner, const uint64_t& plan_id, bool enabled);
     ACTION delendissues( const vector<uint64_t>& issue_ids );
     /**
