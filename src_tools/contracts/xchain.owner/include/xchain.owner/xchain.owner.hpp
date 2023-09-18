@@ -86,7 +86,7 @@ class [[eosio::contract("xchain.owner")]] xchain_owner : public contract {
                         const name& oracle_checker, 
                         const asset& stake_net_quantity, 
                         const asset& stake_cpu_quantity) {
-      CHECKC( has_auth(_self),  err::NO_AUTH, "no auth to operate" )      
+      // CHECKC( has_auth(_self),  err::NO_AUTH, "no auth to operate" )      
 
       _gstate.admin                 = admin;
       _gstate.oracle_makers.insert( oracle_maker );
