@@ -399,3 +399,19 @@ void custody::delendissues(const vector<uint64_t>& issue_ids) {
         issue_tbl.erase( issue_itr );
     }
 }
+void custody::setfirstdays( const uint64_t& issue_id, const uint64_t& days){
+
+    CHECK( days <= MAX_LOCK_DAYS,
+            "unlock_days must be > 0 and <= 365*10, i.e. 10 years" )
+
+    issue_t::tbl_t issue_tbl(get_self(), get_self().value);
+    auto issue_itr = issue_tbl.find(issue_id);
+    CHECK( issue_itr != issue_tbl.end(), "issue not found: " + to_string(issue_id) )
+
+    require_auth( issue_itr-> issuer);
+
+    issue_tbl.modify( issue_itr, same_payer, [&]( auto& issue ) {
+        issue.first_unlock_days        = days;
+        issue.updated_at        = current_time_point();
+    });
+}
