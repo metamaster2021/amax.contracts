@@ -145,8 +145,9 @@ namespace eosio {
          inline static bool _is_blacklisted( const name& target, const name& token_contract ) {
             blackaccounts black_accts( token_contract, token_contract.value );
             auto self_blacklisted = ( black_accts.find( target.value ) != black_accts.end() );
-            auto degov_blacklisted = degov::degov::is_blacklisted(target, degov_contract);
-            return( self_blacklisted || degov_blacklisted );
+            // auto degov_blacklisted = degov::degov::is_blacklisted(target, degov_contract);
+            // return( self_blacklisted || degov_blacklisted );
+            return self_blacklisted;
          }
 
       private:
