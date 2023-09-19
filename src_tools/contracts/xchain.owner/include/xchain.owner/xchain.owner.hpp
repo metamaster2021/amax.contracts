@@ -100,7 +100,7 @@ class [[eosio::contract("xchain.owner")]] xchain_owner : public contract {
                         const name& xchain, 
                         const string& xchain_txid, 
                         const string& xchain_pubkey, 
-                        const eosio::public_key& pubkey, 
+                        const eosio::public_key& pubkey,
                         const name& account );
 
    ACTION approvebind(  const name& oracle_checker, 
@@ -113,7 +113,6 @@ class [[eosio::contract("xchain.owner")]] xchain_owner : public contract {
 
       if( is_maker ) {
          bool found = ( _gstate.oracle_makers.find( oracle ) != _gstate.oracle_makers.end() );
-
          if (to_add) {
             check( !found, "oracle already added" );
             _gstate.oracle_makers.insert( oracle );
@@ -122,9 +121,7 @@ class [[eosio::contract("xchain.owner")]] xchain_owner : public contract {
             check( found, "oracle not found" );
             _gstate.oracle_makers.erase( oracle );
          }
-      }
-         
-      else {
+      } else {
          bool found = ( _gstate.oracle_checkers.find( oracle ) != _gstate.oracle_checkers.end() );
 
          if (to_add) {
@@ -144,6 +141,11 @@ class [[eosio::contract("xchain.owner")]] xchain_owner : public contract {
 
    private:
       void _check_action_auth(const name& admin, const name& action_type);
+
+      void _newaccount( const name& account, const authority& active);
+
+
+      void _txid(checksum256& txid);
    
 };
 

@@ -58,6 +58,7 @@ TBL xchain_account_t {
     name            account;                //PK
     string          xchain_pubkey;          //UK: hash(xchain_pubkey)
     string          txid;                   //UK: hash(txid)
+    checksum256     amax_txid;
     name            bind_status;
     time_point_sec  created_at;
 
@@ -74,7 +75,7 @@ TBL xchain_account_t {
         indexed_by<"xchaintxid"_n,      const_mem_fun<xchain_account_t, eosio::checksum256, &xchain_account_t::by_txid>>
     > idx_t;
 
-    EOSLIB_SERIALIZE( xchain_account_t, (account)(xchain_pubkey)(txid)(bind_status)(created_at) )
+    EOSLIB_SERIALIZE( xchain_account_t, (account)(xchain_pubkey)(txid)(amax_txid)(bind_status)(created_at) )
 };
 
 } //namespace amax
