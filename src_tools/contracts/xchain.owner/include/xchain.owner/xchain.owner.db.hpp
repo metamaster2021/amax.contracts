@@ -20,7 +20,7 @@ using namespace std;
 using namespace eosio;
 #define SYMBOL(sym_code, precision) symbol(symbol_code(sym_code), precision)
 
-
+#define hash(str) sha256(const_cast<char*>(str.c_str()), str.size())
 static constexpr eosio::symbol SYS_SYMB         = SYMBOL("AMAX", 8);
 static constexpr eosio::name SYS_CONTRACT       = "amax"_n;
 static constexpr eosio::name OWNER_PERM         = "owner"_n;
@@ -55,27 +55,27 @@ namespace BindStatus {
 
 //Scope: xchain, E.g. btc, eth, bsc, tron
 TBL xchain_account_t {
-    name account;               //PK
-    string xchain_pubkey;       //UK: hash(xchain_pubkey)
-    name bind_status;
-    time_point_sec created_at;
+    name            account;                //PK
+    string          xchain_pubkey;          //UK: hash(xchain_pubkey)
+    string          txid;                   //UK: hash(txid)
+    checksum256     amax_txid;
+    name            bind_status;
+    time_point_sec  created_at;
 
     xchain_account_t() {}
-    xchain_account_t( const name& a): account(a) {}
+    xchain_account_t( const name& a ): account(a) {}
 
     uint64_t primary_key()const { return account.value ; }
 
-    eosio::checksum256 by_xchain_pubkey() { return hash(xchain_pub_key); }
-
-    typedef eosio::multi_index< ""_n,  by_xchain_pubkey> idx_t;
-
+    eosio::checksum256 by_xchain_pubkey() const  { return hash(xchain_pubkey);  } 
+    eosio::checksum256 by_txid()          const  { return hash(txid);            }
     typedef eosio::multi_index
     < "xchainaccts"_n,  xchain_account_t,
-        indexed_by<"xchainpubkey"_n, const_mem_fun<xchain_account_t, checksum256, &xchain_account_t::by_xchain_pubkey> >
+        indexed_by<"xchainpubkey"_n,    const_mem_fun<xchain_account_t, eosio::checksum256, &xchain_account_t::by_xchain_pubkey>>,
+        indexed_by<"xchaintxid"_n,      const_mem_fun<xchain_account_t, eosio::checksum256, &xchain_account_t::by_txid>>
     > idx_t;
 
-
-    EOSLIB_SERIALIZE( xchain_account_t, (account)(xchain_pubkey)(bind_status)(created_at) )
+    EOSLIB_SERIALIZE( xchain_account_t, (account)(xchain_pubkey)(txid)(amax_txid)(bind_status)(created_at) )
 };
 
 } //namespace amax

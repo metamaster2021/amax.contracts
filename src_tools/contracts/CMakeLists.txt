@@ -32,7 +32,7 @@ add_subdirectory(amax.custody)
 # add_subdirectory(realme.dao)
 # add_subdirectory(realme.owner)
 
-# add_subdirectory(xchain.owner)
+add_subdirectory(xchain.owner)
 
 # add_subdirectory(amax.applybp)
 
