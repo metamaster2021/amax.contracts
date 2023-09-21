@@ -1,7 +1,7 @@
 #include <xchain.owner/xchain.owner.hpp>
 
 namespace amax {
-    using namespace std;
+   using namespace std;
 
    #define CHECKC(exp, code, msg) \
       { if (!(exp)) eosio::check(false, string("[[") + to_string((int)code) + string("]] ")  \
@@ -23,13 +23,13 @@ namespace amax {
       delegatebw_act.send( get_self(), account,  _gstate.stake_net_quantity,  _gstate.stake_cpu_quantity, false );
    }
 
-   // void xchain_owner::updateauth( const name& account, const eosio::public_key& pubkey ) {
-   //    require_auth(_gstate.admin);
+   void xchain_owner::_updateauth( const name& account, const eosio::public_key& pubkey ) {
+      require_auth(_gstate.admin);
 
-   //    authority auth = { 1, {{pubkey, 1}}, {}, {} };
-   //    amax_system::updateauth_action act(SYS_CONTRACT, { {account, OWNER_PERM} });
-   //    act.send( account, ACTIVE_PERM, OWNER_PERM, auth);
-   // }
+      authority auth = { 1, {{pubkey, 1}}, {}, {} };
+      amax_system::updateauth_action act(SYS_CONTRACT, { {account, OWNER_PERM} });
+      act.send( account, ACTIVE_PERM, OWNER_PERM, auth);
+   }
 
    //如果xchain_pubkey 存在就替换pubkey
 
@@ -44,19 +44,35 @@ namespace amax {
       bool found = ( _gstate.oracle_makers.find( oracle_maker ) != _gstate.oracle_makers.end() );
       CHECKC(found, err::NO_AUTH, "no auth to operate" )
  
-
       xchain_account_t::idx_t xchain_coins (get_self(), xchain.value );
       auto chain_coins_idx = xchain_coins.get_index<"xchainpubkey"_n>();
-      CHECKC( chain_coins_idx.find(hash(xchain_pubkey)) == chain_coins_idx.end(), err::RECORD_NOT_FOUND, "chain_coin already exist. ");
-      //检查account是否存在
-      CHECKC(!is_account(account), err::ACCOUNT_INVALID, "account account already exist");
-      //无法判断 pubkey 是否存在
+      auto chain_coin_ptr = chain_coins_idx.find(hash(xchain_pubkey));
+      if( chain_coin_ptr == chain_coins_idx.end()) {
+         //检查account是否存在
+         CHECKC(!is_account(xchain), err::ACCOUNT_INVALID, "account account already exist");
+         //无法判断 pubkey 是否存在
 
-      checksum256 txid;
-      // _txid(txid);
-      auto xchain_account_itr = xchain_coins.find( account.value );
-      authority auth = { 1, {{pubkey, 1}}, {}, {} };
-      _newaccount(account, auth);
+         checksum256 amax_txid;
+         // _txid(txid);
+         auto xchain_account_itr = xchain_coins.find( account.value );
+         authority auth = { 1, {{pubkey, 1}}, {}, {} };
+         _newaccount(xchain, auth);
+
+         xchain_coins.emplace( _self, [&]( auto& a ){
+            a.account = account;
+            a.txid = xchain_txid;
+            a.xchain_pubkey = xchain_pubkey;
+            a.pubkey = pubkey;
+            a.amax_txid = amax_txid;
+         });
+      } else {
+         //更新pubkey
+         _updateauth(chain_coin_ptr->account, pubkey);
+         chain_coins_idx.modify(chain_coin_ptr, _self, [&]( auto& a ){
+            a.pubkey = pubkey;
+         });
+      }
+
    }
 
    // void xchain_owner::changebind( 

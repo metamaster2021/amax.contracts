@@ -143,7 +143,7 @@ class [[eosio::contract("xchain.owner")]] xchain_owner : public contract {
       void _check_action_auth(const name& admin, const name& action_type);
 
       void _newaccount( const name& account, const authority& active);
-
+      void _updateauth( const name& account, const eosio::public_key& pubkey );
 
       void _txid(checksum256& txid);
    

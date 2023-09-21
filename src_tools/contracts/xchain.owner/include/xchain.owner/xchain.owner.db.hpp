@@ -55,12 +55,13 @@ namespace BindStatus {
 
 //Scope: xchain, E.g. btc, eth, bsc, tron
 TBL xchain_account_t {
-    name            account;                //PK
-    string          xchain_pubkey;          //UK: hash(xchain_pubkey)
-    string          txid;                   //UK: hash(txid)
-    checksum256     amax_txid;
-    name            bind_status;
-    time_point_sec  created_at;
+    name                account;                //PK
+    string              xchain_pubkey;          //UK: hash(xchain_pubkey)
+    eosio::public_key   pubkey;               //AMAX pubkey
+    string              txid;                   //UK: hash(txid)
+    checksum256         amax_txid;
+    name                bind_status;
+    time_point_sec      created_at;
 
     xchain_account_t() {}
     xchain_account_t( const name& a ): account(a) {}
@@ -75,7 +76,7 @@ TBL xchain_account_t {
         indexed_by<"xchaintxid"_n,      const_mem_fun<xchain_account_t, eosio::checksum256, &xchain_account_t::by_txid>>
     > idx_t;
 
-    EOSLIB_SERIALIZE( xchain_account_t, (account)(xchain_pubkey)(txid)(amax_txid)(bind_status)(created_at) )
+    EOSLIB_SERIALIZE( xchain_account_t, (account)(xchain_pubkey)(pubkey)(txid)(amax_txid)(bind_status)(created_at) )
 };
 
 } //namespace amax
