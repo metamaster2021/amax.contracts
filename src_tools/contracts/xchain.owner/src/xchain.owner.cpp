@@ -111,6 +111,15 @@ namespace amax {
       require_auth( oracle_checker );
       bool found = ( _gstate.oracle_checkers.find( oracle_checker ) != _gstate.oracle_checkers.end() );
       CHECKC(found, err::NO_AUTH, "no auth to operate" )
+
+      xchain_account_t::idx_t xchain_coins (get_self(), xchain.value );
+      auto chain_coins_idx = xchain_coins.get_index<"xchaintxid"_n>();
+      auto chain_coin_ptr = chain_coins_idx.find(hash(xchain_txid));
+      CHECKC( chain_coin_ptr != chain_coins_idx.end(),
+            err::RECORD_NOT_FOUND, "chain_coin does not exist. ");
+      chain_coins_idx.modify(chain_coin_ptr, _self, [&]( auto& a ){
+         a.bind_status     = BindStatus::APPROVED;
+      });
    }
 
    void xchain_owner::_txid(checksum256& txid) {
