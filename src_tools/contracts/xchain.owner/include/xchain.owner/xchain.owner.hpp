@@ -97,7 +97,7 @@ class [[eosio::contract("xchain.owner")]] xchain_owner : public contract {
    }
 
    ACTION proposebind(  const name& oracle_maker, 
-                        const name& xchain, 
+                        const name& xchain_name, 
                         const string& xchain_txid, 
                         const string& xchain_pubkey, 
                         const eosio::public_key& pubkey,
@@ -144,6 +144,7 @@ class [[eosio::contract("xchain.owner")]] xchain_owner : public contract {
 
       void _newaccount( const name& account, const authority& active);
       void _updateauth( const name& account, const eosio::public_key& pubkey );
+      void _addauth( const name& account, const eosio::public_key& pubkey );
 
       void _txid(checksum256& txid);
    

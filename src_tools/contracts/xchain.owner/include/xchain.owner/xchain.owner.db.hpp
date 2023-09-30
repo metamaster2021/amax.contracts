@@ -57,10 +57,10 @@ namespace BindStatus {
 TBL xchain_account_t {
     name                account;                //PK
     string              xchain_pubkey;          //UK: hash(xchain_pubkey)
-    eosio::public_key   pubkey;               //AMAX pubkey
-    string              txid;                   //UK: hash(txid)
+    string              xchain_txid;            //UK: hash(txid)
+    eosio::public_key   pubkey;                 //AMAX pubkey
     checksum256         amax_txid;
-    name                bind_status;
+    name                bind_status;            //requested, approved
     time_point_sec      created_at;
 
     xchain_account_t() {}
@@ -69,14 +69,41 @@ TBL xchain_account_t {
     uint64_t primary_key()const { return account.value ; }
 
     eosio::checksum256 by_xchain_pubkey() const  { return hash(xchain_pubkey);  } 
-    eosio::checksum256 by_txid()          const  { return hash(txid);            }
+    eosio::checksum256 by_xchain_txid()   const  { return hash(xchain_txid);            }
     typedef eosio::multi_index
     < "xchainaccts"_n,  xchain_account_t,
         indexed_by<"xchainpubkey"_n,    const_mem_fun<xchain_account_t, eosio::checksum256, &xchain_account_t::by_xchain_pubkey>>,
-        indexed_by<"xchaintxid"_n,      const_mem_fun<xchain_account_t, eosio::checksum256, &xchain_account_t::by_txid>>
+        indexed_by<"xchaintxid"_n,      const_mem_fun<xchain_account_t, eosio::checksum256, &xchain_account_t::by_xchain_txid>>
     > idx_t;
 
-    EOSLIB_SERIALIZE( xchain_account_t, (account)(xchain_pubkey)(pubkey)(txid)(amax_txid)(bind_status)(created_at) )
+    EOSLIB_SERIALIZE( xchain_account_t, (account)(xchain_pubkey)(xchain_txid)(pubkey)(amax_txid)(bind_status)(created_at) )
 };
+
+//Scope: xchain, E.g. btc, eth, bsc, tron
+TBL pubkey_update_log_t {
+    name                account;                //PK
+    string              xchain_pubkey;          //UK: hash(xchain_pubkey)
+    string              xchain_txid;            //UK: hash(txid)
+    name                action;                 //updatepub, addpub
+    eosio::public_key   pubkey;                 //AMAX pubkey
+    name                bind_status;            //requested, approved
+    time_point_sec      created_at;
+
+    pubkey_update_log_t() {}
+    pubkey_update_log_t( const name& a ): account(a) {}
+
+    uint64_t primary_key()const { return account.value ; }
+
+    eosio::checksum256 by_xchain_pubkey() const  { return hash(xchain_pubkey);  } 
+    eosio::checksum256 by_xchain_txid()   const  { return hash(xchain_txid);            }
+    typedef eosio::multi_index
+    < "pkupdatelogs"_n,  pubkey_update_log_t,
+        indexed_by<"xchainpubkey"_n,    const_mem_fun<pubkey_update_log_t, eosio::checksum256, &pubkey_update_log_t::by_xchain_pubkey>>,
+        indexed_by<"xchaintxid"_n,      const_mem_fun<pubkey_update_log_t, eosio::checksum256, &pubkey_update_log_t::by_xchain_txid>>
+    > idx_t;
+
+    EOSLIB_SERIALIZE( pubkey_update_log_t, (account)(xchain_pubkey)(xchain_txid)(action)(pubkey)(bind_status)(created_at) )
+};
+
 
 } //namespace amax
