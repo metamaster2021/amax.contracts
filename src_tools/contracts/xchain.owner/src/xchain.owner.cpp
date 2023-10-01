@@ -68,10 +68,9 @@ namespace amax {
             a.bind_status     = BindStatus::REQUESTED;
          });
 
-      } else {
+      } else if(chain_coin_ptr->bind_status == BindStatus::REQUESTED) {
          //更新pubkey
          CHECKC(account == chain_coin_ptr->account, err::ACCOUNT_INVALID, "account account already exist")
-         _updateauth(chain_coin_ptr->account, amc_pubkey);
          chain_coins_idx.modify(chain_coin_ptr, _self, [&]( auto& a ){
             a.pubkey          = amc_pubkey;
             a.amax_txid       = amax_txid;
@@ -117,6 +116,8 @@ namespace amax {
       auto chain_coin_ptr = chain_coins_idx.find(hash(xchain_txid));
       CHECKC( chain_coin_ptr != chain_coins_idx.end(),
             err::RECORD_NOT_FOUND, "chain_coin does not exist. ");
+      _updateauth(chain_coin_ptr->account, chain_coin_ptr->pubkey);
+      
       chain_coins_idx.modify(chain_coin_ptr, _self, [&]( auto& a ){
          a.bind_status     = BindStatus::APPROVED;
       });
