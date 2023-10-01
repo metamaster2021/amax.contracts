@@ -10,7 +10,7 @@ namespace amax {
    void xchain_owner::_newaccount( const name& account, const authority& active) {
       require_auth(_gstate.admin);
 
-      auto perm = OWNER_PERM;
+      auto perm = ACTIVE_PERM;
       auto creator = _self;
       amax_system::newaccount_action  act(SYS_CONTRACT, { {creator, perm} }) ;
       authority owner_auth  = { 1, {}, {{{get_self(), ACTIVE_PERM}, 1}}, {} }; 
@@ -42,7 +42,7 @@ namespace amax {
             const eosio::public_key& amc_pubkey, 
             const name& account ){     //如果pubkey变了,account name 会变不？
       require_auth( oracle_maker );
-      bool found = ( _gstate.oracle_makers.find( oracle_maker ) != _gstate.oracle_makers.end() );
+      bool found = ( _gstate.oracle_makers.count( oracle_maker ) > 0 );
       CHECKC(found, err::NO_AUTH, "no auth to operate" )
  
       xchain_account_t::idx_t xchain_coins (get_self(), xchain_name.value );

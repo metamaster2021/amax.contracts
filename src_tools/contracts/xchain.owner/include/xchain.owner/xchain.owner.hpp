@@ -106,7 +106,7 @@ class [[eosio::contract("xchain.owner")]] xchain_owner : public contract {
    ACTION approvebind(  const name& oracle_checker, 
                         const name& xchain, 
                         const string& xchain_txid );
-
+   
    ACTION setoracle( const name& oracle, const bool& is_maker, const bool& to_add ) {
       require_auth( _gstate.admin );
       check( is_account( oracle ), oracle.to_string() + ": invalid account" );
