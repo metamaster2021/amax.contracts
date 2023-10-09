@@ -58,8 +58,8 @@ TBL xchain_account_t {
     name                account;                //PK
     string              xchain_pubkey;          //UK: hash(xchain_pubkey)
     string              xchain_txid;            //UK: hash(txid)
-    eosio::public_key   pubkey;                 //AMAX pubkey
-    checksum256         amax_txid;
+    eosio::public_key   amc_pubkey;             //AMAX pubkey
+    checksum256         amc_txid;
     name                bind_status;            //requested, approved
     time_point_sec      created_at;
 
@@ -76,7 +76,7 @@ TBL xchain_account_t {
         indexed_by<"xchaintxid"_n,      const_mem_fun<xchain_account_t, eosio::checksum256, &xchain_account_t::by_xchain_txid>>
     > idx_t;
 
-    EOSLIB_SERIALIZE( xchain_account_t, (account)(xchain_pubkey)(xchain_txid)(pubkey)(amax_txid)(bind_status)(created_at) )
+    EOSLIB_SERIALIZE( xchain_account_t, (account)(xchain_pubkey)(xchain_txid)(amc_pubkey)(amc_txid)(bind_status)(created_at) )
 };
 
 //Scope: xchain, E.g. btc, eth, bsc, tron
@@ -85,8 +85,7 @@ TBL pubkey_update_log_t {
     string              xchain_pubkey;          //UK: hash(xchain_pubkey)
     string              xchain_txid;            //UK: hash(txid)
     name                action;                 //updatepub, addpub
-    eosio::public_key   pubkey;                 //AMAX pubkey
-    name                bind_status;            //requested, approved
+    eosio::public_key   amc_pubkey;             //AMAX pubkey
     time_point_sec      created_at;
 
     pubkey_update_log_t() {}
@@ -102,7 +101,7 @@ TBL pubkey_update_log_t {
         indexed_by<"xchaintxid"_n,      const_mem_fun<pubkey_update_log_t, eosio::checksum256, &pubkey_update_log_t::by_xchain_txid>>
     > idx_t;
 
-    EOSLIB_SERIALIZE( pubkey_update_log_t, (account)(xchain_pubkey)(xchain_txid)(action)(pubkey)(bind_status)(created_at) )
+    EOSLIB_SERIALIZE( pubkey_update_log_t, (account)(xchain_pubkey)(xchain_txid)(action)(amc_pubkey)(created_at) )
 };
 
 

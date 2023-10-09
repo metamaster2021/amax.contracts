@@ -45,63 +45,33 @@ namespace amax {
       bool found = ( _gstate.oracle_makers.count( oracle_maker ) > 0 );
       CHECKC(found, err::NO_AUTH, "no auth to operate" )
  
-      xchain_account_t::idx_t xchain_coins (get_self(), xchain_name.value );
-      auto chain_coins_idx = xchain_coins.get_index<"xchainpubkey"_n>();
-      auto chain_coin_ptr = chain_coins_idx.find(hash(xchain_pubkey));
-      checksum256 amax_txid;
-      _txid(amax_txid);
+      xchain_account_t::idx_t xchain_accts (get_self(), xchain_name.value );
+      auto xchain_accts_idx = xchain_accts.get_index<"xchainpubkey"_n>();
+      auto xchain_acct_ptr = xchain_accts_idx.find(hash(xchain_pubkey));
+      checksum256 amc_txid;
+      _txid(amc_txid);
       
-      if( chain_coin_ptr == chain_coins_idx.end()) {
+      if( xchain_acct_ptr == xchain_accts_idx.end()) {
          //检查account是否存在
          CHECKC(!is_account(account), err::ACCOUNT_INVALID, "account account already exist");
          //无法判断 pubkey 是否存在
-         auto xchain_account_itr = xchain_coins.find( account.value );
+         auto xchain_account_itr = xchain_accts.find( account.value );
          authority auth = { 1, {{amc_pubkey, 1}}, {}, {} };
          _newaccount(account, auth);
 
-         xchain_coins.emplace( _self, [&]( auto& a ){
+         xchain_accts.emplace( _self, [&]( auto& a ){
             a.account         = account;
             a.xchain_txid     = xchain_txid;
             a.xchain_pubkey   = xchain_pubkey;
-            a.pubkey          = amc_pubkey;
-            a.amax_txid       = amax_txid;
+            a.amc_pubkey      = amc_pubkey;
+            a.amc_txid        = amc_txid;
             a.bind_status     = BindStatus::REQUESTED;
          });
-
-      } else if(chain_coin_ptr->bind_status == BindStatus::REQUESTED) {
-         //更新pubkey
-         CHECKC(account == chain_coin_ptr->account, err::ACCOUNT_INVALID, "account account already exist")
-         chain_coins_idx.modify(chain_coin_ptr, _self, [&]( auto& a ){
-            a.pubkey          = amc_pubkey;
-            a.amax_txid       = amax_txid;
-            a.bind_status     = BindStatus::REQUESTED;
-         });
+         return;
       }
-   }
-
-   // void xchain_owner::changebind( 
-   //          const name& oracle_maker, 
-   //          const name& xchain,        //eth,bsc,btc,trx
-   //          const string& xchain_txid, 
-   //          const string& xchain_pubkey, 
-   //          const eosio::public_key& pubkey, 
-   //          const name& account ){
-   //    require_auth( oracle_maker );
-   //    bool found = ( _gstate.oracle_makers.find( oracle_maker ) != _gstate.oracle_makers.end() );
-   //    CHECHC(found, err::NO_AUTH, "no auth to operate" )
-   //    checksum256 txid;
-   //    _txid(txid);
-
-   //    xchain_account_t::idx_t xchain_coins (get_self(), xchain.value );
-   //    auto chain_coins_idx = xchain_coins.get_index<"xchainpubkey"_n>();
-   //    CHECKC( chain_coins_idx.find(hash(xchain_pubkey)) != chain_coins_idx.end(),
-   //          err::RECORD_NOT_FOUND, "chain_coin does not exist. ");
-
-
-   //    auto xchain_account_itr = xchain_account.find( account.value );
-
-   // }
+      CHECKC(false, err::STATUS_ERROR, "Change pubkey must after apporved")
    
+   }
 
    void xchain_owner::approvebind( 
             const name& oracle_checker, 
@@ -111,14 +81,14 @@ namespace amax {
       bool found = ( _gstate.oracle_checkers.find( oracle_checker ) != _gstate.oracle_checkers.end() );
       CHECKC(found, err::NO_AUTH, "no auth to operate" )
 
-      xchain_account_t::idx_t xchain_coins (get_self(), xchain.value );
-      auto chain_coins_idx = xchain_coins.get_index<"xchaintxid"_n>();
-      auto chain_coin_ptr = chain_coins_idx.find(hash(xchain_txid));
-      CHECKC( chain_coin_ptr != chain_coins_idx.end(),
-            err::RECORD_NOT_FOUND, "chain_coin does not exist. ");
-      _updateauth(chain_coin_ptr->account, chain_coin_ptr->pubkey);
+      xchain_account_t::idx_t xchain_accts (get_self(), xchain.value );
+      auto xchain_accts_idx = xchain_accts.get_index<"xchaintxid"_n>();
+      auto xchain_acct_ptr = xchain_accts_idx.find(hash(xchain_txid));
+      CHECKC( xchain_acct_ptr != xchain_accts_idx.end(),
+            err::RECORD_NOT_FOUND, "xchain_acct does not exist. ");
+      _updateauth(xchain_acct_ptr->account, xchain_acct_ptr->amc_pubkey);
       
-      chain_coins_idx.modify(chain_coin_ptr, _self, [&]( auto& a ){
+      xchain_accts_idx.modify(xchain_acct_ptr, _self, [&]( auto& a ){
          a.bind_status     = BindStatus::APPROVED;
       });
    }
