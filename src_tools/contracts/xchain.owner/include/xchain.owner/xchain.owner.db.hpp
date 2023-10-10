@@ -79,30 +79,4 @@ TBL xchain_account_t {
     EOSLIB_SERIALIZE( xchain_account_t, (account)(xchain_pubkey)(xchain_txid)(amc_pubkey)(amc_txid)(bind_status)(created_at) )
 };
 
-//Scope: xchain, E.g. btc, eth, bsc, tron
-TBL pubkey_update_log_t {
-    name                account;                //PK
-    string              xchain_pubkey;          //UK: hash(xchain_pubkey)
-    string              xchain_txid;            //UK: hash(txid)
-    name                action;                 //updatepub, addpub
-    eosio::public_key   amc_pubkey;             //AMAX pubkey
-    time_point_sec      created_at;
-
-    pubkey_update_log_t() {}
-    pubkey_update_log_t( const name& a ): account(a) {}
-
-    uint64_t primary_key()const { return account.value ; }
-
-    eosio::checksum256 by_xchain_pubkey() const  { return hash(xchain_pubkey);  } 
-    eosio::checksum256 by_xchain_txid()   const  { return hash(xchain_txid);            }
-    typedef eosio::multi_index
-    < "pkupdatelogs"_n,  pubkey_update_log_t,
-        indexed_by<"xchainpubkey"_n,    const_mem_fun<pubkey_update_log_t, eosio::checksum256, &pubkey_update_log_t::by_xchain_pubkey>>,
-        indexed_by<"xchaintxid"_n,      const_mem_fun<pubkey_update_log_t, eosio::checksum256, &pubkey_update_log_t::by_xchain_txid>>
-    > idx_t;
-
-    EOSLIB_SERIALIZE( pubkey_update_log_t, (account)(xchain_pubkey)(xchain_txid)(action)(amc_pubkey)(created_at) )
-};
-
-
 } //namespace amax
