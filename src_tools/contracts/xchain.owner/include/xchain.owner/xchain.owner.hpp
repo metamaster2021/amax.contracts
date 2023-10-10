@@ -100,8 +100,8 @@ class [[eosio::contract("xchain.owner")]] xchain_owner : public contract {
                         const name& xchain_name, 
                         const string& xchain_txid, 
                         const string& xchain_pubkey, 
-                        const eosio::public_key& pubkey,
-                        const name& account );
+                        const name& owner,
+                        const eosio::public_key& pubkey );
 
    ACTION approvebind(  const name& oracle_checker, 
                         const name& xchain, 

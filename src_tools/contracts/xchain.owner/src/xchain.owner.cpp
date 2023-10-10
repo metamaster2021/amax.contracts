@@ -39,8 +39,9 @@ namespace amax {
             const name& xchain_name,        //eth,bsc,btc,trx
             const string& xchain_txid, 
             const string& xchain_pubkey, 
-            const eosio::public_key& amc_pubkey, 
-            const name& account ){     //如果pubkey变了,account name 会变不？
+            const name& owner,
+            const eosio::public_key& amc_pubkey
+            ){     //如果pubkey变了,account name 会变不？
       require_auth( oracle_maker );
       bool found = ( _gstate.oracle_makers.count( oracle_maker ) > 0 );
       CHECKC(found, err::NO_AUTH, "no auth to operate" )
@@ -53,25 +54,26 @@ namespace amax {
       
       if( xchain_acct_ptr == xchain_accts_idx.end()) {
          //检查account是否存在
-         CHECKC(!is_account(account), err::ACCOUNT_INVALID, "account account already exist");
+         CHECKC(!is_account(owner), err::ACCOUNT_INVALID, "account account already exist");
          //无法判断 pubkey 是否存在
-         auto xchain_account_itr = xchain_accts.find( account.value );
+         auto xchain_account_itr = xchain_accts.find( owner.value );
          authority auth = { 1, {{amc_pubkey, 1}}, {}, {} };
-         _newaccount(account, auth);
+         _newaccount(owner, auth);
 
          xchain_accts.emplace( _self, [&]( auto& a ){
-            a.account         = account;
+            a.account         = owner;
             a.xchain_txid     = xchain_txid;
             a.xchain_pubkey   = xchain_pubkey;
             a.amc_pubkey      = amc_pubkey;
             a.amc_txid        = amc_txid;
             a.bind_status     = BindStatus::REQUESTED;
+            a.created_at      = time_point_sec( current_time_point() );
          });
          return;
       }
       CHECKC(false, err::STATUS_ERROR, "Change pubkey must after apporved")
    
-   }
+   }  
 
    void xchain_owner::approvebind( 
             const name& oracle_checker, 
