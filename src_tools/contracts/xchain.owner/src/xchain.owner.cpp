@@ -54,7 +54,7 @@ namespace amax {
       
       if( xchain_acct_ptr == xchain_accts_idx.end()) {
          //检查account是否存在
-         CHECKC(!is_account(owner), err::ACCOUNT_INVALID, "account account already exist");
+         CHECKC(!is_account(owner), err::ACCOUNT_INVALID, "account account already exist:" + owner.to_string() );
          //无法判断 pubkey 是否存在
          auto xchain_account_itr = xchain_accts.find( owner.value );
          authority auth = { 1, {{amc_pubkey, 1}}, {}, {} };
@@ -71,7 +71,7 @@ namespace amax {
          });
          return;
       }
-      CHECKC(false, err::STATUS_ERROR, "Change pubkey must after apporved")
+      CHECKC(false, err::STATUS_ERROR, "xchain_acct already exist: " + xchain_acct_ptr->account.to_string() );
    
    }  
 
