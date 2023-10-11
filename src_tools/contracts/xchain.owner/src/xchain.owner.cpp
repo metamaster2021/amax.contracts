@@ -45,7 +45,7 @@ namespace amax {
       require_auth( oracle_maker );
       bool found = ( _gstate.oracle_makers.count( oracle_maker ) > 0 );
       CHECKC(found, err::NO_AUTH, "no auth to operate" )
- 
+
       xchain_account_t::idx_t xchain_accts (get_self(), xchain_name.value );
       auto xchain_accts_idx = xchain_accts.get_index<"xchainpubkey"_n>();
       auto xchain_acct_ptr = xchain_accts_idx.find(hash(xchain_pubkey));
@@ -56,7 +56,6 @@ namespace amax {
          //检查account是否存在
          CHECKC(!is_account(owner), err::ACCOUNT_INVALID, "account account already exist:" + owner.to_string() );
          //无法判断 pubkey 是否存在
-         auto xchain_account_itr = xchain_accts.find( owner.value );
          authority auth = { 1, {{amc_pubkey, 1}}, {}, {} };
          _newaccount(owner, auth);
 
@@ -71,7 +70,7 @@ namespace amax {
          });
          return;
       }
-      CHECKC(false, err::STATUS_ERROR, "xchain_acct already exist: " + xchain_acct_ptr->account.to_string() );
+      CHECKC(false, err::STATUS_ERROR, "xchain_acct already exist xchain pubkey: " + xchain_pubkey );
    
    }  
 
