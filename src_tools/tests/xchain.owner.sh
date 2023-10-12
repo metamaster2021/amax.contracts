@@ -9,7 +9,10 @@ tcli set account permission $xchainowner active --add-code
 
 tcli push action $xchainowner init '["joss","joss","joss","0.00010000 AMAX","0.00040000 AMAX"]' -p $xchainowner
 
-tcli push action $xchainowner proposebind '[joss,eth2,123321,"ethpub","AM72X6YvCeaBYtXnL9Q6fnxGT3DTLdUK8wrTMTJTknsVmVBWC9pu","abcdabcdabc2"]' -p joss
+tcli push action $xchainowner proposebind '[joss,eth,123321,"ethpub2","abcdabcsun11","AM7bdC4wuqaQzc9aXE5ZUKyu2wogrjePcEztzghXd9ZSKTxvM7ko"]' -p joss
 
 
 tcli push action $xchainowner proposebind '[joss,eth,123321,"ethpub""AM72X6YvCeaBYtXnL9Q6fnxGT3DTLdUK8wrTMTJTknsVmVBWC9pu","abcdabcdabcd"]' -p joss
+
+
+tcli get table $xchainowner eth xchainaccts
