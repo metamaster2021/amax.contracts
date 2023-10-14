@@ -134,10 +134,11 @@ namespace eosiosystem {
 
    template<typename idx_t, typename itr_t>
    inline bool system_contract::set_bid_mature(const time_point_sec& now, idx_t& idx, itr_t& highest) {
-      auto mature_ok = ( highest != idx.end() && highest->high_bid > 0 &&
-                     (now - highest->last_bid_time) > microseconds(useconds_per_day) &&
-                     _gstate.thresh_activated_stake_time > time_point() &&
-                     (now - _gstate.thresh_activated_stake_time) > microseconds(14 * useconds_per_day) );
+      auto mature_ok = ( highest != idx.end() && 
+                         highest->high_bid > 0 &&
+                        (now - highest->last_bid_time) > microseconds(useconds_per_day) &&
+                        _gstate.thresh_activated_stake_time > time_point() &&
+                        (now - _gstate.thresh_activated_stake_time) > microseconds(14 * useconds_per_day) );
 
       if( mature_ok ) {
          _gstate.last_name_close = timestamp;
