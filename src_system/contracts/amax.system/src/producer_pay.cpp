@@ -117,26 +117,37 @@ namespace eosiosystem {
          #endif//APOS_ENABLED
          _gstate.last_producer_schedule_update = timestamp;
 
-         /// only process name bid once every day
+         /// only process name bid three-times every day
          if( timestamp.slot > _gstate.last_name_close.slot + blocks_per_day ) {
             name_bid_table bids(get_self(), get_self().value);
-            auto idx = bids.get_index<"highbid"_n>();
-            auto highest = idx.lower_bound( std::numeric_limits<uint64_t>::max()/2 );
-            if( highest != idx.end() &&
-                  highest->high_bid > 0 &&
-                  (current_time_point() - highest->last_bid_time) > microseconds(useconds_per_day) &&
-                  _gstate.thresh_activated_stake_time > time_point() &&
-                  (current_time_point() - _gstate.thresh_activated_stake_time) > microseconds(14 * useconds_per_day)
-            ) {
-               _gstate.last_name_close = timestamp;
-               channel_namebid_to_rex( highest->high_bid );
-               idx.modify( highest, same_payer, [&]( auto& b ){
-                  b.high_bid = -b.high_bid;
-               });
+            auto idx          = bids.get_index<"highbid"_n>();
+            auto highest      = idx.lower_bound( std::numeric_limits<uint64_t>::max()/2 );
+            auto now          = current_time_point();
+
+            if( set_bid_mature( now, idx, highest ) ) {
+               if( set_bid_mature( now, idx, ++highest ) )
+                     set_bid_mature( now, idx, ++highest );
             }
          }
-
       }
+   }
+
+   template<typename idx_t, typename itr_t>
+   inline bool system_contract::set_bid_mature(const time_point_sec& now, idx_t& idx, itr_t& highest) {
+      auto mature_ok = ( highest != idx.end() && highest->high_bid > 0 &&
+                     (now - highest->last_bid_time) > microseconds(useconds_per_day) &&
+                     _gstate.thresh_activated_stake_time > time_point() &&
+                     (now - _gstate.thresh_activated_stake_time) > microseconds(14 * useconds_per_day) );
+
+      if( mature_ok ) {
+         _gstate.last_name_close = timestamp;
+         channel_namebid_to_rex( highest->high_bid );
+         idx.modify( highest, same_payer, [&]( auto& b ){
+            b.high_bid = -b.high_bid;
+         });
+      }
+
+      return mature_ok;
    }
 
    void system_contract::cfgreward( const time_point& init_reward_start_time, const time_point& init_reward_end_time,

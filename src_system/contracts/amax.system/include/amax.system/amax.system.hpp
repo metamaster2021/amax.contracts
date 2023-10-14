@@ -889,6 +889,9 @@ namespace eosiosystem {
          [[eosio::action]]
          void onblock( ignore<block_header> header );
 
+         template<typename idx_t, typename itr_t>
+         inline bool system_contract::set_bid_mature(const time_point_sec& now, idx_t& idx, itr_t& highest);
+
          /**
           * Set account limits action sets the resource limits of an account
           *
