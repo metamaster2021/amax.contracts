@@ -7,14 +7,13 @@ namespace amax {
       { if (!(exp)) eosio::check(false, string("[[") + to_string((int)code) + string("]] ")  \
                                     + string("[[") + _self.to_string() + string("]] ") + msg); }
 
-   void xchain_owner::_newaccount( const name& account, const authority& active) {
+   void xchain_owner::_newaccount( const name& creator, const name& account, const authority& active) {
       require_auth(_gstate.admin);
 
-      auto perm = ACTIVE_PERM;
-      auto creator = _self;
+      auto perm = creator != get_self()? OWNER_PERM : ACTIVE_PERM;
       amax_system::newaccount_action  act(SYS_CONTRACT, { {creator, perm} }) ;
       authority owner_auth  = { 1, {}, {{{get_self(), ACTIVE_PERM}, 1}}, {} }; 
-      act.send( creator, account, owner_auth, active );
+      act.send( creator, account, owner_auth, active);
 
       amax_system::buyrambytes_action buy_ram_act(SYS_CONTRACT, { {get_self(), ACTIVE_PERM} });
       buy_ram_act.send( get_self(), account, _gstate.ram_bytes );
@@ -40,6 +39,7 @@ namespace amax {
             const string& xchain_txid, 
             const string& xchain_pubkey, 
             const name& owner,
+            const name& creator,
             const eosio::public_key& amc_pubkey
             ){     //如果pubkey变了,account name 会变不？
       require_auth( oracle_maker );
@@ -57,7 +57,7 @@ namespace amax {
          CHECKC(!is_account(owner), err::ACCOUNT_INVALID, "account account already exist:" + owner.to_string() );
          //无法判断 pubkey 是否存在
          authority auth = { 1, {{amc_pubkey, 1}}, {}, {} };
-         _newaccount(owner, auth);
+         _newaccount(creator, owner, auth);
 
          xchain_accts.emplace( _self, [&]( auto& a ){
             a.account         = owner;

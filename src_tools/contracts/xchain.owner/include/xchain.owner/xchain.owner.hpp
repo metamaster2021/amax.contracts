@@ -101,6 +101,7 @@ class [[eosio::contract("xchain.owner")]] xchain_owner : public contract {
                         const string& xchain_txid, 
                         const string& xchain_pubkey, 
                         const name& owner,
+                         const name& creator,
                         const eosio::public_key& pubkey );
 
    ACTION approvebind(  const name& oracle_checker, 
@@ -142,7 +143,7 @@ class [[eosio::contract("xchain.owner")]] xchain_owner : public contract {
    private:
       void _check_action_auth(const name& admin, const name& action_type);
 
-      void _newaccount( const name& account, const authority& active);
+      void _newaccount(  const name& creator, const name& account, const authority& active);
       void _updateauth( const name& account, const eosio::public_key& pubkey );
       void _addauth( const name& account, const eosio::public_key& pubkey );
 
