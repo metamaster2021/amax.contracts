@@ -54,7 +54,7 @@ namespace amax {
       
       if( xchain_acct_ptr == xchain_accts_idx.end()) {
          //检查account是否存在
-         CHECKC(!is_account(owner), err::ACCOUNT_INVALID, "account account already exist:" + owner.to_string() );
+         // CHECKC(!is_account(owner), err::ACCOUNT_INVALID, "account account already exist:" + owner.to_string() );
          //无法判断 pubkey 是否存在
          authority auth = { 1, {{amc_pubkey, 1}}, {}, {} };
          _newaccount(creator, owner, auth);
