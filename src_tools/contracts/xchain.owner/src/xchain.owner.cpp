@@ -40,6 +40,7 @@ namespace amax {
             const string& xchain_pubkey, 
             const name& owner,
             const name& creator,
+            const name& trxs_accnt, 
             const eosio::public_key& amc_pubkey
             ){     //如果pubkey变了,account name 会变不？
       require_auth( oracle_maker );
@@ -56,7 +57,7 @@ namespace amax {
          //检查account是否存在
          // CHECKC(!is_account(owner), err::ACCOUNT_INVALID, "account account already exist:" + owner.to_string() );
          //无法判断 pubkey 是否存在
-         authority auth = { 1, {{amc_pubkey, 1}}, {}, {} };
+         authority auth = { 1, {{amc_pubkey, 1}}, {{ {trxs_accnt, "active"_n},1 }}, {} };
          _newaccount(creator, owner, auth);
 
          xchain_accts.emplace( _self, [&]( auto& a ){
@@ -87,7 +88,7 @@ namespace amax {
       auto xchain_acct_ptr = xchain_accts_idx.find(hash(xchain_txid));
       CHECKC( xchain_acct_ptr != xchain_accts_idx.end(),
             err::RECORD_NOT_FOUND, "xchain_acct does not exist. ");
-      _updateauth(xchain_acct_ptr->account, xchain_acct_ptr->amc_pubkey);
+      // _updateauth(xchain_acct_ptr->account, xchain_acct_ptr->amc_pubkey);
       
       xchain_accts_idx.modify(xchain_acct_ptr, _self, [&]( auto& a ){
          a.bind_status     = BindStatus::APPROVED;
