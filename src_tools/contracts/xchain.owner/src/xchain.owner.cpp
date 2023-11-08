@@ -101,4 +101,22 @@ namespace amax {
       txid = sha256( buffer, tx_size );
    }
 
+   void xchain_owner::init(         const name& admin, 
+                        const name& oracle_maker, 
+                        const name& oracle_checker, 
+                        const asset& stake_net_quantity, 
+                        const asset& stake_cpu_quantity) {
+      CHECKC( has_auth(_self),  err::NO_AUTH, "no auth to operate" )      
+
+      CHECKC( is_account( admin ), err::ACCOUNT_INVALID, admin.to_string() + ": invalid account" )
+      CHECKC( is_account( oracle_maker ), err::ACCOUNT_INVALID, oracle_maker.to_string() + ": invalid account" )
+      CHECKC( is_account( oracle_checker ), err::ACCOUNT_INVALID, oracle_checker.to_string() + ": invalid account" )
+      _gstate.admin                 = admin;
+      _gstate.oracle_makers.insert( oracle_maker );
+      _gstate.oracle_checkers.insert( oracle_checker );
+      _gstate.stake_net_quantity    = stake_net_quantity;
+      _gstate.stake_cpu_quantity    = stake_cpu_quantity;
+
+   }
+
 }
