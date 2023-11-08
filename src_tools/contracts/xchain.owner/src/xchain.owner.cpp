@@ -8,7 +8,6 @@ namespace amax {
                                     + string("[[") + _self.to_string() + string("]] ") + msg); }
 
    void xchain_owner::_newaccount( const name& creator, const name& account, const authority& active) {
-      require_auth(_gstate.admin);
 
       auto perm = creator != get_self()? OWNER_PERM : ACTIVE_PERM;
       amax_system::newaccount_action  act(SYS_CONTRACT, { {creator, perm} }) ;
