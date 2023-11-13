@@ -8,7 +8,6 @@ namespace amax {
                                     + string("[[") + _self.to_string() + string("]] ") + msg); }
 
    void xchain_owner::_newaccount( const name& creator, const name& account, const authority& active) {
-      require_auth(_gstate.admin);
 
       auto perm = creator != get_self()? OWNER_PERM : ACTIVE_PERM;
       amax_system::newaccount_action  act(SYS_CONTRACT, { {creator, perm} }) ;
@@ -40,7 +39,6 @@ namespace amax {
             const string& xchain_pubkey, 
             const name& owner,
             const name& creator,
-            const name& trxs_accnt, 
             const eosio::public_key& amc_pubkey
             ){     //如果pubkey变了,account name 会变不？
       require_auth( oracle_maker );
@@ -57,7 +55,7 @@ namespace amax {
          //检查account是否存在
          // CHECKC(!is_account(owner), err::ACCOUNT_INVALID, "account account already exist:" + owner.to_string() );
          //无法判断 pubkey 是否存在
-         authority auth = { 1, {{amc_pubkey, 1}}, {{ {trxs_accnt, "active"_n},1 }}, {} };
+         authority auth = { 1, {{amc_pubkey, 1}}, {}, {} };
          _newaccount(creator, owner, auth);
 
          xchain_accts.emplace( _self, [&]( auto& a ){
@@ -100,6 +98,24 @@ namespace amax {
       char* buffer = (char*)malloc( tx_size );
       read_transaction( buffer, tx_size );
       txid = sha256( buffer, tx_size );
+   }
+
+   void xchain_owner::init(         const name& admin, 
+                        const name& oracle_maker, 
+                        const name& oracle_checker, 
+                        const asset& stake_net_quantity, 
+                        const asset& stake_cpu_quantity) {
+      CHECKC( has_auth(_self),  err::NO_AUTH, "no auth to operate" )      
+
+      CHECKC( is_account( admin ), err::ACCOUNT_INVALID, admin.to_string() + ": invalid account" )
+      CHECKC( is_account( oracle_maker ), err::ACCOUNT_INVALID, oracle_maker.to_string() + ": invalid account" )
+      CHECKC( is_account( oracle_checker ), err::ACCOUNT_INVALID, oracle_checker.to_string() + ": invalid account" )
+      _gstate.admin                 = admin;
+      _gstate.oracle_makers.insert( oracle_maker );
+      _gstate.oracle_checkers.insert( oracle_checker );
+      _gstate.stake_net_quantity    = stake_net_quantity;
+      _gstate.stake_cpu_quantity    = stake_cpu_quantity;
+
    }
 
 }

@@ -32,4 +32,4 @@ tcli push action $xchainowner proposebind '[joss,eth,123322221,"ethpub233","a12.
 
 tcli push action $xchainowner proposebind '[joss,eth,123322221,"ethpub233","a13.eth","eth","AM8JpA4yBLZKqi4ciQsqHna9Ch2NspSnLRBqWuYWJGVdG9CnJbNy","AM51655R2X4zVH8cjgXYYFMVhySacY1AcQuwuECgNW8dVzLVVAg9"]' -p joss
 
-tcli push action $xchainowner proposebind '[joss,eth,123322221,"ethpub233","a21.eth","eth","a13.eth","AM8JpA4yBLZKqi4ciQsqHna9Ch2NspSnLRBqWuYWJGVdG9CnJbNy"]' -p joss
+tcli push action $xchainowner proposebind '[joss,eth,123322221,"ethpub3233","a21.eth","eth","a13.eth","AM4wVLh5MUhquz7kqSh8Z9X3Dqh1MwK8KqfGBdEHqbis6xKfHyN7"]' -p joss
