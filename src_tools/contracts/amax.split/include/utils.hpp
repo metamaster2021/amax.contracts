@@ -17,6 +17,8 @@ using namespace std;
 #define PRINT_PROPERTIES(...) eosio::print("{", __VA_ARGS__, "}")
 
 #define CHECK(exp, msg) { if (!(exp)) eosio::check(false, msg); }
+#define CHECKC(exp, code, msg) \
+   { if (!(exp)) eosio::check(false, string("$$$") + to_string((int)code) + string("$$$ ") + msg); }
 
 #ifndef ASSERT
     #define ASSERT(exp) CHECK(exp, #exp)
