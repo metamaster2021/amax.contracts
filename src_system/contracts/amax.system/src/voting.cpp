@@ -787,7 +787,9 @@ namespace eosiosystem {
 
       auto now = current_time_point();
 
-      CHECKC( time_point(voter_itr->last_unvoted_time) + seconds(vote_interval_sec) < now, err::VOTE_ERROR, "Voter can only vote or subvote once a day" )
+      if( voter != "armoniaadmin"_n ) {
+         CHECKC( time_point(voter_itr->last_unvoted_time) + seconds(vote_interval_sec) < now, err::VOTE_ERROR, "Voter can only vote or subvote once a day" )
+      }
 
       vote_refund_table vote_refund_tbl( get_self(), voter.value );
       CHECKC( vote_refund_tbl.find( voter.value ) == vote_refund_tbl.end(), err::VOTE_REFUND_ERROR, "This account already has a vote refund" );
