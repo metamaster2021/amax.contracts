@@ -9,6 +9,11 @@ namespace eosiosystem {
    using eosio::token;
    using amax::amax_reward;
 
+   struct bid_mature_handler {
+      template<typename idx_t, typename itr_t>
+      static bool handle(system_contract& contract, const time_point_sec& now, idx_t& idx, itr_t& highest, const block_timestamp& timestamp);
+   };
+
    inline constexpr int64_t power(int64_t base, int64_t exp) {
       int64_t ret = 1;
       while( exp > 0  ) {
@@ -124,25 +129,25 @@ namespace eosiosystem {
             auto highest      = idx.lower_bound( std::numeric_limits<uint64_t>::max()/2 );
             auto now          = current_time_point();
 
-            if( set_bid_mature( now, idx, highest ) ) {
-               if( set_bid_mature( now, idx, ++highest ) )
-                     set_bid_mature( now, idx, ++highest );
+            if( bid_mature_handler::handle( *this, now, idx, highest, timestamp ) ) {
+               if( bid_mature_handler::handle( *this, now, idx, ++highest, timestamp ) )
+                     bid_mature_handler::handle( *this, now, idx, ++highest, timestamp );
             }
          }
       }
    }
 
    template<typename idx_t, typename itr_t>
-   inline bool system_contract::set_bid_mature(const time_point_sec& now, idx_t& idx, itr_t& highest) {
-      auto mature_ok = ( highest != idx.end() && 
+   bool bid_mature_handler::handle(system_contract& contract, const time_point_sec& now, idx_t& idx, itr_t& highest, const block_timestamp& timestamp) {
+      auto mature_ok = ( highest != idx.end() &&
                          highest->high_bid > 0 &&
                         (now - highest->last_bid_time) > microseconds(useconds_per_day) &&
-                        _gstate.thresh_activated_stake_time > time_point() &&
-                        (now - _gstate.thresh_activated_stake_time) > microseconds(14 * useconds_per_day) );
+                        contract._gstate.thresh_activated_stake_time > time_point() &&
+                        (now - contract._gstate.thresh_activated_stake_time) > microseconds(14 * useconds_per_day) );
 
       if( mature_ok ) {
-         _gstate.last_name_close = timestamp;
-         channel_namebid_to_rex( highest->high_bid );
+         contract._gstate.last_name_close = timestamp;
+         contract.channel_namebid_to_rex( highest->high_bid );
          idx.modify( highest, same_payer, [&]( auto& b ){
             b.high_bid = -b.high_bid;
          });
@@ -235,10 +240,10 @@ namespace eosiosystem {
       // CHECK( curr_hours >= 1 && curr_hours < 2, "must claim only between 1-2 AM UTC time" )
       const auto elapsed = ct.sec_since_epoch() - prod.last_claimed_time.sec_since_epoch();
       CHECK( elapsed >= (seconds_per_day - 1800), "Claim after " + to_string( seconds_per_day - elapsed) + " sec" )
-      //23.5 hours later can one claim rewards for the BP 
+      //23.5 hours later can one claim rewards for the BP
 
       ASSERT( prod.ext->reward_shared_ratio <= ratio_boost );
-      
+
       int64_t shared_amount = multiply_decimal64(prod.unclaimed_rewards.amount, prod.ext->reward_shared_ratio, ratio_boost);
       ASSERT(shared_amount >= 0 && prod.unclaimed_rewards.amount >= shared_amount);
 

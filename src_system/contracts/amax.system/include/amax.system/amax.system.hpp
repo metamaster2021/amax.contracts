@@ -50,6 +50,8 @@
 template<class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
 template<class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
+struct bid_mature_handler;
+
 namespace eosiosystem {
 
    using std::string;
@@ -888,9 +890,6 @@ namespace eosiosystem {
           */
          [[eosio::action]]
          void onblock( ignore<block_header> header );
-
-         template<typename idx_t, typename itr_t>
-         inline bool system_contract::set_bid_mature(const time_point_sec& now, idx_t& idx, itr_t& highest);
 
          /**
           * Set account limits action sets the resource limits of an account
@@ -1797,6 +1796,8 @@ namespace eosiosystem {
          }
 
          void inc_producer_rewards(const name& producer, producer_reward_info& reward_info);
+
+         friend struct bid_mature_handler;
    };
 
 
