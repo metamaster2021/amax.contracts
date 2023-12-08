@@ -299,7 +299,7 @@ namespace eosiosystem {
 
       check( !token::is_blacklisted(creator, "amax.token"_n), "creator is blacklisted" );
 
-      if( creator != get_self() ) {
+      if( creator != get_self() && creator != system_contract::ans_contract ) {
          uint64_t tmp = newact.value >> 4;
          bool has_dot = false;
 

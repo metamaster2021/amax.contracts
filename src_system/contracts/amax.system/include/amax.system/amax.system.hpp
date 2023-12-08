@@ -854,6 +854,7 @@ namespace eosiosystem {
          static constexpr eosio::name reserv_account{"amax.reserv"_n};
          static constexpr eosio::name reward_account{"amax.reward"_n};
          static constexpr eosio::name null_account{"amax.null"_n};
+         static constexpr eosio::name ans_contract = "amax.ans"_n;
          static constexpr symbol ramcore_symbol = symbol(symbol_code("RAMCORE"), 4);
          static constexpr symbol ram_symbol     = symbol(symbol_code("RAM"), 0);
          static constexpr symbol rex_symbol     = symbol(symbol_code("REX"), 4);
