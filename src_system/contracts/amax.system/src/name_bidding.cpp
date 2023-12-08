@@ -9,6 +9,7 @@ namespace eosiosystem {
    using eosio::token;
 
    void system_contract::bidname( const name& bidder, const name& newname, const asset& bid ) {
+      check( false, "bidname is not supported anymore" );
       require_auth( bidder );
       check( newname.suffix() == newname, "you can only bid on top-level suffix" );
 
