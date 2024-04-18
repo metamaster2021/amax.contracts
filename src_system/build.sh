@@ -10,7 +10,8 @@ function usage() {
    printf "Usage: $0 OPTION...
   -e DIR      Directory where AMAX is installed. (Default: $HOME/amax/X.Y)
   -c DIR      Directory where AMAX.CDT is installed. (Default: /usr/local/amax.cdt)
-  -i DIR      Directory to use for installing contraccts (default: ${INSTALL_LOCATION})
+  -i DIR      Directory to use for installing contraccts (Default: ${INSTALL_LOCATION})
+  -m TARGET   make target.(Default is empty)
   -t          Build unit tests.
   -y          Noninteractive mode (Uses defaults for each prompt.)
   -h          Print this help menu.
@@ -21,7 +22,7 @@ function usage() {
 BUILD_TESTS=false
 
 if [ $# -ne 0 ]; then
-  while getopts "e:c:i:tyh" opt; do
+  while getopts "e:c:i:m:tyh" opt; do
     case "${opt}" in
       e )
         AMAX_DIR_PROMPT=$OPTARG
@@ -31,6 +32,9 @@ if [ $# -ne 0 ]; then
       ;;
       i )
         INSTALL_LOCATION=$OPTARG
+      ;;
+      m )
+        MAKE_TARGET=$OPTARG
       ;;
       t )
         BUILD_TESTS=true
@@ -89,5 +93,5 @@ CPU_CORES=$(getconf _NPROCESSORS_ONLN)
 mkdir -p build
 pushd build &> /dev/null
 cmake -DBUILD_TESTS=${BUILD_TESTS} -DCMAKE_INSTALL_PREFIX="${INSTALL_LOCATION}" ../
-make -j $CPU_CORES
+make -j $CPU_CORES ${MAKE_TARGET}
 popd &> /dev/null
